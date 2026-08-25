@@ -1,26 +1,74 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --luma-purple: #6f6edc;
+  --luma-gold: #dda06d;
+  --luma-kahve: #945d3c;
+  --luma-bg: #f7f4f0;
+  --luma-text: #1c1917;
+  --luma-muted: #8b7d70;
+  --luma-purple-soft: #eeebfb;
+  --luma-gold-soft: #f8efe4;
+  --luma-green: #2f9e6b;
+  --luma-green-soft: #e8f6ef;
+  --luma-red: #c4473a;
+  --luma-card: #ffffff;
+  --luma-border: #ebe4dc;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-background: var(--luma-bg);
+  --color-foreground: var(--luma-text);
+  --color-luma: var(--luma-purple);
+  --color-luma-gold: var(--luma-gold);
+  --color-luma-kahve: var(--luma-kahve);
+  --color-luma-muted: var(--luma-muted);
+  --color-luma-soft: var(--luma-purple-soft);
+  --color-luma-gold-soft: var(--luma-gold-soft);
+  --color-luma-green: var(--luma-green);
+  --color-luma-green-soft: var(--luma-green-soft);
+  --color-luma-red: var(--luma-red);
+  --color-luma-card: var(--luma-card);
+  --color-luma-border: var(--luma-border);
+  --font-sans: var(--font-montserrat);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html {
+  height: -webkit-fill-available;
+  margin: 0;
+  padding: 0;
+  background-color: #fbf9f5;
+  overscroll-behavior-y: none;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
-  background: var(--background);
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
+  min-height: 100dvh;
+  margin: 0;
+  padding: 0;
+  background-color: #fbf9f5;
+  overscroll-behavior-y: none;
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-montserrat), ui-sans-serif, system-ui, sans-serif;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+input,
+textarea,
+select {
+  user-select: auto;
+  -webkit-user-select: auto;
+  font-size: 16px;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--luma-purple) 24%, white);
 }

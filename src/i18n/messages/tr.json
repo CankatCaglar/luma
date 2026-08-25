@@ -1,0 +1,165 @@
+{
+  "brand": {
+    "appName": "LUMA"
+  },
+  "nav": {
+    "home": "Ana Sayfa",
+    "notifications": "Bildirimler",
+    "account": "Hesabım"
+  },
+  "header": {
+    "brandSelector": "Marka seç",
+    "back": "Geri"
+  },
+  "dashboard": {
+    "greeting": "Merhaba, {brand}",
+    "title": "Dashboard",
+    "metrics": {
+      "pendingApproval": "Onay Bekleyen",
+      "pendingApprovalFooter": "aksiyon bekliyor",
+      "activeJobs": "Aktif İş",
+      "activeJobsFooter": "devam ediyor",
+      "completedThisMonth": "Bu Ay Tamamlanan",
+      "completedThisMonthFooter": "tamamlandı"
+    },
+    "approvals": {
+      "title": "Onay ve İncelemenize Hazır",
+      "seeAll": "Tümünü Gör",
+      "dueDate": "Son gün: {date}",
+      "badgePending": "Onay Bekliyor",
+      "badgeReview": "İnceleniyor"
+    },
+    "quickAccess": {
+      "title": "Hızlı Erişimler",
+      "newRequest": "Yeni Talep",
+      "newRequestSub": "Talep oluştur",
+      "plans": "İçerik Planları",
+      "plansSub": "Planlara ulaş",
+      "reports": "Raporlar",
+      "reportsSub": "Raporlara eriş",
+      "brandCenter": "Marka Merkezi",
+      "brandCenterSub": "Dosyalarınıza ulaş"
+    }
+  },
+  "jobs": {
+    "title": "İşler",
+    "empty": "Bu listede iş yok",
+    "delivery": "Teslim: {date}",
+    "dueDate": "Son gün: {date}",
+    "completedDate": "Tarih: {date}",
+    "kinds": {
+      "plan": "İçerik planı",
+      "website": "Web sitesi",
+      "video": "Video",
+      "ads": "Reklam",
+      "blog": "Blog",
+      "report": "Rapor",
+      "photo": "Fotoğraf",
+      "content": "İçerik",
+      "design": "Tasarım"
+    },
+    "active": {
+      "title": "Aktif İşler",
+      "subtitle": "Şu anda üzerinde çalıştığımız işler"
+    },
+    "pending": {
+      "title": "Onay Bekleyen İşler",
+      "subtitle": "Sizin onayınızı bekleyen işler"
+    },
+    "completed": {
+      "title": "Tamamlanan İşler",
+      "subtitle": "Bu ay tamamladığımız işler",
+      "subtitlePeriod": "Son {months} ayda tamamladığımız işler",
+      "empty": "Bu dönemde tamamlanan iş yok",
+      "period": "Dönem",
+      "period1": "Son 1 ay",
+      "period3": "Son 3 ay",
+      "period6": "Son 6 ay",
+      "period12": "Son 12 ay",
+      "export": "Rapor oluştur",
+      "exportCsv": "CSV indir",
+      "exportTxt": "Metin indir",
+      "reportTitle": "Tamamlanan işler",
+      "reportPeriod": "Dönem: {period}",
+      "reportGenerated": "Tarih: {date}"
+    }
+  },
+  "plans": {
+    "title": "İçerik Planları",
+    "subtitle": "Aylık içerik planlarınızı görüntüleyin ve onay süreçlerini takip edin.",
+    "view": "Görüntüle",
+    "current": "Güncel"
+  },
+  "reports": {
+    "title": "Raporlar",
+    "subtitle": "Geçmiş raporlarınızı görüntüleyin ve analizlerinize kolayca erişin.",
+    "view": "Görüntüle",
+    "new": "Yeni",
+    "kind": "Sosyal Medya Raporu"
+  },
+  "brandCenter": {
+    "title": "Marka Merkezi",
+    "subtitle": "Markanızla ilgili tüm dosya ve dokümanlara kolayca ulaşın.",
+    "logo": "Logo",
+    "logoFormats": "PNG, SVG, PDF",
+    "brief": "Brand Brief",
+    "briefDescription": "Strateji ve konumlandırma dokümanları",
+    "info": "Dosyaları görüntüleyebilir veya cihazınıza indirebilirsiniz."
+  },
+  "notifications": {
+    "title": "Bildirimler",
+    "subtitle": "Tüm önemli güncellemeler ve aksiyonlarınız burada görüntülenir.",
+    "empty": "Yeni bildiriminiz yok"
+  },
+  "account": {
+    "title": "Hesabım",
+    "userInfo": "Kullanıcı Bilgileri",
+    "name": "Ad Soyad",
+    "email": "E-posta",
+    "phone": "Telefon",
+    "accountBrand": "Hesap ve Marka",
+    "activeBrand": "Aktif Marka",
+    "settings": "Ayarlar",
+    "notificationPrefs": "Bildirim Tercihleri",
+    "notificationPrefsSub": "Hangi güncellemeleri alacağınızı seçin",
+    "password": "Şifre ve Güvenlik",
+    "passwordSub": "Şifrenizi ve oturum ayarlarınızı yönetin",
+    "language": "Dil",
+    "turkish": "Türkçe",
+    "english": "İngilizce",
+    "logout": "Çıkış Yap"
+  },
+  "request": {
+    "title": "Yeni Talep",
+    "subtitle": "İhtiyacınızı bize iletin, en kısa sürede dönüş yapalım.",
+    "type": "Talep Türü",
+    "typePlaceholder": "Talep türünü seçin",
+    "subject": "Başlık",
+    "subjectPlaceholder": "Talebiniz için kısa bir başlık girin",
+    "brief": "Brief",
+    "briefPlaceholder": "Talebinizi detaylı olarak açıklayın...",
+    "file": "Dosya / Referans",
+    "fileHint": "Talebinizle ilgili dosya veya referans ekleyin.",
+    "fileDrop": "Dosya yükleyin veya sürükleyip bırakın",
+    "fileTypes": "PDF, JPG, PNG, ZIP (Maks. 25 MB)",
+    "priority": "Öncelik",
+    "standard": "Standart",
+    "urgent": "Acil",
+    "submit": "Talebi Oluştur",
+    "types": {
+      "video": "Video",
+      "design": "Tasarım",
+      "content": "İçerik",
+      "ads": "Reklam",
+      "other": "Diğer"
+    }
+  },
+  "status": {
+    "pending_approval": "Onay Bekliyor",
+    "review": "İnceleniyor",
+    "revision": "Revizede",
+    "in_progress": "Devam Ediyor",
+    "completed": "Tamamlandı",
+    "approved": "Onaylandı"
+  }
+}

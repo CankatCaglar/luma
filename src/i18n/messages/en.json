@@ -1,0 +1,165 @@
+{
+  "brand": {
+    "appName": "LUMA"
+  },
+  "nav": {
+    "home": "Home",
+    "notifications": "Notifications",
+    "account": "Account"
+  },
+  "header": {
+    "brandSelector": "Select brand",
+    "back": "Back"
+  },
+  "dashboard": {
+    "greeting": "Hello, {brand}",
+    "title": "Dashboard",
+    "metrics": {
+      "pendingApproval": "Pending Approval",
+      "pendingApprovalFooter": "action needed",
+      "activeJobs": "Active Work",
+      "activeJobsFooter": "in progress",
+      "completedThisMonth": "Completed This Month",
+      "completedThisMonthFooter": "completed"
+    },
+    "approvals": {
+      "title": "Ready for Your Review",
+      "seeAll": "See All",
+      "dueDate": "Due: {date}",
+      "badgePending": "Pending Approval",
+      "badgeReview": "Under Review"
+    },
+    "quickAccess": {
+      "title": "Quick Access",
+      "newRequest": "New Request",
+      "newRequestSub": "Create request",
+      "plans": "Content Plans",
+      "plansSub": "Open plans",
+      "reports": "Reports",
+      "reportsSub": "Open reports",
+      "brandCenter": "Brand Center",
+      "brandCenterSub": "Open files"
+    }
+  },
+  "jobs": {
+    "title": "Jobs",
+    "empty": "No jobs in this list",
+    "delivery": "Due: {date}",
+    "dueDate": "Due: {date}",
+    "completedDate": "Date: {date}",
+    "kinds": {
+      "plan": "Content plan",
+      "website": "Website",
+      "video": "Video",
+      "ads": "Ads",
+      "blog": "Blog",
+      "report": "Report",
+      "photo": "Photo",
+      "content": "Content",
+      "design": "Design"
+    },
+    "active": {
+      "title": "Active Jobs",
+      "subtitle": "Work we are currently working on"
+    },
+    "pending": {
+      "title": "Jobs Pending Approval",
+      "subtitle": "Jobs waiting for your approval"
+    },
+    "completed": {
+      "title": "Completed Jobs",
+      "subtitle": "Work we completed this month",
+      "subtitlePeriod": "Work we completed in the last {months} months",
+      "empty": "No completed jobs in this period",
+      "period": "Period",
+      "period1": "Last 1 month",
+      "period3": "Last 3 months",
+      "period6": "Last 6 months",
+      "period12": "Last 12 months",
+      "export": "Create report",
+      "exportCsv": "Download CSV",
+      "exportTxt": "Download text",
+      "reportTitle": "Completed jobs",
+      "reportPeriod": "Period: {period}",
+      "reportGenerated": "Date: {date}"
+    }
+  },
+  "plans": {
+    "title": "Content Plans",
+    "subtitle": "View your monthly content plans and track approvals.",
+    "view": "View",
+    "current": "Current"
+  },
+  "reports": {
+    "title": "Reports",
+    "subtitle": "View your past reports and easily access your analytics.",
+    "view": "View",
+    "new": "New",
+    "kind": "Social Media Report"
+  },
+  "brandCenter": {
+    "title": "Brand Center",
+    "subtitle": "Easily access all files and documents related to your brand.",
+    "logo": "Logo",
+    "logoFormats": "PNG, SVG, PDF",
+    "brief": "Brand Brief",
+    "briefDescription": "Strategy and positioning documents",
+    "info": "You can view or download these files."
+  },
+  "notifications": {
+    "title": "Notifications",
+    "subtitle": "All important updates and actions appear here.",
+    "empty": "No new notifications"
+  },
+  "account": {
+    "title": "My Account",
+    "userInfo": "User Information",
+    "name": "Full name",
+    "email": "Email",
+    "phone": "Phone",
+    "accountBrand": "Account and Brand",
+    "activeBrand": "Active Brand",
+    "settings": "Settings",
+    "notificationPrefs": "Notification Preferences",
+    "notificationPrefsSub": "Choose which updates you receive",
+    "password": "Password and Security",
+    "passwordSub": "Manage your password and sessions",
+    "language": "Language",
+    "turkish": "Turkish",
+    "english": "English",
+    "logout": "Log out"
+  },
+  "request": {
+    "title": "New Request",
+    "subtitle": "Tell us what you need and we will get back to you shortly.",
+    "type": "Request type",
+    "typePlaceholder": "Select a request type",
+    "subject": "Title",
+    "subjectPlaceholder": "Enter a short title for your request",
+    "brief": "Brief",
+    "briefPlaceholder": "Describe your request in detail...",
+    "file": "File / Reference",
+    "fileHint": "Attach a file or reference related to your request.",
+    "fileDrop": "Upload a file or drag and drop",
+    "fileTypes": "PDF, JPG, PNG, ZIP (Max. 25 MB)",
+    "priority": "Priority",
+    "standard": "Standard",
+    "urgent": "Urgent",
+    "submit": "Create Request",
+    "types": {
+      "video": "Video",
+      "design": "Design",
+      "content": "Content",
+      "ads": "Ads",
+      "other": "Other"
+    }
+  },
+  "status": {
+    "pending_approval": "Pending Approval",
+    "review": "Under Review",
+    "revision": "In Revision",
+    "in_progress": "In Progress",
+    "completed": "Completed",
+    "approved": "Approved"
+  }
+}
