@@ -4,7 +4,7 @@ const nextConfig: NextConfig = {
   devIndicators: false,
   experimental: {
     staleTimes: {
-      dynamic: 60,
+      dynamic: 0,
       static: 180,
     },
   },

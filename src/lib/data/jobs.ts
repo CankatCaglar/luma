@@ -1,5 +1,6 @@
 import { cache } from "react";
-import { unstable_cache } from "next/cache";
+import { headers } from "next/headers";
+import { unstable_noStore as noStore } from "next/cache";
 import {
   AsanaApiError,
   getTaskResources,
@@ -104,8 +105,7 @@ function mockJobLists(): JobLists {
   };
 }
 
-const JOBS_FRESH_MS =
-  process.env.NODE_ENV === "production" ? 2 * 60_000 : 45_000;
+const JOBS_FRESH_MS = 20_000;
 
 let jobsCache: { fetchedAt: number; data: JobLists } | null = null;
 let inflight: Promise<JobLists> | null = null;
@@ -137,19 +137,9 @@ async function fetchJobLists(): Promise<JobLists> {
   return listsFromJobs(jobs, "asana", new Date());
 }
 
-const fetchCachedJobLists = unstable_cache(
-  async () => fetchJobLists(),
-  ["asana-job-lists"],
-  { revalidate: 120 },
-);
-
 function refreshJobLists(): Promise<JobLists> {
   if (!inflight) {
-    const run =
-      process.env.NODE_ENV === "production"
-        ? fetchCachedJobLists()
-        : fetchJobLists();
-    inflight = run
+    inflight = fetchJobLists()
       .then((data) => {
         jobsCache = { fetchedAt: Date.now(), data };
         return data;
@@ -171,23 +161,37 @@ function logAsanaError(error: unknown, label: string) {
   console.error(`[asana] ${label}: ${message}`);
 }
 
+async function shouldBypassJobsCache(): Promise<boolean> {
+  try {
+    const requestHeaders = await headers();
+    const cacheControl = requestHeaders.get("cache-control") ?? "";
+    const pragma = requestHeaders.get("pragma") ?? "";
+    return /no-cache|max-age=0/i.test(`${cacheControl} ${pragma}`);
+  } catch {
+    return false;
+  }
+}
+
 async function loadJobLists(): Promise<JobLists> {
+  noStore();
+
   if (!isAsanaConfigured()) {
     return mockJobLists();
   }
 
-  if (jobsCache) {
-    if (Date.now() - jobsCache.fetchedAt >= JOBS_FRESH_MS) {
-      void refreshJobLists().catch((error) => {
-        logAsanaError(error, "background refresh failed");
-      });
-    }
+  const bypassCache = await shouldBypassJobsCache();
+  if (
+    !bypassCache &&
+    jobsCache &&
+    Date.now() - jobsCache.fetchedAt < JOBS_FRESH_MS
+  ) {
     return jobsCache.data;
   }
 
   try {
     return await refreshJobLists();
   } catch (error) {
+    if (jobsCache) return jobsCache.data;
     logAsanaError(error, "falling back to mock");
     return mockJobLists();
   }
