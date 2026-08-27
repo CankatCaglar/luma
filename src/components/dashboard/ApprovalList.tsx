@@ -3,12 +3,12 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Calendar, ChevronRight, FileText } from "lucide-react";
-import { approvalItems } from "@/data/mock";
 import { useI18n } from "@/components/i18n/I18nProvider";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { formatDueDate } from "@/lib/format";
+import type { ApprovalItem } from "@/types";
 
-export function ApprovalList() {
+export function ApprovalList({ items }: { items: ApprovalItem[] }) {
   const { t, locale } = useI18n();
 
   return (
@@ -25,7 +25,12 @@ export function ApprovalList() {
         </Link>
       </div>
       <div className="space-y-2.5">
-        {approvalItems.map((item) => (
+        {items.length === 0 ? (
+          <p className="rounded-2xl bg-luma-card px-4 py-8 text-center text-sm text-luma-muted ring-1 ring-luma-border/80">
+            {t("jobs.empty")}
+          </p>
+        ) : null}
+        {items.map((item) => (
           <Link
             key={item.id}
             href={item.href}

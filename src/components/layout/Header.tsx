@@ -25,6 +25,7 @@ export function Header() {
       {backTitleKey ? (
         <Link
           href="/"
+          prefetch={false}
           className="flex h-9 w-9 select-none items-center justify-center text-foreground transition-transform duration-150 ease-out active:scale-[0.97]"
           aria-label={t("header.back")}
         >
@@ -33,6 +34,7 @@ export function Header() {
       ) : (
         <Link
           href="/"
+          prefetch={false}
           className="flex select-none items-center transition-transform duration-150 ease-out active:scale-[0.97]"
           aria-label={t("brand.appName")}
         >

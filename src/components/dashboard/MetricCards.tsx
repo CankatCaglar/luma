@@ -2,17 +2,17 @@
 
 import Link from "next/link";
 import { Briefcase, CheckCircle2, CircleCheck } from "lucide-react";
-import { dashboardMetrics } from "@/data/mock";
 import { useI18n } from "@/components/i18n/I18nProvider";
+import type { DashboardMetrics } from "@/types";
 
-export function MetricCards() {
+export function MetricCards({ metrics }: { metrics: DashboardMetrics }) {
   const { t } = useI18n();
 
   const cards = [
     {
       href: "/isler/onay",
       label: t("dashboard.metrics.pendingApproval"),
-      value: dashboardMetrics.pendingApproval,
+      value: metrics.pendingApproval,
       footer: t("dashboard.metrics.pendingApprovalFooter"),
       icon: CircleCheck,
       wrap: "bg-gradient-to-b from-[#f4f2fc] to-luma-soft",
@@ -22,7 +22,7 @@ export function MetricCards() {
     {
       href: "/isler/aktif",
       label: t("dashboard.metrics.activeJobs"),
-      value: dashboardMetrics.activeJobs,
+      value: metrics.activeJobs,
       footer: t("dashboard.metrics.activeJobsFooter"),
       icon: Briefcase,
       wrap: "bg-gradient-to-b from-[#fcf6ee] to-luma-gold-soft",
@@ -32,7 +32,7 @@ export function MetricCards() {
     {
       href: "/isler/tamamlanan",
       label: t("dashboard.metrics.completedThisMonth"),
-      value: dashboardMetrics.completedThisMonth,
+      value: metrics.completedThisMonth,
       footer: t("dashboard.metrics.completedThisMonthFooter"),
       icon: CheckCircle2,
       wrap: "bg-gradient-to-b from-[#f1faf5] to-luma-green-soft",

@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, FileDown } from "lucide-react";
-import { completedJobs, currentBrand } from "@/data/mock";
 import { JobList } from "@/components/jobs/JobList";
 import { jobKindKeys } from "@/components/jobs/jobMeta";
 import { useI18n } from "@/components/i18n/I18nProvider";
@@ -13,9 +12,9 @@ import {
   reportFilename,
 } from "@/lib/completedReport";
 import { formatDueDate } from "@/lib/format";
-import { isWithinLastMonths, PERIOD_OPTIONS, REFERENCE_NOW } from "@/lib/period";
+import { isWithinLastMonths, PERIOD_OPTIONS } from "@/lib/period";
 import { cn } from "@/lib/cn";
-import type { PeriodMonths } from "@/types";
+import type { Brand, Job, PeriodMonths } from "@/types";
 import type { MessageKey } from "@/i18n";
 
 const periodKeys: Record<PeriodMonths, MessageKey> = {
@@ -25,8 +24,17 @@ const periodKeys: Record<PeriodMonths, MessageKey> = {
   12: "jobs.completed.period12",
 };
 
-export function CompletedJobsPage() {
+export function CompletedJobsPage({
+  jobs,
+  brand,
+  referenceNowIso,
+}: {
+  jobs: Job[];
+  brand: Brand;
+  referenceNowIso: string;
+}) {
   const { t, locale } = useI18n();
+  const now = useMemo(() => new Date(referenceNowIso), [referenceNowIso]);
   const [months, setMonths] = useState<PeriodMonths>(1);
   const [periodOpen, setPeriodOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
@@ -45,10 +53,11 @@ export function CompletedJobsPage() {
 
   const visible = useMemo(
     () =>
-      completedJobs.filter(
-        (job) => job.completedAt && isWithinLastMonths(job.completedAt, months),
+      jobs.filter(
+        (job) =>
+          job.completedAt && isWithinLastMonths(job.completedAt, months, now),
       ),
-    [months],
+    [jobs, months, now],
   );
 
   const subtitle =
@@ -64,12 +73,12 @@ export function CompletedJobsPage() {
   function exportCsv() {
     const csv = buildCompletedCsv(
       visible,
-      currentBrand.name,
+      brand.name,
       (kind) => t(jobKindKeys[kind]),
       locale,
     );
     downloadTextFile(
-      reportFilename(currentBrand.id, months, "csv"),
+      reportFilename(brand.id, months, "csv"),
       csv,
       "text/csv;charset=utf-8",
     );
@@ -79,18 +88,18 @@ export function CompletedJobsPage() {
   function exportTxt() {
     const txt = buildCompletedTxt({
       jobs: visible,
-      brandName: currentBrand.name,
+      brandName: brand.name,
       periodLabel: t("jobs.completed.reportPeriod", {
         period: t(periodKeys[months]),
       }),
       generatedLabel: t("jobs.completed.reportGenerated", {
-        date: formatDueDate(REFERENCE_NOW.toISOString().slice(0, 10), locale),
+        date: formatDueDate(now.toISOString().slice(0, 10), locale),
       }),
       title: t("jobs.completed.reportTitle"),
       locale,
     });
     downloadTextFile(
-      reportFilename(currentBrand.id, months, "txt"),
+      reportFilename(brand.id, months, "txt"),
       txt,
       "text/plain;charset=utf-8",
     );

@@ -1,16 +1,14 @@
-"use client";
+import { JobListScreen } from "@/components/jobs/JobListScreen";
+import { getJobLists } from "@/lib/data/jobs";
 
-import { JobList } from "@/components/jobs/JobList";
-import { pendingJobs } from "@/data/mock";
-import { useI18n } from "@/components/i18n/I18nProvider";
-
-export default function OnayIslerPage() {
-  const { t } = useI18n();
+export default async function OnayIslerPage() {
+  const { pendingJobs } = await getJobLists();
 
   return (
-    <div>
-      <p className="mb-4 text-sm text-luma-kahve">{t("jobs.pending.subtitle")}</p>
-      <JobList jobs={pendingJobs} emptyLabel={t("jobs.empty")} dateKind="due" />
-    </div>
+    <JobListScreen
+      jobs={pendingJobs}
+      subtitleKey="jobs.pending.subtitle"
+      dateKind="due"
+    />
   );
 }

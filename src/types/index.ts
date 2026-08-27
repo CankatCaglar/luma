@@ -51,7 +51,7 @@ export type UserProfile = {
 export type ApprovalItem = {
   id: string;
   title: string;
-  kind: ApprovalKind;
+  kind: JobKind;
   status: Extract<JobStatus, "pending_approval" | "review">;
   dueDate: string;
   href: string;

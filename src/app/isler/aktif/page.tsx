@@ -1,16 +1,14 @@
-"use client";
+import { JobListScreen } from "@/components/jobs/JobListScreen";
+import { getJobLists } from "@/lib/data/jobs";
 
-import { JobList } from "@/components/jobs/JobList";
-import { activeJobs } from "@/data/mock";
-import { useI18n } from "@/components/i18n/I18nProvider";
-
-export default function AktifIslerPage() {
-  const { t } = useI18n();
+export default async function AktifIslerPage() {
+  const { activeJobs } = await getJobLists();
 
   return (
-    <div>
-      <p className="mb-4 text-sm text-luma-kahve">{t("jobs.active.subtitle")}</p>
-      <JobList jobs={activeJobs} emptyLabel={t("jobs.empty")} dateKind="delivery" />
-    </div>
+    <JobListScreen
+      jobs={activeJobs}
+      subtitleKey="jobs.active.subtitle"
+      dateKind="delivery"
+    />
   );
 }
