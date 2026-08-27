@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Montserrat } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import { AppShell } from "@/components/layout/AppShell";
 import { I18nProvider } from "@/components/i18n/I18nProvider";
 import "./globals.css";
@@ -57,6 +58,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <I18nProvider>
           <AppShell>{children}</AppShell>
         </I18nProvider>
+        <Analytics />
       </body>
     </html>
   );

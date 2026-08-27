@@ -1,6 +1,8 @@
 import { JobListScreen } from "@/components/jobs/JobListScreen";
 import { getJobLists } from "@/lib/data/jobs";
 
+export const revalidate = 300;
+
 export default async function OnayIslerPage() {
   const { pendingJobs } = await getJobLists();
 

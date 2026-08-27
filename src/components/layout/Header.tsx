@@ -3,11 +3,12 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useRef } from "react";
-import { ChevronDown, ChevronLeft } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ChevronDown, ChevronLeft, LogOut } from "lucide-react";
 import { currentBrand, currentUser } from "@/data/mock";
 import { useI18n } from "@/components/i18n/I18nProvider";
 import { LumaLogo } from "@/components/layout/NeraLogo";
+import { cn } from "@/lib/cn";
 import type { MessageKey } from "@/i18n";
 
 type BackRoute = {
@@ -93,6 +94,77 @@ function BackButton({
   );
 }
 
+function ProfileMenu() {
+  const { t } = useI18n();
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setOpen(false);
+    }
+
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [open]);
+
+  return (
+    <div className="relative shrink-0">
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-haspopup="menu"
+        onClick={() => setOpen((value) => !value)}
+        className="flex select-none items-center gap-1.5 transition-transform duration-150 ease-out active:scale-[0.97]"
+        aria-label={t("header.profileMenu")}
+      >
+        <Image
+          src={currentUser.avatarUrl}
+          alt={currentBrand.name}
+          width={36}
+          height={36}
+          priority
+          unoptimized
+          className="h-9 w-9 rounded-full bg-luma-soft object-cover ring-2 ring-white"
+        />
+        <ChevronDown
+          className={cn(
+            "h-4 w-4 text-luma transition-transform duration-150",
+            open && "rotate-180",
+          )}
+          strokeWidth={2}
+        />
+      </button>
+      {open ? (
+        <>
+          <button
+            type="button"
+            tabIndex={-1}
+            aria-label={t("header.closeMenu")}
+            className="fixed inset-0 z-40 cursor-default bg-transparent"
+            onClick={() => setOpen(false)}
+          />
+          <div
+            role="menu"
+            className="absolute right-0 top-[calc(100%+10px)] z-50 w-48 overflow-hidden rounded-2xl bg-white py-1 shadow-[0_12px_40px_rgba(28,25,23,0.12)] ring-1 ring-luma-border"
+          >
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => setOpen(false)}
+              className="flex w-full select-none items-center gap-2.5 px-3.5 py-2.5 text-left text-sm font-semibold text-luma-red transition-colors hover:bg-red-50"
+            >
+              <LogOut className="h-4 w-4" strokeWidth={1.9} />
+              {t("account.logout")}
+            </button>
+          </div>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
 export function Header() {
   const { t } = useI18n();
   const pathname = usePathname();
@@ -103,7 +175,7 @@ export function Header() {
   const back = backRoutes.find((route) => route.match(pathname));
 
   return (
-    <header className="sticky top-0 z-40 flex items-center justify-between border-b border-black/[0.03] bg-[#FBF9F5]/90 px-4 pb-3 pt-[max(12px,env(safe-area-inset-top))] backdrop-blur-md">
+    <header className="sticky top-0 z-40 flex items-center justify-between bg-[#FBF9F5]/90 px-4 pb-3 pt-[max(12px,env(safe-area-inset-top))] backdrop-blur-md">
       {back ? (
         <BackButton
           fallbackHref={back.href}
@@ -113,7 +185,6 @@ export function Header() {
       ) : (
         <Link
           href="/"
-          prefetch={false}
           className="flex select-none items-center transition-transform duration-150 ease-out active:scale-[0.97]"
           aria-label={t("brand.appName")}
         >
@@ -127,22 +198,7 @@ export function Header() {
         </h1>
       ) : null}
 
-      <Link
-        href="/hesabim"
-        className="flex shrink-0 select-none items-center gap-1.5 transition-transform duration-150 ease-out active:scale-[0.97]"
-        aria-label={t("header.brandSelector")}
-      >
-        <Image
-          src={currentUser.avatarUrl}
-          alt={currentBrand.name}
-          width={36}
-          height={36}
-          priority
-          unoptimized
-          className="h-9 w-9 rounded-full bg-luma-soft object-cover ring-2 ring-white"
-        />
-        <ChevronDown className="h-4 w-4 text-luma" strokeWidth={2} />
-      </Link>
+      <ProfileMenu />
     </header>
   );
 }

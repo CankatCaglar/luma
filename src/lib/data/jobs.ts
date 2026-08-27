@@ -1,4 +1,5 @@
 import { cache } from "react";
+import { unstable_cache } from "next/cache";
 import { AsanaApiError, getTasksForProjects } from "@/lib/asana/client";
 import { getAsanaEnv, isAsanaConfigured } from "@/lib/asana/config";
 import {
@@ -118,9 +119,15 @@ async function fetchJobLists(): Promise<JobLists> {
   return listsFromJobs(jobs, "asana", new Date());
 }
 
+const fetchCachedJobLists = unstable_cache(
+  async () => fetchJobLists(),
+  ["asana-job-lists"],
+  { revalidate: 300 },
+);
+
 function refreshJobLists(): Promise<JobLists> {
   if (!inflight) {
-    inflight = fetchJobLists()
+    inflight = fetchCachedJobLists()
       .then((data) => {
         jobsCache = { fetchedAt: Date.now(), data };
         return data;

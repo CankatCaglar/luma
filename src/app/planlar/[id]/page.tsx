@@ -4,6 +4,7 @@ import { PlanDetail } from "@/components/plans/PlanDetail";
 import { getJobLists } from "@/lib/data/jobs";
 
 export const metadata: Metadata = { title: "İçerik Planı" };
+export const revalidate = 300;
 
 export default async function PlanDetailPage({
   params,

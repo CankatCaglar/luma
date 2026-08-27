@@ -43,7 +43,6 @@ export function BottomNav() {
             <Link
               key={item.href}
               href={item.href}
-              prefetch={item.href === "/" ? false : undefined}
               className={cn(
                 "relative flex select-none flex-col items-center gap-1 text-[11px] font-medium transition-transform duration-150 ease-out active:scale-[0.97]",
                 active ? "text-luma" : "text-luma-muted",

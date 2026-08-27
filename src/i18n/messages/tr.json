@@ -8,7 +8,8 @@
     "account": "Hesabım"
   },
   "header": {
-    "brandSelector": "Marka seç",
+    "profileMenu": "Hesap menüsü",
+    "closeMenu": "Kapat",
     "back": "Geri"
   },
   "dashboard": {

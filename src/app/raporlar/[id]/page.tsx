@@ -4,6 +4,7 @@ import { ReportDetail } from "@/components/reports/ReportDetail";
 import { getJobLists } from "@/lib/data/jobs";
 
 export const metadata: Metadata = { title: "Rapor" };
+export const revalidate = 300;
 
 export default async function ReportDetailPage({
   params,
