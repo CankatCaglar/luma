@@ -1,4 +1,6 @@
 import {
+  HIDE_NAME_PREFIX,
+  HIDE_TAG_NAMES,
   KIND_ALIASES,
   KIND_FIELD_NAMES,
   STATUS_ALIASES,
@@ -6,10 +8,54 @@ import {
   getAsanaEnv,
   isJobKind,
 } from "@/lib/asana/config";
-import type { AsanaCustomField, AsanaTask } from "@/lib/asana/types";
-import type { ApprovalItem, Job, JobKind, JobStatus } from "@/types";
+import type {
+  AsanaAttachment,
+  AsanaCustomField,
+  AsanaTag,
+  AsanaTask,
+} from "@/lib/asana/types";
+import type { ApprovalItem, Job, JobKind, JobStatus, JobTag } from "@/types";
 
 const IMAGE_NAME = /\.(avif|gif|jpe?g|png|svg|webp)$/i;
+
+const MONTH_INDEX: Record<string, number> = {
+  ocak: 1,
+  january: 1,
+  jan: 1,
+  subat: 2,
+  february: 2,
+  feb: 2,
+  mart: 3,
+  march: 3,
+  mar: 3,
+  nisan: 4,
+  april: 4,
+  apr: 4,
+  mayis: 5,
+  may: 5,
+  haziran: 6,
+  june: 6,
+  jun: 6,
+  temmuz: 7,
+  july: 7,
+  jul: 7,
+  agustos: 8,
+  august: 8,
+  aug: 8,
+  eylul: 9,
+  september: 9,
+  sep: 9,
+  sept: 9,
+  ekim: 10,
+  october: 10,
+  oct: 10,
+  kasim: 11,
+  november: 11,
+  nov: 11,
+  aralik: 12,
+  december: 12,
+  dec: 12,
+};
 
 export function foldLabel(value: string): string {
   return value
@@ -19,6 +65,156 @@ export function foldLabel(value: string): string {
     .replace(/\p{M}/gu, "")
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+export function displayTaskTitle(name: string, brandCode: string): string {
+  let title = name.trim().replace(/^\*+\s*/, "");
+  const code = brandCode.trim();
+  if (code) {
+    title = title.replace(new RegExp(escapeRegExp(code), "ig"), " ");
+  }
+  title = title
+    .replace(/[\[\](){}]/g, " ")
+    .replace(/[\s]*[-–—|:·]+[\s]*/g, " ")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+  title = title
+    .replace(/^(?:\d+(?:[.,]\d+)?\s*(?:dk|sa|saat)\s*(?:\+\s*)?)+/i, "")
+    .trim();
+  return title;
+}
+
+export function isHiddenTask(task: AsanaTask): boolean {
+  const name = task.name.trim();
+  if (name.startsWith(HIDE_NAME_PREFIX)) return true;
+
+  return (task.tags ?? []).some((tag) => {
+    const folded = foldLabel(tag.name);
+    if (!folded) return false;
+    if (tag.name.trim().startsWith(HIDE_NAME_PREFIX)) return true;
+    return HIDE_TAG_NAMES.some((alias) => foldLabel(alias) === folded);
+  });
+}
+
+function isInternalTag(tag: AsanaTag, brandCode: string): boolean {
+  const folded = foldLabel(tag.name);
+  if (!folded) return true;
+  if (tag.name.trim().startsWith(HIDE_NAME_PREFIX)) return true;
+  if (HIDE_TAG_NAMES.some((alias) => foldLabel(alias) === folded)) return true;
+  if (brandCode && folded === foldLabel(brandCode)) return true;
+  return false;
+}
+
+export function mapTaskTags(task: AsanaTask, brandCode: string): JobTag[] {
+  const seen = new Set<string>();
+  const tags: JobTag[] = [];
+  for (const tag of task.tags ?? []) {
+    const name = tag.name.trim();
+    if (!name || isInternalTag(tag, brandCode)) continue;
+    const key = foldLabel(name);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    tags.push({
+      id: tag.gid,
+      name,
+      color: tag.color?.trim() || undefined,
+    });
+  }
+  return tags;
+}
+
+export function parseMonthKey(title: string, fallbackIsoDate: string): string {
+  const folded = foldLabel(title);
+  const yearMatch = folded.match(/\b(20\d{2})\b/);
+  const fallbackYear = fallbackIsoDate.slice(0, 4);
+  const fallbackMonth = fallbackIsoDate.slice(5, 7);
+  const year = yearMatch?.[1] ?? (fallbackYear || String(new Date().getFullYear()));
+
+  const tokens = folded.split(" ").filter(Boolean);
+  for (const token of tokens) {
+    const month = MONTH_INDEX[token];
+    if (month) return `${year}-${String(month).padStart(2, "0")}`;
+  }
+
+  if (fallbackYear && fallbackMonth) return `${fallbackYear}-${fallbackMonth}`;
+  return `${year}-01`;
+}
+
+export function catalogId(kind: "plan" | "report", month: string): string {
+  return `${kind}-${month}`;
+}
+
+function unwrapGoogleRedirect(url: string): string {
+  try {
+    const parsed = new URL(url);
+    const nested = parsed.searchParams.get("q");
+    if (nested?.startsWith("http") && parsed.hostname.endsWith("google.com")) {
+      return nested;
+    }
+    return url;
+  } catch {
+    return url;
+  }
+}
+
+export function toViewerUrl(url: string): string {
+  try {
+    const parsed = new URL(url);
+    const workspace = parsed.pathname.match(
+      /^\/(presentation|document|spreadsheets)\/d\/([^/]+)/,
+    );
+    if (workspace) {
+      parsed.pathname = `/${workspace[1]}/d/${workspace[2]}/preview`;
+      parsed.search = "";
+      parsed.hash = "";
+      return parsed.toString();
+    }
+
+    const driveFile = parsed.pathname.match(/^\/file\/d\/([^/]+)/);
+    if (driveFile) {
+      parsed.pathname = `/file/d/${driveFile[1]}/view`;
+      parsed.search = parsed.searchParams.get("usp")
+        ? `?usp=${parsed.searchParams.get("usp")}`
+        : "";
+      parsed.hash = "";
+      return parsed.toString();
+    }
+
+    return url;
+  } catch {
+    return url;
+  }
+}
+
+function isGoogleResource(url: string): boolean {
+  return /(?:drive|docs|slides)\.google\.com/i.test(url);
+}
+
+export function extractResourceUrl(
+  htmlNotes?: string,
+  attachments?: AsanaAttachment[],
+): string | undefined {
+  const fromAttachment = attachments?.find((attachment) => {
+    const host = attachment.host?.toLowerCase();
+    const url = `${attachment.view_url ?? ""} ${attachment.download_url ?? ""}`;
+    return host === "gdrive" || isGoogleResource(url);
+  });
+  if (fromAttachment?.view_url) return toViewerUrl(fromAttachment.view_url);
+
+  if (!htmlNotes) return undefined;
+
+  const decoded = htmlNotes.replaceAll("&amp;", "&").replaceAll("&quot;", '"');
+  const matches = decoded.match(/https?:\/\/[^\s"'<>]+/g) ?? [];
+  for (const raw of matches) {
+    const cleaned = unwrapGoogleRedirect(raw.replace(/[),.;]+$/, ""));
+    if (isGoogleResource(cleaned)) return toViewerUrl(cleaned);
+  }
+
+  return undefined;
 }
 
 function matchStatus(label: string | undefined): JobStatus | undefined {
@@ -109,9 +305,9 @@ function thumbnailUrl(task: AsanaTask): string | undefined {
   return image?.view_url ?? image?.download_url ?? undefined;
 }
 
-function jobHref(status: JobStatus, kind: JobKind): string {
-  if (kind === "plan") return "/planlar";
-  if (kind === "report") return "/raporlar";
+function jobHref(status: JobStatus, kind: JobKind, month: string): string {
+  if (kind === "plan") return `/planlar/${catalogId("plan", month)}`;
+  if (kind === "report") return `/raporlar/${catalogId("report", month)}`;
   if (status === "pending_approval" || status === "review") return "/isler/onay";
   if (status === "completed") return "/isler/tamamlanan";
   return "/isler/aktif";
@@ -164,13 +360,17 @@ export function mapTaskKind(task: AsanaTask): JobKind {
   return "content";
 }
 
+function hasBrandCode(task: AsanaTask, code: string): boolean {
+  if (foldLabel(task.name).includes(code)) return true;
+  return (task.tags ?? []).some((tag) => foldLabel(tag.name).includes(code));
+}
+
 export function isBrandTask(task: AsanaTask, brandCode: string): boolean {
   const code = foldLabel(brandCode);
   if (!code) return false;
-  const foldedName = foldLabel(task.name);
-  if (!foldedName.includes(code)) return false;
-  if (/\bcore$/.test(foldedName)) return false;
-  return true;
+  if (isHiddenTask(task)) return false;
+  if (/\bcore$/.test(foldLabel(task.name))) return false;
+  return hasBrandCode(task, code);
 }
 
 export function mapTaskToJob(
@@ -178,6 +378,12 @@ export function mapTaskToJob(
   projectGid?: string,
 ): Job | null {
   if (task.resource_subtype === "milestone") return null;
+  if (isHiddenTask(task)) return null;
+
+  const env = getAsanaEnv();
+  const brandCode = env.brandCode ?? "";
+  const title = displayTaskTitle(task.name, brandCode);
+  if (!title || foldLabel(title) === foldLabel(brandCode)) return null;
 
   const status = mapTaskStatus(task, projectGid);
   const kind = mapTaskKind(task);
@@ -189,16 +395,20 @@ export function mapTaskToJob(
       : undefined;
   const dueDate =
     toDateOnly(task.due_on) ?? completedAt ?? toDateOnly(task.created_at) ?? "";
+  const month = parseMonthKey(title, dueDate);
+  const resourceUrl = extractResourceUrl(task.html_notes, task.attachments);
 
   return {
     id: task.gid,
-    title: task.name.trim() || "Untitled",
+    title,
     status,
     kind,
     dueDate,
     completedAt,
-    href: jobHref(status, kind),
+    href: jobHref(status, kind, month),
     thumbnailUrl: thumbnailUrl(task),
+    resourceUrl,
+    tags: mapTaskTags(task, brandCode),
   };
 }
 
@@ -216,5 +426,6 @@ export function mapJobsToApprovalItems(jobs: Job[]): ApprovalItem[] {
       dueDate: job.dueDate,
       href: job.href,
       thumbnailUrl: job.thumbnailUrl,
+      tags: job.tags,
     }));
 }

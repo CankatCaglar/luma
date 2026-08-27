@@ -55,7 +55,7 @@ export const jobs: Job[] = [
     status: "in_progress",
     kind: "plan",
     dueDate: "2026-08-21",
-    href: "/planlar",
+    href: "/planlar/plan-2026-09",
   },
   {
     id: "job-video-revision",
@@ -80,7 +80,7 @@ export const jobs: Job[] = [
     status: "review",
     kind: "plan",
     dueDate: "2026-08-20",
-    href: "/planlar",
+    href: "/planlar/plan-2026-09",
   },
   {
     id: "job-done-aug-plan",
@@ -89,7 +89,7 @@ export const jobs: Job[] = [
     kind: "plan",
     dueDate: "2026-08-20",
     completedAt: "2026-08-20",
-    href: "/planlar",
+    href: "/planlar/plan-2026-08",
   },
   {
     id: "job-done-aug-report",
@@ -98,7 +98,7 @@ export const jobs: Job[] = [
     kind: "report",
     dueDate: "2026-08-18",
     completedAt: "2026-08-18",
-    href: "/raporlar",
+    href: "/raporlar/report-2026-08",
   },
   {
     id: "job-done-aug-cover",
@@ -107,7 +107,7 @@ export const jobs: Job[] = [
     kind: "design",
     dueDate: "2026-08-15",
     completedAt: "2026-08-15",
-    href: "/raporlar",
+    href: "/raporlar/report-2026-08",
   },
   {
     id: "job-done-aug-photo",
@@ -134,7 +134,7 @@ export const jobs: Job[] = [
     kind: "plan",
     dueDate: "2026-07-20",
     completedAt: "2026-07-20",
-    href: "/planlar",
+    href: "/planlar/plan-2026-07",
   },
   {
     id: "job-done-jul-campaign",
@@ -152,7 +152,7 @@ export const jobs: Job[] = [
     kind: "report",
     dueDate: "2026-06-30",
     completedAt: "2026-06-28",
-    href: "/raporlar",
+    href: "/raporlar/report-2026-06",
   },
   {
     id: "job-done-apr-site",
@@ -190,7 +190,7 @@ export const approvalItems: ApprovalItem[] = [
     kind: "plan",
     status: "review",
     dueDate: "2026-08-20",
-    href: "/planlar",
+    href: "/planlar/plan-2026-09",
   },
 ];
 
@@ -213,24 +213,24 @@ export const dashboardMetrics: DashboardMetrics = {
 
 export const contentPlans: ContentPlan[] = [
   {
-    id: "plan-sep-2026",
+    id: "plan-2026-09",
     month: "2026-09",
-    title: "Eylül 2026",
+    title: "Eylül İçerik Planı",
     slidesUrl: "https://docs.google.com/presentation/d/example-sep",
     status: "review",
     isCurrent: true,
   },
   {
-    id: "plan-aug-2026",
+    id: "plan-2026-08",
     month: "2026-08",
-    title: "Ağustos 2026",
+    title: "Ağustos İçerik Planı",
     slidesUrl: "https://docs.google.com/presentation/d/example-aug",
     status: "completed",
   },
   {
-    id: "plan-jul-2026",
+    id: "plan-2026-07",
     month: "2026-07",
-    title: "Temmuz 2026",
+    title: "Temmuz İçerik Planı",
     slidesUrl: "https://docs.google.com/presentation/d/example-jul",
     status: "completed",
   },
@@ -238,22 +238,22 @@ export const contentPlans: ContentPlan[] = [
 
 export const monthlyReports: MonthlyReport[] = [
   {
-    id: "report-aug-2026",
+    id: "report-2026-08",
     month: "2026-08",
-    title: "Ağustos 2026",
+    title: "Ağustos Performans Raporu",
     driveUrl: "https://drive.google.com/drive/folders/example-aug",
     isNew: true,
   },
   {
-    id: "report-jul-2026",
+    id: "report-2026-07",
     month: "2026-07",
-    title: "Temmuz 2026",
+    title: "Temmuz Performans Raporu",
     driveUrl: "https://drive.google.com/drive/folders/example-jul",
   },
   {
-    id: "report-jun-2026",
+    id: "report-2026-06",
     month: "2026-06",
-    title: "Haziran 2026",
+    title: "Haziran Performans Raporu",
     driveUrl: "https://drive.google.com/drive/folders/example-jun",
   },
 ];
@@ -280,7 +280,7 @@ export const notifications: NotificationItem[] = [
     id: "notif-1",
     title: "Eylül içerik planınız hazır.",
     body: "Aylık planı inceleyip onaylayabilirsiniz.",
-    href: "/planlar",
+    href: "/planlar/plan-2026-09",
     read: false,
     createdAt: "2026-08-25T08:45:00",
     category: "plan",

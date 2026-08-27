@@ -10,18 +10,23 @@ import {
 } from "@/lib/asana/client";
 import { getAsanaEnv } from "@/lib/asana/config";
 import {
+  displayTaskTitle,
+  extractResourceUrl,
   foldLabel,
   isBrandTask,
+  isHiddenTask,
   mapTaskKind,
   mapTaskStatus,
   taskSectionName,
 } from "@/lib/asana/map";
 import type { AsanaTask } from "@/lib/asana/types";
 
-function summarizeTask(task: AsanaTask, projectGid?: string) {
+function summarizeTask(task: AsanaTask, projectGid?: string, brandCode?: string) {
   return {
     gid: task.gid,
     name: task.name,
+    displayTitle: brandCode ? displayTaskTitle(task.name, brandCode) : task.name,
+    hidden: isHiddenTask(task),
     completed: task.completed,
     due_on: task.due_on ?? null,
     section: projectGid ? taskSectionName(task, projectGid) ?? null : null,
@@ -32,8 +37,12 @@ function summarizeTask(task: AsanaTask, projectGid?: string) {
       display_value: field.display_value ?? null,
       enum_value: field.enum_value?.name ?? null,
     })),
-    tags: (task.tags ?? []).map((tag) => tag.name),
+    tags: (task.tags ?? []).map((tag) => ({
+      name: tag.name,
+      color: tag.color ?? null,
+    })),
     attachments: (task.attachments ?? []).map((attachment) => attachment.name),
+    resourceUrl: extractResourceUrl(task.html_notes, task.attachments) ?? null,
     notesPreview: task.html_notes
       ? task.html_notes.replace(/<[^>]+>/g, " ").slice(0, 200).trim()
       : null,
@@ -96,6 +105,7 @@ export async function GET() {
     const matched = brandCode
       ? tasks.filter((task) => isBrandTask(task, brandCode))
       : [];
+    const hidden = tasks.filter((task) => isHiddenTask(task));
 
     return NextResponse.json({
       ok: true,
@@ -113,8 +123,12 @@ export async function GET() {
       selectedProjects,
       taskCount: tasks.length,
       matchedCount: matched.length,
+      hiddenCount: hidden.length,
       sampleTasks: matched.slice(0, 15).map((task) =>
-        summarizeTask(task, projectGids[0]),
+        summarizeTask(task, projectGids[0], brandCode),
+      ),
+      hiddenSample: hidden.slice(0, 8).map((task) =>
+        summarizeTask(task, projectGids[0], brandCode),
       ),
     });
   } catch (error) {

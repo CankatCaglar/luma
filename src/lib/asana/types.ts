@@ -50,6 +50,7 @@ export type AsanaProject = {
 export type AsanaTag = {
   gid: string;
   name: string;
+  color?: string | null;
 };
 
 export type AsanaAttachment = {

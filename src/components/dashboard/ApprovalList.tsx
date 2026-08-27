@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Calendar, ChevronRight, FileText } from "lucide-react";
 import { useI18n } from "@/components/i18n/I18nProvider";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { TagList } from "@/components/ui/TagBadge";
 import { formatDueDate } from "@/lib/format";
 import type { ApprovalItem } from "@/types";
 
@@ -54,7 +55,7 @@ export function ApprovalList({ items }: { items: ApprovalItem[] }) {
               <p className="truncate font-semibold text-foreground">
                 {item.title}
               </p>
-              <div className="mt-1">
+              <div className="mt-1 flex flex-wrap items-center gap-1">
                 <StatusBadge
                   status={item.status}
                   label={
@@ -63,6 +64,7 @@ export function ApprovalList({ items }: { items: ApprovalItem[] }) {
                       : t("dashboard.approvals.badgeReview")
                   }
                 />
+                <TagList tags={item.tags} />
               </div>
               <p className="mt-1.5 flex items-center gap-1 text-[11px] text-luma-muted">
                 <Calendar className="h-3 w-3 text-luma" />

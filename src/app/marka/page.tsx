@@ -3,7 +3,6 @@
 import { ChevronRight, FileText, ImageIcon, Info } from "lucide-react";
 import { brandAssets } from "@/data/mock";
 import { useI18n } from "@/components/i18n/I18nProvider";
-import { PageHeader } from "@/components/ui/PageHeader";
 import { IconTile } from "@/components/ui/IconTile";
 import type { BrandAssetKind } from "@/types";
 
@@ -17,10 +16,7 @@ export default function MarkaPage() {
 
   return (
     <div>
-      <PageHeader
-        title={t("brandCenter.title")}
-        subtitle={t("brandCenter.subtitle")}
-      />
+      <p className="mb-4 text-sm text-luma-kahve">{t("brandCenter.subtitle")}</p>
       <div className="space-y-3">
         {brandAssets.map((asset) => {
           const Icon = icons[asset.kind];

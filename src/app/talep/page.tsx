@@ -9,7 +9,6 @@ import {
   Zap,
 } from "lucide-react";
 import { useI18n } from "@/components/i18n/I18nProvider";
-import { PageHeader } from "@/components/ui/PageHeader";
 import { cn } from "@/lib/cn";
 import type { RequestPriority, RequestType } from "@/types";
 import type { MessageKey } from "@/i18n";
@@ -51,7 +50,7 @@ export default function TalepPage() {
 
   return (
     <div>
-      <PageHeader title={t("request.title")} subtitle={t("request.subtitle")} />
+      <p className="mb-4 text-sm text-luma-kahve">{t("request.subtitle")}</p>
       <form
         className="space-y-4"
         onSubmit={(event) => event.preventDefault()}

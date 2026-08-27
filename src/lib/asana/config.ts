@@ -19,7 +19,23 @@ export const TASK_OPT_FIELDS = [
   "custom_fields.text_value",
   "custom_fields.resource_subtype",
   "tags.name",
+  "tags.color",
+  "attachments.name",
+  "attachments.host",
+  "attachments.view_url",
+  "attachments.download_url",
 ].join(",");
+
+export const HIDE_NAME_PREFIX = "**";
+
+export const HIDE_TAG_NAMES = [
+  "gizli",
+  "hidden",
+  "internal",
+  "dahili",
+  "hide",
+  "luma hide",
+];
 
 export const PROJECT_OPT_FIELDS = [
   "name",

@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Calendar, ChevronRight } from "lucide-react";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { TagList } from "@/components/ui/TagBadge";
 import { IconTile } from "@/components/ui/IconTile";
 import { useI18n } from "@/components/i18n/I18nProvider";
 import { formatDueDate } from "@/lib/format";
@@ -69,8 +70,9 @@ export function JobList({
             )}
             <div className="min-w-0 flex-1">
               <p className="truncate font-semibold text-foreground">{job.title}</p>
-              <div className="mt-1">
+              <div className="mt-1 flex flex-wrap items-center gap-1">
                 <StatusBadge status={job.status} label={t(statusKeys[job.status])} />
+                <TagList tags={job.tags} />
               </div>
               <p className="mt-1.5 flex items-center gap-1 text-[11px] text-luma-muted">
                 <Calendar className="h-3 w-3 text-luma" />

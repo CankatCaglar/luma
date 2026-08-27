@@ -86,16 +86,26 @@
   },
   "plans": {
     "title": "İçerik Planları",
+    "detailTitle": "İçerik Planı",
     "subtitle": "Aylık içerik planlarınızı görüntüleyin ve onay süreçlerini takip edin.",
     "view": "Görüntüle",
-    "current": "Güncel"
+    "current": "Güncel",
+    "empty": "Henüz içerik planı yok",
+    "comingSoon": "Bu planın detay görünümü yakında eklenecek.",
+    "comingSoonWithLink": "Detay görünümü yakında eklenecek. Şimdilik slaytı görüntüleyebilirsiniz.",
+    "openSlides": "Planı görüntüle"
   },
   "reports": {
     "title": "Raporlar",
+    "detailTitle": "Rapor",
     "subtitle": "Geçmiş raporlarınızı görüntüleyin ve analizlerinize kolayca erişin.",
     "view": "Görüntüle",
     "new": "Yeni",
-    "kind": "Sosyal Medya Raporu"
+    "kind": "Sosyal Medya Raporu",
+    "empty": "Henüz rapor yok",
+    "comingSoon": "Bu raporun detay görünümü yakında eklenecek.",
+    "comingSoonWithLink": "Detay görünümü yakında eklenecek. Şimdilik Drive dosyasını görüntüleyebilirsiniz.",
+    "openDrive": "Raporu görüntüle"
   },
   "brandCenter": {
     "title": "Marka Merkezi",

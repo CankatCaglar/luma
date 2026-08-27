@@ -49,7 +49,7 @@ async function asanaFetch<T>(path: string, query?: Query): Promise<T> {
       Authorization: `Bearer ${token}`,
       Accept: "application/json",
     },
-    next: { revalidate: 60 },
+    cache: "no-store",
     signal: AbortSignal.timeout(15_000),
   });
 
@@ -69,21 +69,40 @@ function extractAsanaError(body: unknown): string | null {
   return errors?.[0]?.message ?? null;
 }
 
+function isExpiredOffsetError(error: unknown): boolean {
+  return (
+    error instanceof AsanaApiError &&
+    /pagination token has expired/i.test(error.message)
+  );
+}
+
 async function asanaListAll<T>(path: string, query: Query = {}): Promise<T[]> {
   const items: T[] = [];
   let offset: string | undefined;
   let pages = 0;
+  let retriedExpiredOffset = false;
 
   while (pages < MAX_PAGES) {
-    const page = await asanaFetch<AsanaListResponse<T>>(path, {
-      ...query,
-      limit: String(PAGE_LIMIT),
-      offset,
-    });
-    items.push(...page.data);
-    pages += 1;
-    offset = page.next_page?.offset;
-    if (!offset) break;
+    try {
+      const page = await asanaFetch<AsanaListResponse<T>>(path, {
+        ...query,
+        limit: String(PAGE_LIMIT),
+        offset,
+      });
+      items.push(...page.data);
+      pages += 1;
+      offset = page.next_page?.offset;
+      if (!offset) break;
+    } catch (error) {
+      if (offset && !retriedExpiredOffset && isExpiredOffsetError(error)) {
+        retriedExpiredOffset = true;
+        items.length = 0;
+        offset = undefined;
+        pages = 0;
+        continue;
+      }
+      throw error;
+    }
   }
 
   return items;
@@ -126,9 +145,15 @@ export async function getSections(projectGid: string): Promise<AsanaSection[]> {
   });
 }
 
+function completedSinceIso(): string {
+  const date = new Date();
+  date.setMonth(date.getMonth() - 18);
+  return date.toISOString();
+}
+
 export async function getProjectTasks(projectGid: string): Promise<AsanaTask[]> {
   return asanaListAll<AsanaTask>(`/projects/${projectGid}/tasks`, {
-    completed_since: "2000-01-01",
+    completed_since: completedSinceIso(),
     opt_fields: TASK_OPT_FIELDS,
   });
 }

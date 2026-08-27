@@ -6,16 +6,25 @@ import {
   mapJobsToApprovalItems,
   mapTaskToJob,
 } from "@/lib/asana/map";
+import { plansFromJobs, reportsFromJobs } from "@/lib/data/catalog";
 import {
   activeJobs as mockActiveJobs,
   approvalItems as mockApprovalItems,
   completedJobs as mockCompletedJobs,
+  contentPlans as mockContentPlans,
   dashboardMetrics as mockDashboardMetrics,
   jobs as mockJobs,
+  monthlyReports as mockMonthlyReports,
   pendingJobs as mockPendingJobs,
 } from "@/data/mock";
 import { isWithinLastMonths, REFERENCE_NOW } from "@/lib/period";
-import type { ApprovalItem, DashboardMetrics, Job } from "@/types";
+import type {
+  ApprovalItem,
+  ContentPlan,
+  DashboardMetrics,
+  Job,
+  MonthlyReport,
+} from "@/types";
 
 export type JobSource = "asana" | "mock";
 
@@ -27,6 +36,8 @@ export type JobLists = {
   completedJobs: Job[];
   approvalItems: ApprovalItem[];
   metrics: DashboardMetrics;
+  contentPlans: ContentPlan[];
+  monthlyReports: MonthlyReport[];
   referenceNowIso: string;
 };
 
@@ -66,6 +77,8 @@ function listsFromJobs(jobs: Job[], source: JobSource, now: Date): JobLists {
       .sort((a, b) => (b.completedAt ?? "").localeCompare(a.completedAt ?? "")),
     approvalItems: mapJobsToApprovalItems(jobs),
     metrics: metricsFromJobs(jobs, now),
+    contentPlans: plansFromJobs(jobs, now),
+    monthlyReports: reportsFromJobs(jobs, now),
     referenceNowIso: now.toISOString(),
   };
 }
@@ -79,37 +92,73 @@ function mockJobLists(): JobLists {
     completedJobs: mockCompletedJobs,
     approvalItems: mockApprovalItems,
     metrics: mockDashboardMetrics,
+    contentPlans: mockContentPlans,
+    monthlyReports: mockMonthlyReports,
     referenceNowIso: REFERENCE_NOW.toISOString(),
   };
 }
 
-const JOBS_TTL_MS = 60_000;
-let jobsCache: { expiresAt: number; data: JobLists } | null = null;
+const JOBS_FRESH_MS = 5 * 60_000;
+const JOBS_STALE_MS = 30 * 60_000;
 
-async function loadJobLists(): Promise<JobLists> {
-  if (jobsCache && jobsCache.expiresAt > Date.now()) {
-    return jobsCache.data;
+let jobsCache: { fetchedAt: number; data: JobLists } | null = null;
+let inflight: Promise<JobLists> | null = null;
+
+async function fetchJobLists(): Promise<JobLists> {
+  const { projectGids, brandCode, projectGid } = getAsanaEnv();
+  if (!projectGids?.length || !brandCode) {
+    throw new Error("Asana project or brand is not configured");
   }
 
+  const tasks = await getTasksForProjects(projectGids);
+  const jobs = tasks
+    .filter((task) => isBrandTask(task, brandCode))
+    .map((task) => mapTaskToJob(task, projectGid))
+    .filter((job): job is Job => job !== null);
+  return listsFromJobs(jobs, "asana", new Date());
+}
+
+function refreshJobLists(): Promise<JobLists> {
+  if (!inflight) {
+    inflight = fetchJobLists()
+      .then((data) => {
+        jobsCache = { fetchedAt: Date.now(), data };
+        return data;
+      })
+      .finally(() => {
+        inflight = null;
+      });
+  }
+  return inflight;
+}
+
+async function loadJobLists(): Promise<JobLists> {
   if (!isAsanaConfigured()) {
     return mockJobLists();
   }
 
-  const { projectGids, brandCode, projectGid } = getAsanaEnv();
-  if (!projectGids?.length || !brandCode) {
-    return mockJobLists();
+  const now = Date.now();
+  if (jobsCache) {
+    const age = now - jobsCache.fetchedAt;
+    if (age < JOBS_FRESH_MS) return jobsCache.data;
+    if (age < JOBS_STALE_MS) {
+      void refreshJobLists().catch((error) => {
+        const message =
+          error instanceof AsanaApiError
+            ? error.message
+            : error instanceof Error
+              ? error.message
+              : "unknown error";
+        console.error(`[asana] background refresh failed: ${message}`);
+      });
+      return jobsCache.data;
+    }
   }
 
   try {
-    const tasks = await getTasksForProjects(projectGids);
-    const jobs = tasks
-      .filter((task) => isBrandTask(task, brandCode))
-      .map((task) => mapTaskToJob(task, projectGid))
-      .filter((job): job is Job => job !== null);
-    const data = listsFromJobs(jobs, "asana", new Date());
-    jobsCache = { expiresAt: Date.now() + JOBS_TTL_MS, data };
-    return data;
+    return await refreshJobLists();
   } catch (error) {
+    if (jobsCache) return jobsCache.data;
     const message =
       error instanceof AsanaApiError
         ? error.message

@@ -48,6 +48,12 @@ export type UserProfile = {
   avatarUrl: string;
 };
 
+export type JobTag = {
+  id: string;
+  name: string;
+  color?: string;
+};
+
 export type ApprovalItem = {
   id: string;
   title: string;
@@ -56,6 +62,7 @@ export type ApprovalItem = {
   dueDate: string;
   href: string;
   thumbnailUrl?: string;
+  tags?: JobTag[];
 };
 
 export type Job = {
@@ -67,14 +74,16 @@ export type Job = {
   completedAt?: string;
   href: string;
   thumbnailUrl?: string;
+  resourceUrl?: string;
+  tags?: JobTag[];
 };
 
 export type ContentPlan = {
   id: string;
   month: string;
   title: string;
-  slidesUrl: string;
-  status: Extract<JobStatus, "pending_approval" | "review" | "completed">;
+  slidesUrl?: string;
+  status: JobStatus;
   isCurrent?: boolean;
 };
 

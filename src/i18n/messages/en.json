@@ -86,16 +86,26 @@
   },
   "plans": {
     "title": "Content Plans",
+    "detailTitle": "Content Plan",
     "subtitle": "View your monthly content plans and track approvals.",
     "view": "View",
-    "current": "Current"
+    "current": "Current",
+    "empty": "No content plans yet",
+    "comingSoon": "The detailed view for this plan is coming soon.",
+    "comingSoonWithLink": "The detailed view is coming soon. You can view the slides for now.",
+    "openSlides": "View plan"
   },
   "reports": {
     "title": "Reports",
+    "detailTitle": "Report",
     "subtitle": "View your past reports and easily access your analytics.",
     "view": "View",
     "new": "New",
-    "kind": "Social Media Report"
+    "kind": "Social Media Report",
+    "empty": "No reports yet",
+    "comingSoon": "The detailed view for this report is coming soon.",
+    "comingSoonWithLink": "The detailed view is coming soon. You can view the Drive file for now.",
+    "openDrive": "View report"
   },
   "brandCenter": {
     "title": "Brand Center",
