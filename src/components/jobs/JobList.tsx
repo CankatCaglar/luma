@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { Calendar, ChevronRight } from "lucide-react";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { TagList } from "@/components/ui/TagBadge";
@@ -52,20 +51,9 @@ export function JobList({
             key={job.id}
             className="flex select-none items-center gap-3 rounded-2xl bg-luma-card p-3.5 ring-1 ring-luma-border/80 transition-transform duration-150 ease-out active:scale-[0.97]"
           >
-            {job.thumbnailUrl ? (
-              <Image
-                src={job.thumbnailUrl}
-                alt=""
-                width={56}
-                height={56}
-                unoptimized
-                className="h-14 w-14 shrink-0 rounded-xl object-cover"
-              />
-            ) : (
-              <IconTile className="h-12 w-12">
-                <Icon className="h-5 w-5" strokeWidth={1.8} />
-              </IconTile>
-            )}
+            <IconTile className="h-12 w-12">
+              <Icon className="h-5 w-5" strokeWidth={1.8} />
+            </IconTile>
             <div className="min-w-0 flex-1">
               <p className="truncate font-semibold text-foreground">{job.title}</p>
               <div className="mt-1 flex flex-wrap items-center gap-1">

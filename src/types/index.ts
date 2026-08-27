@@ -61,7 +61,6 @@ export type ApprovalItem = {
   status: Extract<JobStatus, "pending_approval" | "review">;
   dueDate: string;
   href: string;
-  thumbnailUrl?: string;
   tags?: JobTag[];
 };
 
@@ -73,7 +72,6 @@ export type Job = {
   dueDate: string;
   completedAt?: string;
   href: string;
-  thumbnailUrl?: string;
   resourceUrl?: string;
   tags?: JobTag[];
 };

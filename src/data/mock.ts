@@ -72,7 +72,6 @@ export const jobs: Job[] = [
     kind: "video",
     dueDate: "2026-08-25",
     href: "/isler/onay",
-    thumbnailUrl: "/images/video-thumb.svg",
   },
   {
     id: "job-plan-review",
@@ -182,7 +181,6 @@ export const approvalItems: ApprovalItem[] = [
     status: "pending_approval",
     dueDate: "2026-08-25",
     href: "/isler/onay",
-    thumbnailUrl: "/images/video-thumb.svg",
   },
   {
     id: "approval-plan-sep",

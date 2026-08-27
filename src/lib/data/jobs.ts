@@ -1,10 +1,15 @@
 import { cache } from "react";
 import { unstable_cache } from "next/cache";
-import { AsanaApiError, getTasksForProjects } from "@/lib/asana/client";
+import {
+  AsanaApiError,
+  getTaskResources,
+  getTasksForProjects,
+} from "@/lib/asana/client";
 import { getAsanaEnv, isAsanaConfigured } from "@/lib/asana/config";
 import {
   isBrandTask,
   mapJobsToApprovalItems,
+  mapTaskKind,
   mapTaskToJob,
 } from "@/lib/asana/map";
 import { plansFromJobs, reportsFromJobs } from "@/lib/data/catalog";
@@ -99,8 +104,8 @@ function mockJobLists(): JobLists {
   };
 }
 
-const JOBS_FRESH_MS = 5 * 60_000;
-const JOBS_STALE_MS = 30 * 60_000;
+const JOBS_FRESH_MS =
+  process.env.NODE_ENV === "production" ? 2 * 60_000 : 45_000;
 
 let jobsCache: { fetchedAt: number; data: JobLists } | null = null;
 let inflight: Promise<JobLists> | null = null;
@@ -112,9 +117,22 @@ async function fetchJobLists(): Promise<JobLists> {
   }
 
   const tasks = await getTasksForProjects(projectGids);
-  const jobs = tasks
-    .filter((task) => isBrandTask(task, brandCode))
-    .map((task) => mapTaskToJob(task, projectGid))
+  const brandTasks = tasks.filter((task) => isBrandTask(task, brandCode));
+  const resourceGids = brandTasks
+    .filter((task) => {
+      const kind = mapTaskKind(task);
+      return kind === "plan" || kind === "report";
+    })
+    .map((task) => task.gid);
+  const resources = await getTaskResources(resourceGids);
+  const jobs = brandTasks
+    .map((task) => {
+      const extra = resources.get(task.gid);
+      return mapTaskToJob(
+        extra ? { ...task, ...extra } : task,
+        projectGid,
+      );
+    })
     .filter((job): job is Job => job !== null);
   return listsFromJobs(jobs, "asana", new Date());
 }
@@ -122,12 +140,16 @@ async function fetchJobLists(): Promise<JobLists> {
 const fetchCachedJobLists = unstable_cache(
   async () => fetchJobLists(),
   ["asana-job-lists"],
-  { revalidate: 300 },
+  { revalidate: 120 },
 );
 
 function refreshJobLists(): Promise<JobLists> {
   if (!inflight) {
-    inflight = fetchCachedJobLists()
+    const run =
+      process.env.NODE_ENV === "production"
+        ? fetchCachedJobLists()
+        : fetchJobLists();
+    inflight = run
       .then((data) => {
         jobsCache = { fetchedAt: Date.now(), data };
         return data;
@@ -139,40 +161,34 @@ function refreshJobLists(): Promise<JobLists> {
   return inflight;
 }
 
+function logAsanaError(error: unknown, label: string) {
+  const message =
+    error instanceof AsanaApiError
+      ? error.message
+      : error instanceof Error
+        ? error.message
+        : "unknown error";
+  console.error(`[asana] ${label}: ${message}`);
+}
+
 async function loadJobLists(): Promise<JobLists> {
   if (!isAsanaConfigured()) {
     return mockJobLists();
   }
 
-  const now = Date.now();
   if (jobsCache) {
-    const age = now - jobsCache.fetchedAt;
-    if (age < JOBS_FRESH_MS) return jobsCache.data;
-    if (age < JOBS_STALE_MS) {
+    if (Date.now() - jobsCache.fetchedAt >= JOBS_FRESH_MS) {
       void refreshJobLists().catch((error) => {
-        const message =
-          error instanceof AsanaApiError
-            ? error.message
-            : error instanceof Error
-              ? error.message
-              : "unknown error";
-        console.error(`[asana] background refresh failed: ${message}`);
+        logAsanaError(error, "background refresh failed");
       });
-      return jobsCache.data;
     }
+    return jobsCache.data;
   }
 
   try {
     return await refreshJobLists();
   } catch (error) {
-    if (jobsCache) return jobsCache.data;
-    const message =
-      error instanceof AsanaApiError
-        ? error.message
-        : error instanceof Error
-          ? error.message
-          : "unknown error";
-    console.error(`[asana] falling back to mock: ${message}`);
+    logAsanaError(error, "falling back to mock");
     return mockJobLists();
   }
 }

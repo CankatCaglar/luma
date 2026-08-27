@@ -1,7 +1,7 @@
 import { JobListScreen } from "@/components/jobs/JobListScreen";
 import { getJobLists } from "@/lib/data/jobs";
 
-export const revalidate = 300;
+export const dynamic = "force-dynamic";
 
 export default async function AktifIslerPage() {
   const { activeJobs } = await getJobLists();

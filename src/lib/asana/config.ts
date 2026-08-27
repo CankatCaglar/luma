@@ -8,8 +8,6 @@ export const TASK_OPT_FIELDS = [
   "completed_at",
   "due_on",
   "created_at",
-  "permalink_url",
-  "html_notes",
   "resource_subtype",
   "memberships.project.gid",
   "memberships.section.name",
@@ -20,10 +18,12 @@ export const TASK_OPT_FIELDS = [
   "custom_fields.resource_subtype",
   "tags.name",
   "tags.color",
-  "attachments.name",
+].join(",");
+
+export const TASK_RESOURCE_FIELDS = [
+  "html_notes",
   "attachments.host",
   "attachments.view_url",
-  "attachments.download_url",
 ].join(",");
 
 export const HIDE_NAME_PREFIX = "**";

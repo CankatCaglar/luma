@@ -2,6 +2,7 @@ import {
   ASANA_API_BASE,
   PROJECT_OPT_FIELDS,
   TASK_OPT_FIELDS,
+  TASK_RESOURCE_FIELDS,
   requireAsanaToken,
 } from "@/lib/asana/config";
 import type {
@@ -147,7 +148,7 @@ export async function getSections(projectGid: string): Promise<AsanaSection[]> {
 
 function completedSinceIso(): string {
   const date = new Date();
-  date.setMonth(date.getMonth() - 18);
+  date.setMonth(date.getMonth() - 12);
   return date.toISOString();
 }
 
@@ -183,4 +184,33 @@ export async function getTasksForProjects(
     }
   }
   return [...byGid.values()];
+}
+
+export async function getTaskResources(
+  taskGids: string[],
+): Promise<Map<string, Pick<AsanaTask, "html_notes" | "attachments">>> {
+  const details = new Map<string, Pick<AsanaTask, "html_notes" | "attachments">>();
+  if (taskGids.length === 0) return details;
+
+  const unique = [...new Set(taskGids)];
+  const concurrency = Math.min(6, unique.length);
+  let next = 0;
+
+  async function worker() {
+    while (next < unique.length) {
+      const gid = unique[next];
+      next += 1;
+      const { data } = await asanaFetch<AsanaItemResponse<AsanaTask>>(
+        `/tasks/${gid}`,
+        { opt_fields: TASK_RESOURCE_FIELDS },
+      );
+      details.set(gid, {
+        html_notes: data.html_notes,
+        attachments: data.attachments,
+      });
+    }
+  }
+
+  await Promise.all(Array.from({ length: concurrency }, () => worker()));
+  return details;
 }

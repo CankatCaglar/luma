@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { Calendar, ChevronRight, FileText } from "lucide-react";
 import { useI18n } from "@/components/i18n/I18nProvider";
@@ -36,20 +35,9 @@ export function ApprovalList({ items }: { items: ApprovalItem[] }) {
             key={item.id}
             className="flex select-none items-center gap-3 rounded-2xl bg-luma-card p-3 ring-1 ring-luma-border/80 transition-transform duration-150 ease-out active:scale-[0.97]"
           >
-            {item.thumbnailUrl ? (
-              <Image
-                src={item.thumbnailUrl}
-                alt=""
-                width={56}
-                height={56}
-                unoptimized
-                className="h-14 w-14 shrink-0 rounded-xl object-cover"
-              />
-            ) : (
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-luma-soft">
-                <FileText className="h-6 w-6 text-luma" />
-              </div>
-            )}
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-luma-soft">
+              <FileText className="h-6 w-6 text-luma" />
+            </div>
             <div className="min-w-0 flex-1">
               <p className="truncate font-semibold text-foreground">
                 {item.title}

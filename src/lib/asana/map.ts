@@ -16,8 +16,6 @@ import type {
 } from "@/lib/asana/types";
 import type { ApprovalItem, Job, JobKind, JobStatus, JobTag } from "@/types";
 
-const IMAGE_NAME = /\.(avif|gif|jpe?g|png|svg|webp)$/i;
-
 const MONTH_INDEX: Record<string, number> = {
   ocak: 1,
   january: 1,
@@ -88,9 +86,14 @@ export function displayTaskTitle(name: string, brandCode: string): string {
   return title;
 }
 
+function normalizedTaskName(name: string): string {
+  return name.replace(/[\u200B-\u200D\uFEFF]/g, "").trim();
+}
+
 export function isHiddenTask(task: AsanaTask): boolean {
-  const name = task.name.trim();
+  const name = normalizedTaskName(task.name ?? "");
   if (name.startsWith(HIDE_NAME_PREFIX)) return true;
+  if (/^[＊∗✱﹡]{2,}/.test(name)) return true;
 
   return (task.tags ?? []).some((tag) => {
     const folded = foldLabel(tag.name);
@@ -298,13 +301,6 @@ function toDateOnly(value: string | null | undefined): string | undefined {
   return value.slice(0, 10);
 }
 
-function thumbnailUrl(task: AsanaTask): string | undefined {
-  const image = task.attachments?.find((attachment) =>
-    attachment.name ? IMAGE_NAME.test(attachment.name) : false,
-  );
-  return image?.view_url ?? image?.download_url ?? undefined;
-}
-
 function jobHref(status: JobStatus, kind: JobKind, month: string): string {
   if (kind === "plan") return `/planlar/${catalogId("plan", month)}`;
   if (kind === "report") return `/raporlar/${catalogId("report", month)}`;
@@ -406,7 +402,6 @@ export function mapTaskToJob(
     dueDate,
     completedAt,
     href: jobHref(status, kind, month),
-    thumbnailUrl: thumbnailUrl(task),
     resourceUrl,
     tags: mapTaskTags(task, brandCode),
   };
@@ -425,7 +420,6 @@ export function mapJobsToApprovalItems(jobs: Job[]): ApprovalItem[] {
       status: job.status,
       dueDate: job.dueDate,
       href: job.href,
-      thumbnailUrl: job.thumbnailUrl,
       tags: job.tags,
     }));
 }

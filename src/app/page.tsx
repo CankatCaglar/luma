@@ -3,7 +3,7 @@ import { DashboardPage } from "@/components/dashboard/DashboardPage";
 import { DashboardSkeleton } from "@/components/ui/PageSkeleton";
 import { getJobLists } from "@/lib/data/jobs";
 
-export const revalidate = 300;
+export const dynamic = "force-dynamic";
 
 async function HomeDashboard() {
   const { metrics, approvalItems } = await getJobLists();

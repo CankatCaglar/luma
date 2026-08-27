@@ -1,7 +1,7 @@
 import { PlansList } from "@/components/plans/PlansList";
 import { getJobLists } from "@/lib/data/jobs";
 
-export const revalidate = 300;
+export const dynamic = "force-dynamic";
 
 export default async function PlanlarPage() {
   const { contentPlans } = await getJobLists();
