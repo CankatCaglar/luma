@@ -139,14 +139,14 @@ function logAsanaError(error: unknown, label: string) {
   console.error(`[asana] ${label}: ${message}`);
 }
 
-async function loadJobLists(options: { fresh?: boolean } = {}): Promise<JobLists> {
+async function loadJobLists(fresh = false): Promise<JobLists> {
   noStore();
 
   if (!isAsanaConfigured()) {
     return mockJobLists();
   }
 
-  if (!options.fresh && jobsCache) {
+  if (!fresh && jobsCache) {
     if (Date.now() - jobsCache.fetchedAt >= JOBS_FRESH_MS) {
       void refreshJobLists().catch((error) => {
         logAsanaError(error, "background refresh failed");

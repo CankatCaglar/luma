@@ -15,10 +15,11 @@ import { useI18n } from "@/components/i18n/I18nProvider";
 import type { JobLists } from "@/types";
 
 const STORAGE_KEY = "luma-jobs-v1";
-const MIN_REVALIDATE_MS = 12_000;
+const MIN_REVALIDATE_MS = 5_000;
 const POLL_MS = 45_000;
+const MAX_STORED_AGE_MS = 24 * 60 * 60 * 1000;
 
-type JobsStatus = "loading" | "ready" | "error";
+type JobsStatus = "loading" | "ready";
 
 type JobsContextValue = {
   data: JobLists | null;
@@ -29,13 +30,34 @@ type JobsContextValue = {
 
 const JobsContext = createContext<JobsContextValue | null>(null);
 
+function isJobLists(value: unknown): value is JobLists {
+  return Boolean(
+    value &&
+      typeof value === "object" &&
+      Array.isArray((value as JobLists).completedJobs),
+  );
+}
+
 function readStoredJobs(): JobLists | null {
+  if (typeof window === "undefined") return null;
   try {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as JobLists;
-    if (!parsed || !Array.isArray(parsed.completedJobs)) return null;
-    return parsed;
+    const parsed = JSON.parse(raw) as unknown;
+
+    if (isJobLists(parsed)) return parsed;
+    if (!parsed || typeof parsed !== "object") return null;
+
+    const wrapped = parsed as { savedAt?: unknown; data?: unknown };
+    const list = wrapped.data;
+    if (!isJobLists(list)) return null;
+
+    const savedAt = Number(wrapped.savedAt ?? 0);
+    if (Number.isFinite(savedAt) && savedAt > 0 && Date.now() - savedAt > MAX_STORED_AGE_MS) {
+      localStorage.removeItem(STORAGE_KEY);
+      return null;
+    }
+    return list;
   } catch {
     return null;
   }
@@ -53,10 +75,17 @@ function getClientSnapshot(): JobLists | null {
 }
 
 function storeJobs(data: JobLists) {
+  if (typeof window === "undefined") return;
   storedSnapshot = data;
   storedSnapshotRead = true;
   try {
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        savedAt: Date.now(),
+        data,
+      }),
+    );
   } catch {
     /* quota / private mode */
   }
@@ -86,7 +115,8 @@ export function JobsProvider({ children }: { children: ReactNode }) {
     const run = (async () => {
       setRefreshing(true);
       try {
-        const response = await fetch("/api/jobs?fresh=1", { cache: "no-store" });
+        const endpoint = force ? "/api/jobs?fresh=1" : "/api/jobs";
+        const response = await fetch(endpoint, { cache: "no-store" });
         if (!response.ok) throw new Error("jobs request failed");
         const next = (await response.json()) as JobLists;
         lastFetchAt.current = Date.now();
@@ -105,21 +135,27 @@ export function JobsProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    void refresh(true);
+    void refresh();
+
+    function refreshFresh() {
+      void refresh(true);
+    }
 
     function onVisible() {
-      if (document.visibilityState === "visible") void refresh();
+      if (document.visibilityState === "visible") refreshFresh();
     }
 
     document.addEventListener("visibilitychange", onVisible);
-    window.addEventListener("focus", onVisible);
+    window.addEventListener("focus", refreshFresh);
+    window.addEventListener("online", refreshFresh);
     const timer = window.setInterval(() => {
-      if (document.visibilityState === "visible") void refresh();
+      if (document.visibilityState === "visible") refreshFresh();
     }, POLL_MS);
 
     return () => {
       document.removeEventListener("visibilitychange", onVisible);
-      window.removeEventListener("focus", onVisible);
+      window.removeEventListener("focus", refreshFresh);
+      window.removeEventListener("online", refreshFresh);
       window.clearInterval(timer);
     };
   }, [refresh]);
