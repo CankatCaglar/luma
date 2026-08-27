@@ -55,7 +55,6 @@ export function BottomNav() {
                 <Icon
                   className="h-5 w-5"
                   strokeWidth={active ? 2.4 : 1.8}
-                  fill={active && item.href === "/" ? "currentColor" : "none"}
                 />
                 {"badge" in item && item.badge ? (
                   <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-luma ring-2 ring-white" />

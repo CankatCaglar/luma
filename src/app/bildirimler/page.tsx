@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import {
   ArrowLeftRight,
   BarChart3,
@@ -48,9 +47,8 @@ export default function BildirimlerPage() {
             const ui = categoryUi[item.category];
             const Icon = ui.icon;
             return (
-              <Link
+              <article
                 key={item.id}
-                href={item.href}
                 className="flex select-none items-start gap-3 rounded-2xl bg-luma-card p-3.5 ring-1 ring-luma-border/80 transition-transform duration-150 ease-out active:scale-[0.97]"
               >
                 <IconTile tone={ui.tone} className="mt-0.5">
@@ -73,7 +71,7 @@ export default function BildirimlerPage() {
                   ) : null}
                   <ChevronRight className="h-4 w-4 text-luma-muted" />
                 </span>
-              </Link>
+              </article>
             );
           })
         )}

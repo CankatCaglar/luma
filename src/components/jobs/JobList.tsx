@@ -1,7 +1,6 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
 import { Calendar, ChevronRight } from "lucide-react";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { TagList } from "@/components/ui/TagBadge";
@@ -49,9 +48,8 @@ export function JobList({
             : job.dueDate;
 
         return (
-          <Link
+          <article
             key={job.id}
-            href={job.href}
             className="flex select-none items-center gap-3 rounded-2xl bg-luma-card p-3.5 ring-1 ring-luma-border/80 transition-transform duration-150 ease-out active:scale-[0.97]"
           >
             {job.thumbnailUrl ? (
@@ -82,7 +80,7 @@ export function JobList({
               </p>
             </div>
             <ChevronRight className="h-4 w-4 shrink-0 text-luma" />
-          </Link>
+          </article>
         );
       })}
     </div>
