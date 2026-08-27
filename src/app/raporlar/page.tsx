@@ -1,9 +1,11 @@
+"use client";
+
 import { ReportsList } from "@/components/reports/ReportsList";
-import { getJobLists } from "@/lib/data/jobs";
+import { PageSkeleton } from "@/components/ui/PageSkeleton";
+import { useJobs } from "@/components/jobs/JobsProvider";
 
-export const dynamic = "force-dynamic";
-
-export default async function RaporlarPage() {
-  const { monthlyReports } = await getJobLists();
-  return <ReportsList reports={monthlyReports} />;
+export default function RaporlarPage() {
+  const { data, status } = useJobs();
+  if (status === "loading" || !data) return <PageSkeleton cards={4} />;
+  return <ReportsList reports={data.monthlyReports} />;
 }

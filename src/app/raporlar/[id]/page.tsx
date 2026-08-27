@@ -1,19 +1,15 @@
-import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+"use client";
+
+import { notFound, useParams } from "next/navigation";
 import { ReportDetail } from "@/components/reports/ReportDetail";
-import { getJobLists } from "@/lib/data/jobs";
+import { PageSkeleton } from "@/components/ui/PageSkeleton";
+import { useJobs } from "@/components/jobs/JobsProvider";
 
-export const metadata: Metadata = { title: "Rapor" };
-export const dynamic = "force-dynamic";
-
-export default async function ReportDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = await params;
-  const { monthlyReports } = await getJobLists();
-  const report = monthlyReports.find((item) => item.id === id);
+export default function ReportDetailPage() {
+  const { id } = useParams<{ id: string }>();
+  const { data, status } = useJobs();
+  if (status === "loading" || !data) return <PageSkeleton cards={2} />;
+  const report = data.monthlyReports.find((item) => item.id === id);
   if (!report) notFound();
   return <ReportDetail report={report} />;
 }

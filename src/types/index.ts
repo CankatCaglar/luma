@@ -30,6 +30,8 @@ export type NotificationCategory =
 
 export type PeriodMonths = 1 | 3 | 6 | 12;
 
+export type JobSource = "asana" | "mock";
+
 export type DashboardMetrics = {
   pendingApproval: number;
   activeJobs: number;
@@ -91,6 +93,19 @@ export type MonthlyReport = {
   title: string;
   driveUrl: string;
   isNew?: boolean;
+};
+
+export type JobLists = {
+  source: JobSource;
+  jobs: Job[];
+  activeJobs: Job[];
+  pendingJobs: Job[];
+  completedJobs: Job[];
+  approvalItems: ApprovalItem[];
+  metrics: DashboardMetrics;
+  contentPlans: ContentPlan[];
+  monthlyReports: MonthlyReport[];
+  referenceNowIso: string;
 };
 
 export type BrandAsset = {

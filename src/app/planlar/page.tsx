@@ -1,9 +1,11 @@
+"use client";
+
 import { PlansList } from "@/components/plans/PlansList";
-import { getJobLists } from "@/lib/data/jobs";
+import { PageSkeleton } from "@/components/ui/PageSkeleton";
+import { useJobs } from "@/components/jobs/JobsProvider";
 
-export const dynamic = "force-dynamic";
-
-export default async function PlanlarPage() {
-  const { contentPlans } = await getJobLists();
-  return <PlansList plans={contentPlans} />;
+export default function PlanlarPage() {
+  const { data, status } = useJobs();
+  if (status === "loading" || !data) return <PageSkeleton cards={4} />;
+  return <PlansList plans={data.contentPlans} />;
 }

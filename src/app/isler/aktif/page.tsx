@@ -1,14 +1,15 @@
+"use client";
+
 import { JobListScreen } from "@/components/jobs/JobListScreen";
-import { getJobLists } from "@/lib/data/jobs";
+import { PageSkeleton } from "@/components/ui/PageSkeleton";
+import { useJobs } from "@/components/jobs/JobsProvider";
 
-export const dynamic = "force-dynamic";
-
-export default async function AktifIslerPage() {
-  const { activeJobs } = await getJobLists();
-
+export default function AktifIslerPage() {
+  const { data, status } = useJobs();
+  if (status === "loading" || !data) return <PageSkeleton cards={5} />;
   return (
     <JobListScreen
-      jobs={activeJobs}
+      jobs={data.activeJobs}
       subtitleKey="jobs.active.subtitle"
       dateKind="delivery"
     />

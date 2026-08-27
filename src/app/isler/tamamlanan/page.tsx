@@ -1,17 +1,18 @@
+"use client";
+
 import { CompletedJobsPage } from "@/components/jobs/CompletedJobsPage";
+import { PageSkeleton } from "@/components/ui/PageSkeleton";
+import { useJobs } from "@/components/jobs/JobsProvider";
 import { currentBrand } from "@/data/mock";
-import { getJobLists } from "@/lib/data/jobs";
 
-export const dynamic = "force-dynamic";
-
-export default async function TamamlananIslerRoute() {
-  const { completedJobs, referenceNowIso } = await getJobLists();
-
+export default function TamamlananIslerRoute() {
+  const { data, status } = useJobs();
+  if (status === "loading" || !data) return <PageSkeleton cards={5} />;
   return (
     <CompletedJobsPage
-      jobs={completedJobs}
+      jobs={data.completedJobs}
       brand={currentBrand}
-      referenceNowIso={referenceNowIso}
+      referenceNowIso={data.referenceNowIso}
     />
   );
 }

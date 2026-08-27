@@ -10,7 +10,8 @@
   "header": {
     "profileMenu": "Hesap menüsü",
     "closeMenu": "Kapat",
-    "back": "Geri"
+    "back": "Geri",
+    "updating": "Güncelleniyor"
   },
   "dashboard": {
     "greeting": "Merhaba, {brand}",

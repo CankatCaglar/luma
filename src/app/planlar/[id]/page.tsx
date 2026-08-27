@@ -1,19 +1,15 @@
-import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+"use client";
+
+import { notFound, useParams } from "next/navigation";
 import { PlanDetail } from "@/components/plans/PlanDetail";
-import { getJobLists } from "@/lib/data/jobs";
+import { PageSkeleton } from "@/components/ui/PageSkeleton";
+import { useJobs } from "@/components/jobs/JobsProvider";
 
-export const metadata: Metadata = { title: "İçerik Planı" };
-export const dynamic = "force-dynamic";
-
-export default async function PlanDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = await params;
-  const { contentPlans } = await getJobLists();
-  const plan = contentPlans.find((item) => item.id === id);
+export default function PlanDetailPage() {
+  const { id } = useParams<{ id: string }>();
+  const { data, status } = useJobs();
+  if (status === "loading" || !data) return <PageSkeleton cards={2} />;
+  const plan = data.contentPlans.find((item) => item.id === id);
   if (!plan) notFound();
   return <PlanDetail plan={plan} />;
 }

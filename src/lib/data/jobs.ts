@@ -1,5 +1,4 @@
 import { cache } from "react";
-import { headers } from "next/headers";
 import { unstable_noStore as noStore } from "next/cache";
 import {
   AsanaApiError,
@@ -25,28 +24,7 @@ import {
   pendingJobs as mockPendingJobs,
 } from "@/data/mock";
 import { isWithinLastMonths, REFERENCE_NOW } from "@/lib/period";
-import type {
-  ApprovalItem,
-  ContentPlan,
-  DashboardMetrics,
-  Job,
-  MonthlyReport,
-} from "@/types";
-
-export type JobSource = "asana" | "mock";
-
-export type JobLists = {
-  source: JobSource;
-  jobs: Job[];
-  activeJobs: Job[];
-  pendingJobs: Job[];
-  completedJobs: Job[];
-  approvalItems: ApprovalItem[];
-  metrics: DashboardMetrics;
-  contentPlans: ContentPlan[];
-  monthlyReports: MonthlyReport[];
-  referenceNowIso: string;
-};
+import type { DashboardMetrics, Job, JobLists, JobSource } from "@/types";
 
 function isActive(job: Job): boolean {
   return job.status === "in_progress" || job.status === "revision";
@@ -161,30 +139,19 @@ function logAsanaError(error: unknown, label: string) {
   console.error(`[asana] ${label}: ${message}`);
 }
 
-async function shouldBypassJobsCache(): Promise<boolean> {
-  try {
-    const requestHeaders = await headers();
-    const cacheControl = requestHeaders.get("cache-control") ?? "";
-    const pragma = requestHeaders.get("pragma") ?? "";
-    return /no-cache|max-age=0/i.test(`${cacheControl} ${pragma}`);
-  } catch {
-    return false;
-  }
-}
-
-async function loadJobLists(): Promise<JobLists> {
+async function loadJobLists(options: { fresh?: boolean } = {}): Promise<JobLists> {
   noStore();
 
   if (!isAsanaConfigured()) {
     return mockJobLists();
   }
 
-  const bypassCache = await shouldBypassJobsCache();
-  if (
-    !bypassCache &&
-    jobsCache &&
-    Date.now() - jobsCache.fetchedAt < JOBS_FRESH_MS
-  ) {
+  if (!options.fresh && jobsCache) {
+    if (Date.now() - jobsCache.fetchedAt >= JOBS_FRESH_MS) {
+      void refreshJobLists().catch((error) => {
+        logAsanaError(error, "background refresh failed");
+      });
+    }
     return jobsCache.data;
   }
 

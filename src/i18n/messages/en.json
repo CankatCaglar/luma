@@ -10,7 +10,8 @@
   "header": {
     "profileMenu": "Account menu",
     "closeMenu": "Close",
-    "back": "Back"
+    "back": "Back",
+    "updating": "Updating"
   },
   "dashboard": {
     "greeting": "Hello, {brand}",
