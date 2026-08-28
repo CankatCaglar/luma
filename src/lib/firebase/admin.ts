@@ -13,6 +13,18 @@ function readEnv(name: string): string | undefined {
   return value ? value : undefined;
 }
 
+function normalizePrivateKey(value: string): string {
+  const unquoted =
+    (value.startsWith("\"") && value.endsWith("\"")) ||
+    (value.startsWith("'") && value.endsWith("'"))
+      ? value.slice(1, -1)
+      : value;
+  return unquoted
+    .replaceAll("\\n", "\n")
+    .replaceAll("\\r\\n", "\n")
+    .replaceAll("\r\n", "\n");
+}
+
 function readCredentialFromJson(): AdminCredential | null {
   const raw = readEnv("FIREBASE_ADMIN_CREDENTIALS_JSON");
   if (!raw) return null;
@@ -32,7 +44,7 @@ function readCredentialFromJson(): AdminCredential | null {
     return {
       projectId,
       clientEmail,
-      privateKey: privateKey.replaceAll("\\n", "\n"),
+      privateKey: normalizePrivateKey(privateKey),
     };
   } catch {
     return null;
@@ -47,7 +59,7 @@ function readCredentialFromParts(): AdminCredential | null {
   return {
     projectId,
     clientEmail,
-    privateKey: privateKey.replaceAll("\\n", "\n"),
+    privateKey: normalizePrivateKey(privateKey),
   };
 }
 
@@ -55,18 +67,30 @@ function readCredential(): AdminCredential | null {
   return readCredentialFromJson() ?? readCredentialFromParts();
 }
 
-const adminCredential = readCredential();
+let adminApp: ReturnType<typeof initializeApp> | null | undefined;
+let adminInitError: Error | null = null;
 
-const adminApp = adminCredential
-  ? getApps()[0] ??
-    initializeApp({
-      credential: cert(adminCredential),
-      projectId: adminCredential.projectId,
-    })
-  : null;
-
-const adminAuth = adminApp ? getAuth(adminApp) : null;
-const adminDb = adminApp ? getFirestore(adminApp) : null;
+function ensureAdminApp() {
+  if (adminApp !== undefined) return adminApp;
+  const adminCredential = readCredential();
+  if (!adminCredential) {
+    adminApp = null;
+    return adminApp;
+  }
+  try {
+    adminApp =
+      getApps()[0] ??
+      initializeApp({
+        credential: cert(adminCredential),
+        projectId: adminCredential.projectId,
+      });
+  } catch (error) {
+    adminInitError =
+      error instanceof Error ? error : new Error("Firebase admin init failed");
+    adminApp = null;
+  }
+  return adminApp;
+}
 
 export type VerifiedUser = {
   uid: string;
@@ -94,6 +118,7 @@ function readBearerToken(request: Request): string {
 }
 
 export async function requireVerifiedUser(request: Request): Promise<VerifiedUser> {
+  const adminAuth = getAdminAuth();
   if (!adminAuth) {
     throw new AuthApiError("Firebase admin credentials are missing", 503);
   }
@@ -144,11 +169,29 @@ export function isAdminUser(user: VerifiedUser): boolean {
 }
 
 export function getAdminAuth() {
-  if (!adminAuth) throw new AuthApiError("Firebase admin credentials are missing", 503);
-  return adminAuth;
+  const app = ensureAdminApp();
+  if (!app) {
+    const detail = adminInitError
+      ? ` (${adminInitError.message})`
+      : "";
+    throw new AuthApiError(
+      `Firebase admin credentials are missing or invalid${detail}`,
+      503,
+    );
+  }
+  return getAuth(app);
 }
 
 export function getAdminDb() {
-  if (!adminDb) throw new AuthApiError("Firebase admin credentials are missing", 503);
-  return adminDb;
+  const app = ensureAdminApp();
+  if (!app) {
+    const detail = adminInitError
+      ? ` (${adminInitError.message})`
+      : "";
+    throw new AuthApiError(
+      `Firebase admin credentials are missing or invalid${detail}`,
+      503,
+    );
+  }
+  return getFirestore(app);
 }

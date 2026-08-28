@@ -80,6 +80,35 @@ function storeJobs(storageKey: string, data: JobLists) {
   }
 }
 
+function createEmptyJobLists(input: {
+  email?: string | null;
+  brandName?: string | null;
+}): JobLists {
+  const nowIso = new Date().toISOString();
+  return {
+    tenant: {
+      tenantId: "unassigned",
+      brandName: input.brandName?.trim() || "LUMA",
+      brandCode: "UNASSIGNED",
+      email: input.email?.trim() || "unknown@tenant.local",
+    },
+    source: "mock",
+    jobs: [],
+    activeJobs: [],
+    pendingJobs: [],
+    completedJobs: [],
+    approvalItems: [],
+    metrics: {
+      pendingApproval: 0,
+      activeJobs: 0,
+      completedThisMonth: 0,
+    },
+    contentPlans: [],
+    monthlyReports: [],
+    referenceNowIso: nowIso,
+  };
+}
+
 export function JobsProvider({ children }: { children: ReactNode }) {
   const { t } = useI18n();
   const { enabled, user } = useAuth();
@@ -91,8 +120,13 @@ export function JobsProvider({ children }: { children: ReactNode }) {
   const [refreshing, setRefreshing] = useState(false);
   const inflight = useRef<Promise<void> | null>(null);
   const lastFetchAt = useRef(0);
+  const hasDataRef = useRef(Boolean(data));
 
   const status: JobsStatus = data ? "ready" : "loading";
+
+  useEffect(() => {
+    hasDataRef.current = Boolean(data);
+  }, [data]);
 
   const refresh = useCallback(async (force = false) => {
     if (enabled && !user) {
@@ -116,13 +150,26 @@ export function JobsProvider({ children }: { children: ReactNode }) {
           cache: "no-store",
           headers,
         });
-        if (!response.ok) throw new Error("jobs request failed");
+        if (!response.ok) {
+          const payload = (await response.json().catch(() => null)) as
+            | { error?: string }
+            | null;
+          throw new Error(payload?.error ?? "jobs request failed");
+        }
         const next = (await response.json()) as JobLists;
         lastFetchAt.current = Date.now();
         setData(next);
         storeJobs(storageKey, next);
-      } catch {
-        /* keep cached list */
+      } catch (error) {
+        if (!hasDataRef.current) {
+          const fallback = createEmptyJobLists({
+            email: user?.email,
+            brandName: user?.displayName ?? "LUMA",
+          });
+          setData(fallback);
+        }
+        const message = error instanceof Error ? error.message : "jobs request failed";
+        console.error(`[jobs] ${message}`);
       } finally {
         setRefreshing(false);
         inflight.current = null;
