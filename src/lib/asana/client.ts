@@ -64,6 +64,30 @@ async function asanaFetch<T>(path: string, query?: Query): Promise<T> {
   return body as T;
 }
 
+async function asanaPost<T>(path: string, body: unknown): Promise<T> {
+  const token = requireAsanaToken();
+  const response = await fetch(buildUrl(path), {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+    cache: "no-store",
+    signal: AbortSignal.timeout(15_000),
+  });
+
+  const payload: unknown = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    const message = extractAsanaError(payload) ?? `Asana request failed (${response.status})`;
+    throw new AsanaApiError(message, response.status, payload);
+  }
+
+  return payload as T;
+}
+
 function extractAsanaError(body: unknown): string | null {
   if (!body || typeof body !== "object" || !("errors" in body)) return null;
   const errors = (body as { errors?: Array<{ message?: string }> }).errors;
@@ -213,4 +237,34 @@ export async function getTaskResources(
 
   await Promise.all(Array.from({ length: concurrency }, () => worker()));
   return details;
+}
+
+export async function createTask(input: {
+  name: string;
+  notes?: string;
+  projects: string[];
+  memberships?: Array<{ project: string; section: string }>;
+}): Promise<{ gid: string; permalink_url?: string }> {
+  const data: {
+    name: string;
+    notes?: string;
+    projects?: string[];
+    memberships?: Array<{ project: string; section: string }>;
+  } = {
+    name: input.name,
+    notes: input.notes,
+  };
+  if (input.memberships?.length) {
+    data.memberships = input.memberships;
+  } else if (input.projects.length) {
+    data.projects = input.projects;
+  }
+
+  const payload = await asanaPost<
+    AsanaItemResponse<{ gid: string; permalink_url?: string }>
+  >("/tasks", {
+    data,
+  });
+
+  return payload.data;
 }

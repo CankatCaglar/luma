@@ -84,6 +84,18 @@
       "reportTitle": "Tamamlanan işler",
       "reportPeriod": "Dönem: {period}",
       "reportGenerated": "Tarih: {date}"
+    },
+    "detail": {
+      "title": "İş Detayı",
+      "description": "Bu işe ait son durum, erişim bilgileri ve paylaşım detayları aşağıda yer alır.",
+      "accessTitle": "Görünüm ve Erişim",
+      "documentType": "Belge türü",
+      "lastUpdate": "Son güncelleme",
+      "accessLevel": "Paylaşım",
+      "source": "Bağlantı kaynağı",
+      "accessViewOnly": "Sadece görüntüleme",
+      "accessPending": "Bağlantı hazırlanıyor",
+      "help": "Dosya bağlantısı görünmüyorsa ekipten paylaşım güncellemesi isteyebilir veya destek talebi oluşturabilirsiniz."
     }
   },
   "plans": {
@@ -95,7 +107,15 @@
     "empty": "Henüz içerik planı yok",
     "comingSoon": "Bu planın detay görünümü yakında eklenecek.",
     "comingSoonWithLink": "Detay görünümü yakında eklenecek. Şimdilik slaytı görüntüleyebilirsiniz.",
-    "openSlides": "Planı görüntüle"
+    "openSlides": "Planı görüntüle",
+    "detailDescription": "Bu aya ait planı inceleyebilir, notlarınızı Google Docs veya Slides üzerinden paylaşabilirsiniz.",
+    "accessTitle": "Görünüm ve Erişim",
+    "documentType": "Belge türü",
+    "lastUpdate": "Son güncelleme",
+    "sharing": "Paylaşım",
+    "viewOnly": "Sadece görüntüleme",
+    "linkPending": "Bağlantı hazırlanıyor",
+    "help": "Planı doküman üzerinden inceleyip yorumlarınızı doğrudan ekleyebilirsiniz."
   },
   "reports": {
     "title": "Raporlar",
@@ -107,7 +127,15 @@
     "empty": "Henüz rapor yok",
     "comingSoon": "Bu raporun detay görünümü yakında eklenecek.",
     "comingSoonWithLink": "Detay görünümü yakında eklenecek. Şimdilik Drive dosyasını görüntüleyebilirsiniz.",
-    "openDrive": "Raporu görüntüle"
+    "openDrive": "Raporu görüntüle",
+    "detailDescription": "Aylık analiz dokümanınızı görüntüleyebilir, notlarınızı doküman üzerinde paylaşabilirsiniz.",
+    "accessTitle": "Görünüm ve Erişim",
+    "documentType": "Belge türü",
+    "lastUpdate": "Son güncelleme",
+    "sharing": "Paylaşım",
+    "viewOnly": "Sadece görüntüleme",
+    "linkPending": "Bağlantı hazırlanıyor",
+    "help": "Raporu Drive/Docs üzerinden açıp yorumlarınızı ekip ile paylaşabilirsiniz."
   },
   "brandCenter": {
     "title": "Marka Merkezi",
@@ -136,10 +164,23 @@
     "notificationPrefsSub": "Hangi güncellemeleri alacağınızı seçin",
     "password": "Şifre ve Güvenlik",
     "passwordSub": "Şifrenizi ve oturum ayarlarınızı yönetin",
+    "emailVerification": "E-posta Doğrulama",
+    "emailVerified": "E-posta doğrulandı",
+    "emailNotVerified": "E-posta henüz doğrulanmadı",
+    "sendVerification": "Doğrulama gönder",
+    "resetPasswordEmail": "Şifre sıfırlama",
+    "sendResetLink": "Sıfırlama bağlantısı gönder",
+    "actionSent": "İşlem tamamlandı. E-postanızı kontrol edin.",
+    "authNotReady": "İşlem şu anda gerçekleştirilemedi. Lütfen tekrar deneyin.",
+    "adminPanel": "Admin Paneli",
+    "adminPanelSub": "Marka, kullanıcı ve Asana tenant eşleşmelerini yönet",
     "language": "Dil",
     "turkish": "Türkçe",
     "english": "İngilizce",
     "logout": "Çıkış Yap"
+  },
+  "admin": {
+    "title": "Admin Paneli"
   },
   "request": {
     "title": "Yeni Talep",

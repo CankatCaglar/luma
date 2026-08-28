@@ -1,11 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { Calendar, ChevronRight } from "lucide-react";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { TagList } from "@/components/ui/TagBadge";
 import { IconTile } from "@/components/ui/IconTile";
 import { useI18n } from "@/components/i18n/I18nProvider";
 import { formatDueDate } from "@/lib/format";
+import { resolveJobHref } from "@/lib/jobHref";
 import { jobIcons, statusKeys } from "@/components/jobs/jobMeta";
 import type { Job } from "@/types";
 import type { MessageKey } from "@/i18n";
@@ -47,8 +49,9 @@ export function JobList({
             : job.dueDate;
 
         return (
-          <article
+          <Link
             key={job.id}
+            href={resolveJobHref(job)}
             className="flex select-none items-center gap-3 rounded-2xl bg-luma-card p-3.5 ring-1 ring-luma-border/80 transition-transform duration-150 ease-out active:scale-[0.97]"
           >
             <IconTile className="h-12 w-12">
@@ -68,7 +71,7 @@ export function JobList({
               </p>
             </div>
             <ChevronRight className="h-4 w-4 shrink-0 text-luma" />
-          </article>
+          </Link>
         );
       })}
     </div>

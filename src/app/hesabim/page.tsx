@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import {
   Bell,
   ChevronRight,
@@ -12,11 +12,15 @@ import {
   Store,
   User,
 } from "lucide-react";
+import { sendPasswordResetEmail } from "firebase/auth";
 import { currentBrand, currentUser } from "@/data/mock";
 import { useI18n } from "@/components/i18n/I18nProvider";
+import { useAuth } from "@/components/auth/AuthProvider";
+import { useJobs } from "@/components/jobs/JobsProvider";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { IconTile } from "@/components/ui/IconTile";
 import { cn } from "@/lib/cn";
+import { firebaseAuth, firebaseEnabled } from "@/lib/firebase/client";
 import type { Locale } from "@/i18n";
 
 function Row({
@@ -59,6 +63,15 @@ function Row({
 
 export default function HesabimPage() {
   const { t, locale, setLocale } = useI18n();
+  const { user, signOutUser } = useAuth();
+  const { data } = useJobs();
+  const [busyKey, setBusyKey] = useState<"reset" | "logout" | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const name = user?.displayName ?? currentUser.name;
+  const email = user?.email ?? currentUser.email;
+  const brandName = data?.tenant.brandName ?? currentBrand.name;
 
   const languages: { id: Locale; label: string }[] =
     locale === "tr"
@@ -79,8 +92,8 @@ export default function HesabimPage() {
         {t("account.userInfo")}
       </p>
       <section className="divide-y divide-luma-border overflow-hidden rounded-2xl bg-luma-card ring-1 ring-luma-border/80">
-        <Row icon={User} title={t("account.name")} subtitle={currentUser.name} />
-        <Row icon={Mail} title={t("account.email")} subtitle={currentUser.email} />
+        <Row icon={User} title={t("account.name")} subtitle={name} />
+        <Row icon={Mail} title={t("account.email")} subtitle={email} />
         <Row icon={Phone} title={t("account.phone")} subtitle={currentUser.phone} />
       </section>
 
@@ -92,7 +105,7 @@ export default function HesabimPage() {
           icon={Store}
           tone="gold"
           title={t("account.activeBrand")}
-          subtitle={currentBrand.name}
+          subtitle={brandName}
           subtitleClass="font-semibold text-luma-gold"
         />
       </section>
@@ -111,6 +124,51 @@ export default function HesabimPage() {
           title={t("account.password")}
           subtitle={t("account.passwordSub")}
         />
+      </section>
+
+      <section className="mt-3 space-y-2 rounded-2xl bg-luma-card p-4 ring-1 ring-luma-border/80">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-foreground">
+              {t("account.resetPasswordEmail")}
+            </p>
+            <p className="mt-0.5 text-sm text-luma-muted">{email}</p>
+          </div>
+          <button
+            type="button"
+            disabled={!firebaseEnabled || !firebaseAuth || !email || busyKey !== null}
+            onClick={async () => {
+              if (!firebaseAuth || !email) return;
+              setBusyKey("reset");
+              setError(null);
+              setInfo(null);
+              try {
+                await sendPasswordResetEmail(firebaseAuth, email, {
+                  url: `${window.location.origin}/giris`,
+                });
+                setInfo(t("account.actionSent"));
+              } catch {
+                setError(t("account.authNotReady"));
+              } finally {
+                setBusyKey(null);
+              }
+            }}
+            className="shrink-0 rounded-xl border border-luma-border px-3 py-2 text-xs font-semibold text-luma transition-transform duration-150 ease-out active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-55"
+          >
+            {t("account.sendResetLink")}
+          </button>
+        </div>
+
+        {info ? (
+          <p className="rounded-xl bg-luma-soft px-3 py-2 text-xs font-semibold text-luma">
+            {info}
+          </p>
+        ) : null}
+        {error ? (
+          <p className="rounded-xl bg-red-50 px-3 py-2 text-xs font-semibold text-luma-red">
+            {error}
+          </p>
+        ) : null}
       </section>
 
       <section className="mt-3 rounded-2xl bg-luma-card ring-1 ring-luma-border/80">
@@ -145,12 +203,25 @@ export default function HesabimPage() {
       <section className="mt-5 overflow-hidden rounded-2xl bg-luma-card ring-1 ring-luma-border/80">
         <button
           type="button"
+          disabled={busyKey !== null}
+          onClick={async () => {
+            setBusyKey("logout");
+            setError(null);
+            setInfo(null);
+            try {
+              await signOutUser();
+            } catch {
+              setError(t("account.authNotReady"));
+            } finally {
+              setBusyKey(null);
+            }
+          }}
           className="w-full select-none text-left transition-transform duration-150 ease-out active:scale-[0.97]"
         >
           <Row
             icon={LogOut}
             tone="red"
-            title={t("account.logout")}
+            title={busyKey === "logout" ? "Çıkış yapılıyor..." : t("account.logout")}
             titleClass="text-luma-red"
             trailing={<span />}
           />

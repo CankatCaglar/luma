@@ -4,11 +4,13 @@ import { useEffect, useRef, useState } from "react";
 import {
   ChevronDown,
   Clock,
+  Loader2,
   Send,
   Upload,
   Zap,
 } from "lucide-react";
 import { useI18n } from "@/components/i18n/I18nProvider";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { cn } from "@/lib/cn";
 import type { RequestPriority, RequestType } from "@/types";
 import type { MessageKey } from "@/i18n";
@@ -23,6 +25,7 @@ const typeOptions: { id: RequestType; key: MessageKey }[] = [
 
 export default function TalepPage() {
   const { t } = useI18n();
+  const { enabled, user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [type, setType] = useState<RequestType | "">("");
   const [title, setTitle] = useState("");
@@ -31,6 +34,9 @@ export default function TalepPage() {
   const [fileName, setFileName] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const [typeOpen, setTypeOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const typeRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -47,13 +53,58 @@ export default function TalepPage() {
   }
 
   const selectedType = typeOptions.find((option) => option.id === type);
+  const canSubmit = Boolean(type && title.trim().length >= 3 && brief.trim().length >= 10);
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!type) return;
+    setError(null);
+    setSuccess(null);
+    setSubmitting(true);
+    try {
+      const headers: HeadersInit = { "Content-Type": "application/json" };
+      if (enabled && user) {
+        headers.Authorization = `Bearer ${await user.getIdToken()}`;
+      }
+
+      const response = await fetch("/api/requests", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          type,
+          subject: title,
+          brief,
+          priority,
+          fileName,
+        }),
+      });
+
+      const payload = (await response.json().catch(() => null)) as
+        | { error?: string; taskGid?: string }
+        | null;
+      if (!response.ok) {
+        throw new Error(payload?.error ?? "Talep oluşturulamadı");
+      }
+
+      setSuccess("Talebiniz başarıyla iletildi.");
+      setTitle("");
+      setBrief("");
+      setType("");
+      setPriority("standard");
+      setFileName(null);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Talep gönderilemedi");
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   return (
     <div>
       <p className="mb-4 text-sm text-luma-kahve">{t("request.subtitle")}</p>
       <form
         className="space-y-4"
-        onSubmit={(event) => event.preventDefault()}
+        onSubmit={handleSubmit}
       >
         <div>
           <span className="text-sm font-medium text-foreground">
@@ -225,11 +276,26 @@ export default function TalepPage() {
 
         <button
           type="submit"
+          disabled={submitting || !canSubmit}
           className="flex w-full select-none items-center justify-center gap-2 rounded-xl bg-luma py-3.5 text-sm font-semibold text-white transition-transform duration-150 ease-out active:scale-[0.97]"
         >
-          <Send className="h-4 w-4" />
+          {submitting ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Send className="h-4 w-4" />
+          )}
           {t("request.submit")}
         </button>
+        {error ? (
+          <p className="rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-luma-red">
+            {error}
+          </p>
+        ) : null}
+        {success ? (
+          <p className="rounded-xl bg-luma-soft px-3 py-2 text-sm font-semibold text-luma">
+            {success}
+          </p>
+        ) : null}
       </form>
     </div>
   );

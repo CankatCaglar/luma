@@ -16,6 +16,12 @@ import type {
 } from "@/lib/asana/types";
 import type { ApprovalItem, Job, JobKind, JobStatus, JobTag } from "@/types";
 
+type TaskMapOptions = {
+  brandCode?: string;
+  statusFieldName?: string;
+  kindFieldName?: string;
+};
+
 const MONTH_INDEX: Record<string, number> = {
   ocak: 1,
   january: 1,
@@ -301,21 +307,37 @@ function toDateOnly(value: string | null | undefined): string | undefined {
   return value.slice(0, 10);
 }
 
-function jobHref(status: JobStatus, kind: JobKind, month: string): string {
+function jobHref(taskId: string, status: JobStatus, kind: JobKind, month: string): string {
   if (kind === "plan") return `/planlar/${catalogId("plan", month)}`;
   if (kind === "report") return `/raporlar/${catalogId("report", month)}`;
-  if (status === "pending_approval" || status === "review") return "/isler/onay";
-  if (status === "completed") return "/isler/tamamlanan";
-  return "/isler/aktif";
+  if (!taskId) {
+    if (status === "pending_approval" || status === "review") return "/isler/onay";
+    if (status === "completed") return "/isler/tamamlanan";
+    return "/isler/aktif";
+  }
+  return `/isler/gorev/${taskId}`;
 }
 
-export function mapTaskStatus(task: AsanaTask, projectGid?: string): JobStatus {
+function resolveMapOptions(options?: TaskMapOptions): Required<TaskMapOptions> {
+  const env = getAsanaEnv();
+  return {
+    brandCode: options?.brandCode ?? env.brandCode ?? "",
+    statusFieldName: options?.statusFieldName ?? env.statusFieldName ?? "",
+    kindFieldName: options?.kindFieldName ?? env.kindFieldName ?? "",
+  };
+}
+
+export function mapTaskStatus(
+  task: AsanaTask,
+  projectGid?: string,
+  options?: TaskMapOptions,
+): JobStatus {
   if (task.completed) return "completed";
 
-  const env = getAsanaEnv();
+  const mapOptions = resolveMapOptions(options);
   const statusField = findCustomField(
     task,
-    env.statusFieldName,
+    mapOptions.statusFieldName || undefined,
     STATUS_FIELD_NAMES,
   );
   const fromField = matchStatus(customFieldValue(statusField));
@@ -339,9 +361,13 @@ export function mapTaskStatus(task: AsanaTask, projectGid?: string): JobStatus {
   return "in_progress";
 }
 
-export function mapTaskKind(task: AsanaTask): JobKind {
-  const env = getAsanaEnv();
-  const kindField = findCustomField(task, env.kindFieldName, KIND_FIELD_NAMES);
+export function mapTaskKind(task: AsanaTask, options?: TaskMapOptions): JobKind {
+  const mapOptions = resolveMapOptions(options);
+  const kindField = findCustomField(
+    task,
+    mapOptions.kindFieldName || undefined,
+    KIND_FIELD_NAMES,
+  );
   const fromField = matchKind(customFieldValue(kindField));
   if (fromField) return fromField;
 
@@ -372,17 +398,18 @@ export function isBrandTask(task: AsanaTask, brandCode: string): boolean {
 export function mapTaskToJob(
   task: AsanaTask,
   projectGid?: string,
+  options?: TaskMapOptions,
 ): Job | null {
   if (task.resource_subtype === "milestone") return null;
   if (isHiddenTask(task)) return null;
 
-  const env = getAsanaEnv();
-  const brandCode = env.brandCode ?? "";
+  const mapOptions = resolveMapOptions(options);
+  const brandCode = mapOptions.brandCode ?? "";
   const title = displayTaskTitle(task.name, brandCode);
   if (!title || foldLabel(title) === foldLabel(brandCode)) return null;
 
-  const status = mapTaskStatus(task, projectGid);
-  const kind = mapTaskKind(task);
+  const status = mapTaskStatus(task, projectGid, mapOptions);
+  const kind = mapTaskKind(task, mapOptions);
   const completedAt =
     status === "completed"
       ? toDateOnly(task.completed_at) ??
@@ -401,7 +428,7 @@ export function mapTaskToJob(
     kind,
     dueDate,
     completedAt,
-    href: jobHref(status, kind, month),
+    href: jobHref(task.gid, status, kind, month),
     resourceUrl,
     tags: mapTaskTags(task, brandCode),
   };

@@ -8,13 +8,12 @@ import {
   useMemo,
   useRef,
   useState,
-  useSyncExternalStore,
   type ReactNode,
 } from "react";
 import { useI18n } from "@/components/i18n/I18nProvider";
+import { useAuth } from "@/components/auth/AuthProvider";
 import type { JobLists } from "@/types";
 
-const STORAGE_KEY = "luma-jobs-v1";
 const MIN_REVALIDATE_MS = 5_000;
 const POLL_MS = 45_000;
 const MAX_STORED_AGE_MS = 24 * 60 * 60 * 1000;
@@ -31,17 +30,20 @@ type JobsContextValue = {
 const JobsContext = createContext<JobsContextValue | null>(null);
 
 function isJobLists(value: unknown): value is JobLists {
+  const tenant = (value as JobLists | null)?.tenant;
   return Boolean(
     value &&
       typeof value === "object" &&
-      Array.isArray((value as JobLists).completedJobs),
+      Array.isArray((value as JobLists).completedJobs) &&
+      tenant &&
+      typeof tenant.brandName === "string",
   );
 }
 
-function readStoredJobs(): JobLists | null {
+function readStoredJobs(storageKey: string): JobLists | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as unknown;
 
@@ -54,7 +56,7 @@ function readStoredJobs(): JobLists | null {
 
     const savedAt = Number(wrapped.savedAt ?? 0);
     if (Number.isFinite(savedAt) && savedAt > 0 && Date.now() - savedAt > MAX_STORED_AGE_MS) {
-      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(storageKey);
       return null;
     }
     return list;
@@ -63,24 +65,11 @@ function readStoredJobs(): JobLists | null {
   }
 }
 
-let storedSnapshot: JobLists | null = null;
-let storedSnapshotRead = false;
-
-function getClientSnapshot(): JobLists | null {
-  if (!storedSnapshotRead) {
-    storedSnapshotRead = true;
-    storedSnapshot = readStoredJobs();
-  }
-  return storedSnapshot;
-}
-
-function storeJobs(data: JobLists) {
+function storeJobs(storageKey: string, data: JobLists) {
   if (typeof window === "undefined") return;
-  storedSnapshot = data;
-  storedSnapshotRead = true;
   try {
     localStorage.setItem(
-      STORAGE_KEY,
+      storageKey,
       JSON.stringify({
         savedAt: Date.now(),
         data,
@@ -91,22 +80,25 @@ function storeJobs(data: JobLists) {
   }
 }
 
-function subscribe() {
-  return () => {};
-}
-
 export function JobsProvider({ children }: { children: ReactNode }) {
   const { t } = useI18n();
-  const cached = useSyncExternalStore(subscribe, getClientSnapshot, () => null);
-  const [data, setData] = useState<JobLists | null>(null);
+  const { enabled, user } = useAuth();
+  const storageKey = useMemo(
+    () => `luma-jobs-v2:${enabled ? user?.uid ?? "guest" : "public"}`,
+    [enabled, user?.uid],
+  );
+  const [data, setData] = useState<JobLists | null>(() => readStoredJobs(storageKey));
   const [refreshing, setRefreshing] = useState(false);
   const inflight = useRef<Promise<void> | null>(null);
   const lastFetchAt = useRef(0);
 
-  const resolved = data ?? cached;
-  const status: JobsStatus = resolved ? "ready" : "loading";
+  const status: JobsStatus = data ? "ready" : "loading";
 
   const refresh = useCallback(async (force = false) => {
+    if (enabled && !user) {
+      setData(null);
+      return;
+    }
     if (inflight.current) return inflight.current;
     if (!force && Date.now() - lastFetchAt.current < MIN_REVALIDATE_MS) {
       return;
@@ -116,12 +108,19 @@ export function JobsProvider({ children }: { children: ReactNode }) {
       setRefreshing(true);
       try {
         const endpoint = force ? "/api/jobs?fresh=1" : "/api/jobs";
-        const response = await fetch(endpoint, { cache: "no-store" });
+        const headers: HeadersInit = {};
+        if (enabled && user) {
+          headers.Authorization = `Bearer ${await user.getIdToken()}`;
+        }
+        const response = await fetch(endpoint, {
+          cache: "no-store",
+          headers,
+        });
         if (!response.ok) throw new Error("jobs request failed");
         const next = (await response.json()) as JobLists;
         lastFetchAt.current = Date.now();
         setData(next);
-        storeJobs(next);
+        storeJobs(storageKey, next);
       } catch {
         /* keep cached list */
       } finally {
@@ -132,10 +131,13 @@ export function JobsProvider({ children }: { children: ReactNode }) {
 
     inflight.current = run;
     return run;
-  }, []);
+  }, [enabled, storageKey, user]);
 
   useEffect(() => {
-    void refresh();
+    if (enabled && !user) return;
+    const kickoff = window.setTimeout(() => {
+      void refresh();
+    }, 0);
 
     function refreshFresh() {
       void refresh(true);
@@ -153,26 +155,27 @@ export function JobsProvider({ children }: { children: ReactNode }) {
     }, POLL_MS);
 
     return () => {
+      window.clearTimeout(kickoff);
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("focus", refreshFresh);
       window.removeEventListener("online", refreshFresh);
       window.clearInterval(timer);
     };
-  }, [refresh]);
+  }, [enabled, refresh, user]);
 
   const value = useMemo(
     () => ({
-      data: resolved,
+      data,
       status,
       refreshing,
       refresh: () => refresh(true),
     }),
-    [resolved, status, refreshing, refresh],
+    [data, status, refreshing, refresh],
   );
 
   return (
     <JobsContext.Provider value={value}>
-      {refreshing && resolved ? (
+      {refreshing && data ? (
         <div
           className="pointer-events-none fixed inset-x-0 top-0 z-50 flex justify-center"
           role="status"

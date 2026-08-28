@@ -41,6 +41,7 @@ export function plansFromJobs(jobs: Job[], now: Date): ContentPlan[] {
         month,
         title: primary.title,
         slidesUrl: monthJobs.find((job) => job.resourceUrl)?.resourceUrl,
+        dueDate: primary.dueDate,
         status: primary.status,
         isCurrent: month === currentMonth,
       } satisfies ContentPlan;
@@ -65,6 +66,7 @@ export function reportsFromJobs(jobs: Job[], now: Date): MonthlyReport[] {
         month,
         title: primary.title,
         driveUrl: monthJobs.find((job) => job.resourceUrl)?.resourceUrl ?? "",
+        updatedAt: primary.completedAt ?? primary.dueDate,
         isNew: month === currentMonth || primary.status !== "completed",
       } satisfies MonthlyReport;
     })

@@ -84,6 +84,18 @@
       "reportTitle": "Completed jobs",
       "reportPeriod": "Period: {period}",
       "reportGenerated": "Date: {date}"
+    },
+    "detail": {
+      "title": "Job Detail",
+      "description": "The latest status, access details, and sharing information for this job are listed below.",
+      "accessTitle": "View and Access",
+      "documentType": "Document type",
+      "lastUpdate": "Last update",
+      "accessLevel": "Sharing",
+      "source": "Link source",
+      "accessViewOnly": "View only",
+      "accessPending": "Link is being prepared",
+      "help": "If the resource link is missing, you can ask the team to refresh sharing access or create a support request."
     }
   },
   "plans": {
@@ -95,7 +107,15 @@
     "empty": "No content plans yet",
     "comingSoon": "The detailed view for this plan is coming soon.",
     "comingSoonWithLink": "The detailed view is coming soon. You can view the slides for now.",
-    "openSlides": "View plan"
+    "openSlides": "View plan",
+    "detailDescription": "You can review this monthly plan and share comments directly from Google Docs or Slides.",
+    "accessTitle": "View and Access",
+    "documentType": "Document type",
+    "lastUpdate": "Last update",
+    "sharing": "Sharing",
+    "viewOnly": "View only",
+    "linkPending": "Link is being prepared",
+    "help": "You can review the plan document and add comments directly."
   },
   "reports": {
     "title": "Reports",
@@ -107,7 +127,15 @@
     "empty": "No reports yet",
     "comingSoon": "The detailed view for this report is coming soon.",
     "comingSoonWithLink": "The detailed view is coming soon. You can view the Drive file for now.",
-    "openDrive": "View report"
+    "openDrive": "View report",
+    "detailDescription": "You can open the monthly analysis document and share your notes directly in the file.",
+    "accessTitle": "View and Access",
+    "documentType": "Document type",
+    "lastUpdate": "Last update",
+    "sharing": "Sharing",
+    "viewOnly": "View only",
+    "linkPending": "Link is being prepared",
+    "help": "Open the report from Drive/Docs and share your comments with the team."
   },
   "brandCenter": {
     "title": "Brand Center",
@@ -136,10 +164,23 @@
     "notificationPrefsSub": "Choose which updates you receive",
     "password": "Password and Security",
     "passwordSub": "Manage your password and sessions",
+    "emailVerification": "Email Verification",
+    "emailVerified": "Email is verified",
+    "emailNotVerified": "Email is not verified yet",
+    "sendVerification": "Send verification",
+    "resetPasswordEmail": "Password reset",
+    "sendResetLink": "Send reset link",
+    "actionSent": "Done. Please check your email.",
+    "authNotReady": "This action could not be completed right now. Please try again.",
+    "adminPanel": "Admin Panel",
+    "adminPanelSub": "Manage brands, users, and Asana tenant mappings",
     "language": "Language",
     "turkish": "Turkish",
     "english": "English",
     "logout": "Log out"
+  },
+  "admin": {
+    "title": "Admin Panel"
   },
   "request": {
     "title": "New Request",

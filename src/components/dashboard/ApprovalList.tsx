@@ -6,6 +6,7 @@ import { useI18n } from "@/components/i18n/I18nProvider";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { TagList } from "@/components/ui/TagBadge";
 import { formatDueDate } from "@/lib/format";
+import { resolveJobHref } from "@/lib/jobHref";
 import type { ApprovalItem } from "@/types";
 
 export function ApprovalList({ items }: { items: ApprovalItem[] }) {
@@ -31,8 +32,9 @@ export function ApprovalList({ items }: { items: ApprovalItem[] }) {
           </p>
         ) : null}
         {items.map((item) => (
-          <article
+          <Link
             key={item.id}
+            href={resolveJobHref(item)}
             className="flex select-none items-center gap-3 rounded-2xl bg-luma-card p-3 ring-1 ring-luma-border/80 transition-transform duration-150 ease-out active:scale-[0.97]"
           >
             <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-luma-soft">
@@ -61,7 +63,7 @@ export function ApprovalList({ items }: { items: ApprovalItem[] }) {
               </p>
             </div>
             <ChevronRight className="h-4 w-4 shrink-0 text-luma" />
-          </article>
+          </Link>
         ))}
       </div>
     </section>

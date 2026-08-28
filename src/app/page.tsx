@@ -8,6 +8,10 @@ export default function Home() {
   const { data, status } = useJobs();
   if (status === "loading" || !data) return <DashboardSkeleton />;
   return (
-    <DashboardPage metrics={data.metrics} approvalItems={data.approvalItems} />
+    <DashboardPage
+      brandName={data.tenant.brandName}
+      metrics={data.metrics}
+      approvalItems={data.approvalItems}
+    />
   );
 }

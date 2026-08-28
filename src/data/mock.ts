@@ -8,6 +8,7 @@ import type {
   MonthlyReport,
   NotificationItem,
   QuickLink,
+  TenantSummary,
   UserProfile,
 } from "@/types";
 import { isWithinLastMonths } from "@/lib/period";
@@ -22,6 +23,13 @@ export const currentUser: UserProfile = {
   email: "can@swatchloop.com",
   phone: "+90 532 000 00 00",
   avatarUrl: "/images/avatar.svg",
+};
+
+export const mockTenant: TenantSummary = {
+  tenantId: currentBrand.id,
+  brandName: currentBrand.name,
+  brandCode: "SWH101",
+  email: currentUser.email,
 };
 
 export const jobs: Job[] = [
@@ -215,6 +223,7 @@ export const contentPlans: ContentPlan[] = [
     month: "2026-09",
     title: "Eylül İçerik Planı",
     slidesUrl: "https://docs.google.com/presentation/d/example-sep",
+    dueDate: "2026-08-28",
     status: "review",
     isCurrent: true,
   },
@@ -223,6 +232,7 @@ export const contentPlans: ContentPlan[] = [
     month: "2026-08",
     title: "Ağustos İçerik Planı",
     slidesUrl: "https://docs.google.com/presentation/d/example-aug",
+    dueDate: "2026-08-20",
     status: "completed",
   },
   {
@@ -230,6 +240,7 @@ export const contentPlans: ContentPlan[] = [
     month: "2026-07",
     title: "Temmuz İçerik Planı",
     slidesUrl: "https://docs.google.com/presentation/d/example-jul",
+    dueDate: "2026-07-20",
     status: "completed",
   },
 ];
@@ -240,6 +251,7 @@ export const monthlyReports: MonthlyReport[] = [
     month: "2026-08",
     title: "Ağustos Performans Raporu",
     driveUrl: "https://drive.google.com/drive/folders/example-aug",
+    updatedAt: "2026-08-28",
     isNew: true,
   },
   {
@@ -247,12 +259,14 @@ export const monthlyReports: MonthlyReport[] = [
     month: "2026-07",
     title: "Temmuz Performans Raporu",
     driveUrl: "https://drive.google.com/drive/folders/example-jul",
+    updatedAt: "2026-07-31",
   },
   {
     id: "report-2026-06",
     month: "2026-06",
     title: "Haziran Performans Raporu",
     driveUrl: "https://drive.google.com/drive/folders/example-jun",
+    updatedAt: "2026-06-30",
   },
 ];
 

@@ -32,6 +32,13 @@ export type PeriodMonths = 1 | 3 | 6 | 12;
 
 export type JobSource = "asana" | "mock";
 
+export type TenantSummary = {
+  tenantId: string;
+  brandName: string;
+  brandCode: string;
+  email: string;
+};
+
 export type DashboardMetrics = {
   pendingApproval: number;
   activeJobs: number;
@@ -83,6 +90,7 @@ export type ContentPlan = {
   month: string;
   title: string;
   slidesUrl?: string;
+  dueDate?: string;
   status: JobStatus;
   isCurrent?: boolean;
 };
@@ -92,10 +100,12 @@ export type MonthlyReport = {
   month: string;
   title: string;
   driveUrl: string;
+  updatedAt?: string;
   isNew?: boolean;
 };
 
 export type JobLists = {
+  tenant: TenantSummary;
   source: JobSource;
   jobs: Job[];
   activeJobs: Job[];

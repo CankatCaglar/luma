@@ -3,10 +3,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { ChevronDown, ChevronLeft, LogOut } from "lucide-react";
 import { currentBrand, currentUser } from "@/data/mock";
 import { useI18n } from "@/components/i18n/I18nProvider";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { LumaLogo } from "@/components/layout/NeraLogo";
 import { cn } from "@/lib/cn";
 import type { MessageKey } from "@/i18n";
@@ -39,6 +40,11 @@ const backRoutes: BackRoute[] = [
     href: "/",
   },
   {
+    match: (pathname) => /^\/isler\/gorev\/[^/]+$/.test(pathname),
+    titleKey: "jobs.detail.title",
+    href: "/isler",
+  },
+  {
     match: (pathname) => pathname === "/isler/aktif",
     titleKey: "jobs.active.title",
     href: "/",
@@ -62,6 +68,11 @@ const backRoutes: BackRoute[] = [
     match: (pathname) => pathname === "/talep",
     titleKey: "request.title",
     href: "/",
+  },
+  {
+    match: (pathname) => pathname === "/admin",
+    titleKey: "admin.title",
+    href: "/hesabim",
   },
 ];
 
@@ -96,7 +107,9 @@ function BackButton({
 
 function ProfileMenu() {
   const { t } = useI18n();
+  const { user, signOutUser } = useAuth();
   const [open, setOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -120,8 +133,8 @@ function ProfileMenu() {
         aria-label={t("header.profileMenu")}
       >
         <Image
-          src={currentUser.avatarUrl}
-          alt={currentBrand.name}
+          src={user?.photoURL ?? currentUser.avatarUrl}
+          alt={user?.displayName ?? currentBrand.name}
           width={36}
           height={36}
           priority
@@ -149,14 +162,27 @@ function ProfileMenu() {
             role="menu"
             className="absolute right-0 top-[calc(100%+10px)] z-50 w-48 overflow-hidden rounded-2xl bg-white py-1 shadow-[0_12px_40px_rgba(28,25,23,0.12)] ring-1 ring-luma-border"
           >
+            {user?.email ? (
+              <p className="truncate px-3.5 pb-1 pt-2 text-xs text-luma-muted">
+                {user.email}
+              </p>
+            ) : null}
             <button
               type="button"
               role="menuitem"
-              onClick={() => setOpen(false)}
+              onClick={async () => {
+                setLoggingOut(true);
+                try {
+                  await signOutUser();
+                } finally {
+                  setLoggingOut(false);
+                  setOpen(false);
+                }
+              }}
               className="flex w-full select-none items-center gap-2.5 px-3.5 py-2.5 text-left text-sm font-semibold text-luma-red transition-colors hover:bg-red-50"
             >
               <LogOut className="h-4 w-4" strokeWidth={1.9} />
-              {t("account.logout")}
+              {loggingOut ? "Çıkış yapılıyor..." : t("account.logout")}
             </button>
           </div>
         </>
@@ -168,11 +194,8 @@ function ProfileMenu() {
 export function Header() {
   const { t } = useI18n();
   const pathname = usePathname();
-  const entryPath = useRef<string | null>(null);
-  if (entryPath.current === null) {
-    entryPath.current = pathname;
-  }
   const back = backRoutes.find((route) => route.match(pathname));
+  const canGoBack = typeof window !== "undefined" && window.history.length > 1;
 
   return (
     <header className="sticky top-0 z-40 flex items-center justify-between bg-[#FBF9F5]/90 px-4 pb-3 pt-[max(12px,env(safe-area-inset-top))] backdrop-blur-md">
@@ -180,7 +203,7 @@ export function Header() {
         <BackButton
           fallbackHref={back.href}
           label={t("header.back")}
-          canGoBack={entryPath.current !== pathname}
+          canGoBack={canGoBack}
         />
       ) : (
         <Link
