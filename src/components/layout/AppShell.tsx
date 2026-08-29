@@ -29,7 +29,9 @@ function AuthRouteShell({ children }: { children: ReactNode }) {
 
 function AdminShell({ children }: { children: ReactNode }) {
   return (
-    <div className="admin-shell min-h-screen w-full bg-[#FBF9F5]">{children}</div>
+    <div className="admin-shell min-h-dvh w-full overflow-x-clip bg-[#FBF9F5]">
+      {children}
+    </div>
   );
 }
 

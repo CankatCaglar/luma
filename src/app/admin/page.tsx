@@ -89,7 +89,7 @@ const INITIAL_FORM: FormState = {
 };
 
 const fieldClassName =
-  "w-full rounded-xl border border-luma-border bg-white px-3 py-3 text-base text-foreground outline-none placeholder:text-luma-muted focus:ring-2 focus:ring-luma";
+  "w-full min-w-0 max-w-full rounded-xl border border-luma-border bg-white px-3 py-3 text-base text-foreground outline-none placeholder:text-luma-muted focus:ring-2 focus:ring-luma";
 
 function firebaseErrorCode(error: unknown): string {
   return error && typeof error === "object" && "code" in error
@@ -400,8 +400,8 @@ export default function AdminPage() {
 
   if (!firebaseEnabled || !enabled) {
     return (
-      <div className="flex min-h-screen items-center justify-center px-6">
-        <section className="w-full max-w-md rounded-3xl bg-luma-gold-soft px-6 py-6 text-sm font-medium text-luma-kahve ring-1 ring-luma-border/80">
+      <div className="flex min-h-dvh items-center justify-center px-4">
+        <section className="w-full min-w-0 max-w-md rounded-3xl bg-luma-gold-soft px-4 py-6 text-sm font-medium text-luma-kahve ring-1 ring-luma-border/80 sm:px-6">
           Admin paneli için Firebase Auth zorunlu. Lütfen `.env.local` değerlerini
           tamamlayın.
         </section>
@@ -411,8 +411,8 @@ export default function AdminPage() {
 
   if (adminChecking) {
     return (
-      <div className="flex min-h-screen items-center justify-center px-6">
-        <section className="w-full max-w-md rounded-3xl bg-white px-6 py-6 text-sm text-luma-muted shadow-[0_16px_48px_rgba(28,25,23,0.08)] ring-1 ring-luma-border/80">
+      <div className="flex min-h-dvh items-center justify-center px-4">
+        <section className="w-full min-w-0 max-w-md rounded-3xl bg-white px-4 py-6 text-sm text-luma-muted shadow-[0_16px_48px_rgba(28,25,23,0.08)] ring-1 ring-luma-border/80 sm:px-6">
           Admin yetkisi kontrol ediliyor...
         </section>
       </div>
@@ -421,15 +421,15 @@ export default function AdminPage() {
 
   if (!user || !isAdmin) {
     return (
-      <div className="grid min-h-screen lg:grid-cols-[minmax(0,1.05fr)_minmax(20rem,0.8fr)]">
-        <section className="flex min-h-screen flex-col px-6 py-8 sm:px-10 lg:px-16">
+      <div className="grid min-h-dvh min-w-0 overflow-x-clip lg:grid-cols-[minmax(0,1.05fr)_minmax(20rem,0.8fr)]">
+        <section className="flex min-h-dvh min-w-0 flex-col px-4 py-6 sm:px-10 lg:px-16">
           <div className="flex flex-1 items-center justify-center py-10">
-            <div className="w-full max-w-md">
+            <div className="w-full min-w-0 max-w-md">
               <div className="text-center">
                 <div className="mb-6 flex justify-center">
                   <LumaLogo className="h-16" />
                 </div>
-                <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+                <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl lg:text-4xl">
                   Luma Admin
                 </h1>
                 <p className="mt-2 text-sm leading-relaxed text-luma-muted">
@@ -443,7 +443,7 @@ export default function AdminPage() {
                 </div>
               ) : null}
 
-              <section className="mt-6 rounded-3xl bg-white px-6 pb-8 pt-6 shadow-[0_16px_48px_rgba(28,25,23,0.08)] ring-1 ring-luma-border/80">
+              <section className="mt-6 min-w-0 rounded-3xl bg-white px-4 pb-7 pt-5 shadow-[0_16px_48px_rgba(28,25,23,0.08)] ring-1 ring-luma-border/80 sm:px-6 sm:pb-8 sm:pt-6">
                 <form className="space-y-3" onSubmit={onAdminLogin}>
                   <label className="block">
                     <span className="mb-1 block text-sm font-medium text-foreground">
@@ -544,55 +544,57 @@ export default function AdminPage() {
     "Workspace";
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-6 px-6 py-8">
-      <header className="rounded-3xl bg-white px-6 py-5 shadow-[0_16px_48px_rgba(28,25,23,0.08)] ring-1 ring-luma-border/80">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
+    <div className="mx-auto w-full min-w-0 max-w-6xl space-y-4 px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-[max(1.25rem,env(safe-area-inset-top))] sm:space-y-6 sm:px-6 sm:py-8">
+      <header className="rounded-3xl bg-white px-4 py-4 shadow-[0_16px_48px_rgba(28,25,23,0.08)] ring-1 ring-luma-border/80 sm:px-6 sm:py-5">
+        <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
             <p className="text-sm text-luma-kahve">Tenant Admin</p>
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">Marka Onboarding</h1>
-            <p className="mt-1.5 text-sm text-luma-muted">
+            <h1 className="text-2xl font-bold tracking-tight break-words text-foreground sm:text-3xl">
+              Marka Onboarding
+            </h1>
+            <p className="mt-1.5 text-sm leading-relaxed text-luma-muted">
               Marka kodunu yaz, Asana workspace&apos;inden eşleşmeyi otomatik bul.
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex w-full min-w-0 items-stretch gap-2 sm:w-auto sm:items-center">
             <button
               type="button"
               onClick={() => void onLeaveToLuma()}
               disabled={adminSigningOut}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-luma-border px-3 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-luma-soft disabled:cursor-not-allowed disabled:opacity-70"
+              className="inline-flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl border border-luma-border px-2.5 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-luma-soft disabled:cursor-not-allowed disabled:opacity-70 sm:flex-none sm:px-3 sm:py-2"
             >
               {adminSigningOut ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
               ) : (
-                <ArrowLeft className="h-4 w-4" />
+                <ArrowLeft className="h-4 w-4 shrink-0" />
               )}
-              Luma&apos;ya dön
+              <span className="truncate">Luma&apos;ya dön</span>
             </button>
             <button
               type="button"
               onClick={() => void onSecureSignOut()}
               disabled={adminSigningOut}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-luma px-3 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-70"
+              className="inline-flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl bg-luma px-2.5 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-70 sm:flex-none sm:px-3 sm:py-2"
             >
               {adminSigningOut ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
               ) : (
-                <LogOut className="h-4 w-4" />
+                <LogOut className="h-4 w-4 shrink-0" />
               )}
-              Güvenli çıkış
+              <span className="truncate">Güvenli çıkış</span>
             </button>
           </div>
         </div>
       </header>
 
-      <div className="grid gap-6 lg:grid-cols-[1.1fr_1fr]">
-        <section className="rounded-3xl bg-white p-5 shadow-[0_16px_48px_rgba(28,25,23,0.08)] ring-1 ring-luma-border/80">
+      <div className="grid min-w-0 gap-4 sm:gap-6 lg:grid-cols-[1.1fr_1fr]">
+        <section className="min-w-0 rounded-3xl bg-white p-4 shadow-[0_16px_48px_rgba(28,25,23,0.08)] ring-1 ring-luma-border/80 sm:p-5">
           <h2 className="mb-1 text-base font-bold text-foreground">Yeni Marka Tanımla</h2>
-          <p className="mb-4 text-sm text-luma-muted">
+          <p className="mb-4 text-sm leading-relaxed text-luma-muted">
             Proje veya section seçmene gerek yok. Marka kodu seçili workspace içinde aranır.
           </p>
           <form className="space-y-3" onSubmit={onSubmit}>
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
               <WorkspacePicker
                 workspaces={workspaceOptions}
                 value={form.workspaceGid}
@@ -680,7 +682,7 @@ export default function AdminPage() {
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-luma py-3 text-sm font-semibold text-white transition-transform duration-150 ease-out active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-              Tenant ve kullanıcı kaydet
+              Marka Ekle
             </button>
             {error ? (
               <p className="rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-luma-red">
@@ -695,13 +697,13 @@ export default function AdminPage() {
           </form>
         </section>
 
-        <section className="rounded-3xl bg-white p-5 shadow-[0_16px_48px_rgba(28,25,23,0.08)] ring-1 ring-luma-border/80">
-          <div className="mb-3 flex items-center justify-between">
+        <section className="min-w-0 rounded-3xl bg-white p-4 shadow-[0_16px_48px_rgba(28,25,23,0.08)] ring-1 ring-luma-border/80 sm:p-5">
+          <div className="mb-3 flex items-center justify-between gap-3">
             <h2 className="text-base font-bold text-foreground">Kayıtlı Markalar</h2>
             <button
               type="button"
               onClick={() => void loadTenants()}
-              className="text-sm font-semibold text-luma"
+              className="shrink-0 text-sm font-semibold text-luma"
             >
               Yenile
             </button>
@@ -784,7 +786,7 @@ function WorkspacePicker({
   }, [open]);
 
   return (
-    <div className="relative inline-flex">
+    <div className="relative min-w-0 max-w-full">
       <button
         type="button"
         aria-expanded={open}
@@ -794,7 +796,7 @@ function WorkspacePicker({
         onClick={() => setOpen((current) => !current)}
         className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-luma-soft py-1.5 pl-3 pr-2.5 text-sm font-semibold text-luma outline-none ring-1 ring-luma/20 transition-transform duration-150 ease-out hover:bg-[#e4e0f8] focus:ring-2 focus:ring-luma active:scale-[0.97] disabled:opacity-60"
       >
-        <span className="max-w-48 truncate">{label}</span>
+        <span className="max-w-[min(12rem,calc(100vw-8rem))] truncate">{label}</span>
         <ChevronDown
           className={`h-3.5 w-3.5 shrink-0 transition-transform duration-150 ${open ? "rotate-180" : ""}`}
         />
@@ -810,7 +812,7 @@ function WorkspacePicker({
           />
           <ul
             role="listbox"
-            className="absolute left-0 top-[calc(100%+8px)] z-50 min-w-52 max-w-72 overflow-hidden rounded-2xl bg-white p-1.5 shadow-[0_12px_40px_rgba(28,25,23,0.12)] ring-1 ring-luma-border"
+            className="absolute left-0 top-[calc(100%+8px)] z-50 w-[min(18rem,calc(100vw-2rem))] overflow-hidden rounded-2xl bg-white p-1.5 shadow-[0_12px_40px_rgba(28,25,23,0.12)] ring-1 ring-luma-border"
           >
             {workspaces.length === 0 ? (
               <li className="px-3 py-2 text-sm text-luma-muted">
@@ -865,7 +867,7 @@ function LookupPreview({
 
   if (error) {
     return (
-      <p className="rounded-2xl bg-red-50 px-3 py-2.5 text-sm font-medium text-luma-red">
+      <p className="rounded-2xl bg-red-50 px-3 py-2.5 text-sm font-medium break-words text-luma-red">
         {error}
       </p>
     );
@@ -873,7 +875,7 @@ function LookupPreview({
 
   if (loading || (stale && code.length >= 3)) {
     return (
-      <p className="rounded-2xl bg-luma-soft px-3 py-2.5 text-sm text-luma">
+      <p className="rounded-2xl bg-luma-soft px-3 py-2.5 text-sm break-words text-luma">
         {code} Asana workspace&apos;inde aranıyor...
       </p>
     );
@@ -898,7 +900,7 @@ function LookupPreview({
       : null;
 
     return (
-      <div className="rounded-2xl bg-luma-green-soft px-3 py-3 text-sm text-luma-green">
+      <div className="min-w-0 rounded-2xl bg-luma-green-soft px-3 py-3 text-sm break-words text-luma-green">
         <p className="font-semibold">
           {lookup.brandCode} bulundu · {lookup.taskCount} iş
         </p>
@@ -907,7 +909,7 @@ function LookupPreview({
             {projectNames.map((name) => (
               <span
                 key={name}
-                className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-foreground"
+                className="max-w-full break-words rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-foreground"
               >
                 {name}
               </span>

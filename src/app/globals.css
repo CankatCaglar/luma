@@ -38,9 +38,12 @@
 }
 
 html {
-  height: -webkit-fill-available;
+  min-height: -webkit-fill-available;
+  max-width: 100%;
   margin: 0;
   padding: 0;
+  overflow-x: clip;
+  overflow-y: auto;
   background-color: #fbf9f5;
   overscroll-behavior-y: none;
   -webkit-text-size-adjust: 100%;
@@ -50,8 +53,11 @@ body {
   min-height: 100vh;
   min-height: -webkit-fill-available;
   min-height: 100dvh;
+  max-width: 100%;
   margin: 0;
   padding: 0;
+  overflow-x: clip;
+  overflow-y: visible;
   background-color: #fbf9f5;
   overscroll-behavior-y: none;
   color: var(--foreground);
@@ -71,6 +77,10 @@ select {
 
 ::selection {
   background: color-mix(in srgb, var(--luma-purple) 24%, white);
+}
+
+.admin-shell {
+  overflow-wrap: break-word;
 }
 
 .admin-shell button,
