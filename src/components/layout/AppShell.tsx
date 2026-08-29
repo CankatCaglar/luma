@@ -29,20 +29,19 @@ function AuthRouteShell({ children }: { children: ReactNode }) {
 
 function AdminShell({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-screen w-full bg-slate-50">
-      <main className="mx-auto w-full max-w-7xl px-6 py-8">{children}</main>
-    </div>
+    <div className="admin-shell min-h-screen w-full bg-[#FBF9F5]">{children}</div>
   );
 }
 
 function ProtectedShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, loading, enabled, adminChecking } = useAuth();
+  const { user, loading, enabled, adminChecking, isAdmin, signOutUser } = useAuth();
   const onLoginRoute = pathname.startsWith("/giris");
   const onCanonicalAdminRoute = pathname.startsWith("/admin");
   const onAdminRoute =
     onCanonicalAdminRoute || /^\/adm(?:i|ı)n(?:\/|$)/i.test(pathname);
+  const onBrandRoute = !onLoginRoute && !onAdminRoute;
 
   useEffect(() => {
     if (!enabled || loading) return;
@@ -53,20 +52,46 @@ function ProtectedShell({ children }: { children: ReactNode }) {
       return;
     }
 
-    if (!user && !onLoginRoute && !onAdminRoute) router.replace("/giris");
-    if (user && onLoginRoute) router.replace("/");
-  }, [enabled, loading, user, onLoginRoute, onAdminRoute, onCanonicalAdminRoute, pathname, router]);
+    if (user && isAdmin && onBrandRoute) {
+      void signOutUser().then(() => {
+        router.replace("/giris");
+      });
+      return;
+    }
 
-  if (enabled && loading) return <LoadingShell />;
-  if (enabled && !user && !onLoginRoute && !onAdminRoute) return <LoadingShell />;
-  if (enabled && onAdminRoute && user && adminChecking) return <LoadingShell />;
+    if (!user && onBrandRoute) {
+      router.replace("/giris");
+      return;
+    }
 
-  if (onLoginRoute) {
-    return <AuthRouteShell>{children}</AuthRouteShell>;
-  }
+    if (user && onLoginRoute && !adminChecking) {
+      router.replace(isAdmin ? "/admin" : "/");
+    }
+  }, [
+    enabled,
+    loading,
+    user,
+    isAdmin,
+    adminChecking,
+    onLoginRoute,
+    onAdminRoute,
+    onBrandRoute,
+    onCanonicalAdminRoute,
+    pathname,
+    router,
+    signOutUser,
+  ]);
 
   if (onAdminRoute) {
     return <AdminShell>{children}</AdminShell>;
+  }
+
+  if (enabled && loading) return <LoadingShell />;
+  if (enabled && user && isAdmin && onBrandRoute) return <LoadingShell />;
+  if (enabled && !user && onBrandRoute) return <LoadingShell />;
+
+  if (onLoginRoute) {
+    return <AuthRouteShell>{children}</AuthRouteShell>;
   }
 
   return (

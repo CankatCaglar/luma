@@ -2,7 +2,7 @@ import type { JobKind, JobStatus } from "@/types";
 
 export const ASANA_API_BASE = "https://app.asana.com/api/1.0";
 
-export const TASK_OPT_FIELDS = [
+export const TASK_LIST_OPT_FIELDS = [
   "name",
   "completed",
   "completed_at",
@@ -18,6 +18,13 @@ export const TASK_OPT_FIELDS = [
   "custom_fields.resource_subtype",
   "tags.name",
   "tags.color",
+  "attachments.host",
+  "attachments.view_url",
+].join(",");
+
+export const TASK_OPT_FIELDS = [
+  TASK_LIST_OPT_FIELDS,
+  "html_notes",
 ].join(",");
 
 export const TASK_RESOURCE_FIELDS = [

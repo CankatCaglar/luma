@@ -1,10 +1,11 @@
 import {
   ASANA_API_BASE,
   PROJECT_OPT_FIELDS,
-  TASK_OPT_FIELDS,
+  TASK_LIST_OPT_FIELDS,
   TASK_RESOURCE_FIELDS,
   requireAsanaToken,
 } from "@/lib/asana/config";
+import { isBrandTask } from "@/lib/asana/map";
 import type {
   AsanaItemResponse,
   AsanaListResponse,
@@ -17,6 +18,15 @@ import type {
 
 const PAGE_LIMIT = 100;
 const MAX_PAGES = 20;
+const PROJECT_TASK_CACHE_MS = 90_000;
+
+type ProjectTaskCache = {
+  expiresAt: number;
+  tasks: AsanaTask[];
+};
+
+const projectTaskCache = new Map<string, ProjectTaskCache>();
+const projectTaskInflight = new Map<string, Promise<AsanaTask[]>>();
 
 export class AsanaApiError extends Error {
   constructor(
@@ -176,18 +186,59 @@ function completedSinceIso(): string {
   return date.toISOString();
 }
 
-export async function getProjectTasks(projectGid: string): Promise<AsanaTask[]> {
-  return asanaListAll<AsanaTask>(`/projects/${projectGid}/tasks`, {
+function projectTaskCacheKey(projectGid: string, optFields: string): string {
+  return `${projectGid}:${optFields}`;
+}
+
+export async function getProjectTasks(
+  projectGid: string,
+  options?: { optFields?: string; skipCache?: boolean },
+): Promise<AsanaTask[]> {
+  const optFields = options?.optFields ?? TASK_LIST_OPT_FIELDS;
+  const key = projectTaskCacheKey(projectGid, optFields);
+  if (!options?.skipCache) {
+    const cached = projectTaskCache.get(key);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.tasks;
+    }
+    const inflight = projectTaskInflight.get(key);
+    if (inflight) return inflight;
+  }
+
+  const request = asanaListAll<AsanaTask>(`/projects/${projectGid}/tasks`, {
     completed_since: completedSinceIso(),
-    opt_fields: TASK_OPT_FIELDS,
+    opt_fields: optFields,
+  }).then((tasks) => {
+    projectTaskCache.set(key, {
+      expiresAt: Date.now() + PROJECT_TASK_CACHE_MS,
+      tasks,
+    });
+    return tasks;
+  }).finally(() => {
+    projectTaskInflight.delete(key);
   });
+
+  projectTaskInflight.set(key, request);
+  return request;
+}
+
+export async function getBrandTasks(input: {
+  projectGids: string[];
+  brandCode: string;
+  workspaceGid?: string;
+}): Promise<AsanaTask[]> {
+  const tasks = await getTasksForProjects(input.projectGids);
+  return tasks.filter((task) => isBrandTask(task, input.brandCode));
 }
 
 export async function getTasksForProjects(
   projectGids: string[],
+  options?: { optFields?: string },
 ): Promise<AsanaTask[]> {
   const groups = await Promise.all(
-    projectGids.map((projectGid) => getProjectTasks(projectGid)),
+    projectGids.map((projectGid) =>
+      getProjectTasks(projectGid, { optFields: options?.optFields }),
+    ),
   );
   const byGid = new Map<string, AsanaTask>();
   for (const tasks of groups) {

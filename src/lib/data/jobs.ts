@@ -1,12 +1,12 @@
 import { unstable_noStore as noStore } from "next/cache";
 import {
   AsanaApiError,
+  getBrandTasks,
   getTaskResources,
-  getTasksForProjects,
 } from "@/lib/asana/client";
 import { getAsanaEnv } from "@/lib/asana/config";
 import {
-  isBrandTask,
+  extractResourceUrl,
   mapJobsToApprovalItems,
   mapTaskToJob,
 } from "@/lib/asana/map";
@@ -36,6 +36,7 @@ export type TenantScope = {
   brandCode: string;
   email: string;
   projectGids: string[];
+  workspaceGid?: string;
 };
 
 function isActive(job: Job): boolean {
@@ -102,7 +103,8 @@ function mockJobLists(tenant: TenantSummary): JobLists {
   };
 }
 
-const JOBS_FRESH_MS = 20_000;
+const JOBS_FRESH_MS = 60_000;
+const JOBS_STALE_MS = 5 * 60_000;
 
 const jobsCache = new Map<string, { fetchedAt: number; data: JobLists }>();
 const inflight = new Map<string, Promise<JobLists>>();
@@ -129,24 +131,33 @@ async function fetchJobLists(scope: TenantScope): Promise<JobLists> {
     throw new Error("Tenant Asana project or brand config is missing");
   }
 
-  const tasks = await getTasksForProjects(scope.projectGids);
-  const brandTasks = tasks.filter((task) => isBrandTask(task, scope.brandCode));
-  const resourceGids = brandTasks.map((task) => task.gid);
-  const resources = await getTaskResources(resourceGids);
+  const brandTasks = await getBrandTasks({
+    projectGids: scope.projectGids,
+    brandCode: scope.brandCode,
+    workspaceGid: scope.workspaceGid || env.workspaceGid,
+  });
   const jobs = brandTasks
-    .map((task) => {
-      const extra = resources.get(task.gid);
-      return mapTaskToJob(
-        extra ? { ...task, ...extra } : task,
-        scope.projectGids[0],
-        {
-          brandCode: scope.brandCode,
-          statusFieldName: env.statusFieldName,
-          kindFieldName: env.kindFieldName,
-        },
-      );
-    })
+    .map((task) =>
+      mapTaskToJob(task, scope.projectGids[0], {
+        brandCode: scope.brandCode,
+        statusFieldName: env.statusFieldName,
+        kindFieldName: env.kindFieldName,
+      }),
+    )
     .filter((job): job is Job => job !== null);
+
+  const missingResourceIds = jobs
+    .filter((job) => !job.resourceUrl && (job.kind === "plan" || job.kind === "report"))
+    .map((job) => job.id);
+  if (missingResourceIds.length > 0) {
+    const resources = await getTaskResources(missingResourceIds);
+    for (const job of jobs) {
+      const extra = resources.get(job.id);
+      if (!extra) continue;
+      job.resourceUrl = extractResourceUrl(extra.html_notes, extra.attachments);
+    }
+  }
+
   return listsFromJobs(jobs, "asana", new Date(), toTenantSummary(scope));
 }
 
@@ -189,13 +200,13 @@ async function loadJobLists(input: {
   const fresh = input.fresh ?? false;
   const cached = jobsCache.get(key);
 
-  if (!fresh && cached) {
-    if (Date.now() - cached.fetchedAt >= JOBS_FRESH_MS) {
+  if (cached && Date.now() - cached.fetchedAt < JOBS_STALE_MS) {
+    if (fresh || Date.now() - cached.fetchedAt >= JOBS_FRESH_MS) {
       void refreshJobLists(input.scope).catch((error) => {
         logAsanaError(error, "background refresh failed");
       });
     }
-    return cached.data;
+    if (!fresh) return cached.data;
   }
 
   try {

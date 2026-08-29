@@ -72,3 +72,22 @@ select {
 ::selection {
   background: color-mix(in srgb, var(--luma-purple) 24%, white);
 }
+
+.admin-shell button,
+.admin-shell a,
+.admin-shell label,
+.admin-shell select,
+.admin-shell summary,
+.admin-shell [role="button"],
+.admin-shell [role="option"],
+.admin-shell input[type="checkbox"],
+.admin-shell input[type="radio"],
+.admin-shell input[type="submit"] {
+  cursor: pointer;
+}
+
+.admin-shell button:disabled,
+.admin-shell input:disabled,
+.admin-shell select:disabled {
+  cursor: not-allowed;
+}

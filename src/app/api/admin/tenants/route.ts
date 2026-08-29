@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { getAsanaEnv } from "@/lib/asana/config";
+import { lookupBrandInWorkspace } from "@/lib/asana/lookup";
 import { getAdminAuth } from "@/lib/firebase/admin";
 import {
   getTenantByEmail,
@@ -59,9 +61,6 @@ function parseBody(input: unknown): CreateTenantBody {
   if (password.length < 8) {
     throw new TenantAccessError("Password must be at least 8 chars", 400);
   }
-  if (parseCsv(projectGids).length === 0) {
-    throw new TenantAccessError("At least one Asana project gid is required", 400);
-  }
 
   return {
     brandName,
@@ -120,19 +119,58 @@ async function upsertBrandUser(input: {
   return { uid: created.uid, password: input.password, created: true };
 }
 
-function normalizeTenantPayload(payload: CreateTenantBody): TenantAccess {
+async function resolveAsanaMapping(payload: CreateTenantBody) {
+  const providedProjectGids = parseCsv(payload.projectGids);
+  const workspaceGid = payload.workspaceGid?.trim() || getAsanaEnv().workspaceGid || "";
+
+  if (providedProjectGids.length > 0) {
+    return {
+      workspaceGid: workspaceGid || undefined,
+      projectGids: providedProjectGids,
+      requestProjectGid: payload.requestProjectGid ?? providedProjectGids[0],
+      requestSectionGid: payload.requestSectionGid,
+    };
+  }
+
+  if (!workspaceGid) {
+    throw new TenantAccessError("Workspace seçilmedi", 400);
+  }
+
+  const lookup = await lookupBrandInWorkspace({
+    workspaceGid,
+    brandCode: payload.brandCode,
+  });
+
+  if (lookup.projectGids.length === 0) {
+    throw new TenantAccessError(
+      "Asana içinde bu marka kodu için proje eşleşmesi bulunamadı",
+      400,
+    );
+  }
+
+  return {
+    workspaceGid: lookup.workspaceGid,
+    projectGids: lookup.projectGids,
+    requestProjectGid: payload.requestProjectGid ?? lookup.request?.projectGid ?? lookup.projectGids[0],
+    requestSectionGid: payload.requestSectionGid ?? lookup.request?.sectionGid,
+  };
+}
+
+function normalizeTenantPayload(
+  payload: CreateTenantBody,
+  mapping: Awaited<ReturnType<typeof resolveAsanaMapping>>,
+): TenantAccess {
   const tenantId = slugTenantId(payload.brandName) || payload.brandCode.toLowerCase();
-  const projectGids = parseCsv(payload.projectGids);
   return {
     tenantId,
     brandName: payload.brandName,
     emails: [payload.email],
     asana: {
       brandCode: payload.brandCode,
-      projectGids,
-      requestProjectGid: payload.requestProjectGid ?? projectGids[0],
-      requestSectionGid: payload.requestSectionGid,
-      workspaceGid: payload.workspaceGid,
+      projectGids: mapping.projectGids,
+      requestProjectGid: mapping.requestProjectGid,
+      requestSectionGid: mapping.requestSectionGid,
+      workspaceGid: mapping.workspaceGid,
     },
   };
 }
@@ -162,7 +200,7 @@ async function ensureDefaultSwatchloopTenant() {
   const existing = await getTenantByEmail(email);
   if (existing) return;
 
-  const tenant = normalizeTenantPayload({
+  const payload = {
     brandName,
     brandCode,
     email,
@@ -177,6 +215,12 @@ async function ensureDefaultSwatchloopTenant() {
       readEnv("ASANA_REQUEST_SECTION_GID"),
     workspaceGid:
       readEnv("DEFAULT_SWATCHLOOP_WORKSPACE_GID") ?? readEnv("ASANA_WORKSPACE_GID"),
+  };
+  const tenant = normalizeTenantPayload(payload, {
+    workspaceGid: payload.workspaceGid,
+    projectGids,
+    requestProjectGid: payload.requestProjectGid,
+    requestSectionGid: payload.requestSectionGid,
   });
 
   await upsertTenant(tenant);
@@ -211,7 +255,8 @@ export async function POST(request: Request) {
   try {
     await requireAdminAccess(request);
     const body = parseBody(await request.json());
-    const tenant = normalizeTenantPayload(body);
+    const mapping = await resolveAsanaMapping(body);
+    const tenant = normalizeTenantPayload(body, mapping);
     await upsertTenant(tenant);
     const user = await upsertBrandUser({
       tenantId: tenant.tenantId,

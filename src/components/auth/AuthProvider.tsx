@@ -43,6 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         headers: {
           Authorization: `Bearer ${token}`,
         },
+        signal: AbortSignal.timeout(8000),
       });
       const payload = (await response.json().catch(() => null)) as
         | { isAdmin?: boolean }
@@ -56,7 +57,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (!firebaseEnabled || !firebaseAuth) return;
+    if (!firebaseEnabled || !firebaseAuth) {
+      setLoading(false);
+      setAdminChecking(false);
+      return;
+    }
 
     const unsubscribe = onAuthStateChanged(firebaseAuth, (nextUser) => {
       setUser(nextUser);

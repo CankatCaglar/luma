@@ -20,6 +20,7 @@ export async function GET(request: Request) {
         brandCode: tenant.asana.brandCode,
         email: user.email,
         projectGids: tenant.asana.projectGids,
+        workspaceGid: tenant.asana.workspaceGid,
       },
     });
 

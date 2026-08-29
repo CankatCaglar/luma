@@ -14,8 +14,9 @@ import { useI18n } from "@/components/i18n/I18nProvider";
 import { useAuth } from "@/components/auth/AuthProvider";
 import type { JobLists } from "@/types";
 
-const MIN_REVALIDATE_MS = 5_000;
-const POLL_MS = 45_000;
+const MIN_REVALIDATE_MS = 60_000;
+const POLL_MS = 180_000;
+const FOCUS_STALE_MS = 90_000;
 const MAX_STORED_AGE_MS = 24 * 60 * 60 * 1000;
 
 type JobsStatus = "loading" | "ready";
@@ -186,26 +187,27 @@ export function JobsProvider({ children }: { children: ReactNode }) {
       void refresh();
     }, 0);
 
-    function refreshFresh() {
-      void refresh(true);
+    function refreshIfStale() {
+      if (Date.now() - lastFetchAt.current < FOCUS_STALE_MS) return;
+      void refresh(false);
     }
 
     function onVisible() {
-      if (document.visibilityState === "visible") refreshFresh();
+      if (document.visibilityState === "visible") refreshIfStale();
     }
 
     document.addEventListener("visibilitychange", onVisible);
-    window.addEventListener("focus", refreshFresh);
-    window.addEventListener("online", refreshFresh);
+    window.addEventListener("focus", refreshIfStale);
+    window.addEventListener("online", refreshIfStale);
     const timer = window.setInterval(() => {
-      if (document.visibilityState === "visible") refreshFresh();
+      if (document.visibilityState === "visible") void refresh(false);
     }, POLL_MS);
 
     return () => {
       window.clearTimeout(kickoff);
       document.removeEventListener("visibilitychange", onVisible);
-      window.removeEventListener("focus", refreshFresh);
-      window.removeEventListener("online", refreshFresh);
+      window.removeEventListener("focus", refreshIfStale);
+      window.removeEventListener("online", refreshIfStale);
       window.clearInterval(timer);
     };
   }, [enabled, refresh, user]);

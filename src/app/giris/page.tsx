@@ -68,23 +68,42 @@ function authErrorMessage(error: unknown, mode: Mode) {
   }
 }
 
+function isExpectedAuthError(error: unknown) {
+  const code = firebaseErrorCode(error);
+  return (
+    code === "auth/invalid-credential" ||
+    code === "auth/user-not-found" ||
+    code === "auth/wrong-password" ||
+    code === "auth/invalid-email" ||
+    code === "auth/missing-password" ||
+    code === "auth/too-many-requests" ||
+    code === "auth/user-disabled"
+  );
+}
+
 function authErrorHint(error: unknown) {
   const code = firebaseErrorCode(error);
   if (hasCode(error, "api-key-not-valid") || hasCode(error, "invalid-api-key")) {
     return "`.env.local` içindeki Firebase API key değerini Firebase Console > Project settings > Your apps bölümünden tekrar kopyalayın.";
   }
   switch (code) {
+    case "auth/invalid-credential":
+    case "auth/user-not-found":
+    case "auth/wrong-password":
+      return "Marka kullanıcısı admin panelden kaydedilmiş olmalı. Mail ve şifreyi kontrol edin.";
     case "auth/operation-not-allowed":
       return "Firebase Console > Authentication > Sign-in method bölümünde Email/Password sağlayıcısını açın.";
     case "auth/configuration-not-found":
-      return "Firebase projesinde Authentication kurulumunu tamamlayın ve en az bir giriş yöntemi (Google veya Email/Password) aktif olsun.";
+      return "Firebase projesinde Authentication kurulumunu tamamlayın ve Email/Password girişini açın.";
     case "auth/app-not-authorized":
     case "auth/unauthorized-domain":
       return "Authentication > Settings > Authorized domains içine kullandığınız domaini (örn. localhost) ekleyin.";
     case "auth/invalid-api-key":
-      return "`.env.local` içindeki `NEXT_PUBLIC_FIREBASE_API_KEY` değerini Firebase proje ayarlarından tekrar kopyalayın.";
+      return "`.env.local` içindeki `FIREBASE_API_KEY` değerini Firebase proje ayarlarından tekrar kopyalayın.";
     default:
-      return "Devam ederse Firebase Console'daki Authentication ayarlarını kontrol edelim.";
+      return isExpectedAuthError(error)
+        ? null
+        : "Devam ederse Firebase Console'daki Authentication ayarlarını kontrol edelim.";
   }
 }
 
@@ -125,7 +144,9 @@ export default function GirisPage() {
     } catch (error) {
       setError(authErrorMessage(error, mode));
       setErrorHint(authErrorHint(error));
-      console.error("[auth] email auth failed", firebaseErrorCode(error), error);
+      if (!isExpectedAuthError(error)) {
+        console.error("[auth] email auth failed", firebaseErrorCode(error), error);
+      }
     } finally {
       setSubmitting(false);
     }
