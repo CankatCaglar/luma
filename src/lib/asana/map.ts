@@ -96,15 +96,19 @@ function normalizedTaskName(name: string): string {
   return name.replace(/[\u200B-\u200D\uFEFF]/g, "").trim();
 }
 
+function nameHasHideMarker(name: string): boolean {
+  const normalized = normalizedTaskName(name);
+  if (normalized.includes(HIDE_NAME_PREFIX)) return true;
+  return /[＊∗✱﹡]{2,}/.test(normalized);
+}
+
 export function isHiddenTask(task: AsanaTask): boolean {
-  const name = normalizedTaskName(task.name ?? "");
-  if (name.startsWith(HIDE_NAME_PREFIX)) return true;
-  if (/^[＊∗✱﹡]{2,}/.test(name)) return true;
+  if (nameHasHideMarker(task.name ?? "")) return true;
 
   return (task.tags ?? []).some((tag) => {
     const folded = foldLabel(tag.name);
     if (!folded) return false;
-    if (tag.name.trim().startsWith(HIDE_NAME_PREFIX)) return true;
+    if (nameHasHideMarker(tag.name)) return true;
     return HIDE_TAG_NAMES.some((alias) => foldLabel(alias) === folded);
   });
 }
@@ -112,7 +116,7 @@ export function isHiddenTask(task: AsanaTask): boolean {
 function isInternalTag(tag: AsanaTag, brandCode: string): boolean {
   const folded = foldLabel(tag.name);
   if (!folded) return true;
-  if (tag.name.trim().startsWith(HIDE_NAME_PREFIX)) return true;
+  if (nameHasHideMarker(tag.name)) return true;
   if (HIDE_TAG_NAMES.some((alias) => foldLabel(alias) === folded)) return true;
   if (brandCode && folded === foldLabel(brandCode)) return true;
   return false;
@@ -407,6 +411,7 @@ export function mapTaskToJob(
   const brandCode = mapOptions.brandCode ?? "";
   const title = displayTaskTitle(task.name, brandCode);
   if (!title || foldLabel(title) === foldLabel(brandCode)) return null;
+  if (nameHasHideMarker(title)) return null;
 
   const status = mapTaskStatus(task, projectGid, mapOptions);
   const kind = mapTaskKind(task, mapOptions);

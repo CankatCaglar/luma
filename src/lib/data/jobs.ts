@@ -103,8 +103,8 @@ function mockJobLists(tenant: TenantSummary): JobLists {
   };
 }
 
-const JOBS_FRESH_MS = 60_000;
-const JOBS_STALE_MS = 5 * 60_000;
+const JOBS_FRESH_MS = 15_000;
+const JOBS_STALE_MS = 45_000;
 
 const jobsCache = new Map<string, { fetchedAt: number; data: JobLists }>();
 const inflight = new Map<string, Promise<JobLists>>();
@@ -122,7 +122,10 @@ function toTenantSummary(scope: TenantScope): TenantSummary {
   };
 }
 
-async function fetchJobLists(scope: TenantScope): Promise<JobLists> {
+async function fetchJobLists(
+  scope: TenantScope,
+  options?: { skipCache?: boolean },
+): Promise<JobLists> {
   const env = getAsanaEnv();
   if (!env.accessToken) {
     throw new Error("ASANA_ACCESS_TOKEN is not set");
@@ -135,6 +138,7 @@ async function fetchJobLists(scope: TenantScope): Promise<JobLists> {
     projectGids: scope.projectGids,
     brandCode: scope.brandCode,
     workspaceGid: scope.workspaceGid || env.workspaceGid,
+    skipCache: options?.skipCache,
   });
   const jobs = brandTasks
     .map((task) =>
@@ -161,18 +165,21 @@ async function fetchJobLists(scope: TenantScope): Promise<JobLists> {
   return listsFromJobs(jobs, "asana", new Date(), toTenantSummary(scope));
 }
 
-function refreshJobLists(scope: TenantScope): Promise<JobLists> {
+function refreshJobLists(
+  scope: TenantScope,
+  options?: { skipCache?: boolean },
+): Promise<JobLists> {
   const key = cacheKey(scope);
   const existing = inflight.get(key);
-  if (existing) return existing;
+  if (existing && !options?.skipCache) return existing;
 
-  const request = fetchJobLists(scope)
+  const request = fetchJobLists(scope, options)
     .then((data) => {
       jobsCache.set(key, { fetchedAt: Date.now(), data });
       return data;
     })
     .finally(() => {
-      inflight.delete(key);
+      if (inflight.get(key) === request) inflight.delete(key);
     });
 
   inflight.set(key, request);
@@ -200,17 +207,17 @@ async function loadJobLists(input: {
   const fresh = input.fresh ?? false;
   const cached = jobsCache.get(key);
 
-  if (cached && Date.now() - cached.fetchedAt < JOBS_STALE_MS) {
-    if (fresh || Date.now() - cached.fetchedAt >= JOBS_FRESH_MS) {
+  if (!fresh && cached && Date.now() - cached.fetchedAt < JOBS_STALE_MS) {
+    if (Date.now() - cached.fetchedAt >= JOBS_FRESH_MS) {
       void refreshJobLists(input.scope).catch((error) => {
         logAsanaError(error, "background refresh failed");
       });
     }
-    if (!fresh) return cached.data;
+    return cached.data;
   }
 
   try {
-    return await refreshJobLists(input.scope);
+    return await refreshJobLists(input.scope, { skipCache: fresh });
   } catch (error) {
     if (cached) return cached.data;
     logAsanaError(error, "tenant fetch failed");

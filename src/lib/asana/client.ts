@@ -18,7 +18,7 @@ import type {
 
 const PAGE_LIMIT = 100;
 const MAX_PAGES = 20;
-const PROJECT_TASK_CACHE_MS = 90_000;
+const PROJECT_TASK_CACHE_MS = 20_000;
 
 type ProjectTaskCache = {
   expiresAt: number;
@@ -215,7 +215,9 @@ export async function getProjectTasks(
     });
     return tasks;
   }).finally(() => {
-    projectTaskInflight.delete(key);
+    if (projectTaskInflight.get(key) === request) {
+      projectTaskInflight.delete(key);
+    }
   });
 
   projectTaskInflight.set(key, request);
@@ -226,18 +228,24 @@ export async function getBrandTasks(input: {
   projectGids: string[];
   brandCode: string;
   workspaceGid?: string;
+  skipCache?: boolean;
 }): Promise<AsanaTask[]> {
-  const tasks = await getTasksForProjects(input.projectGids);
+  const tasks = await getTasksForProjects(input.projectGids, {
+    skipCache: input.skipCache,
+  });
   return tasks.filter((task) => isBrandTask(task, input.brandCode));
 }
 
 export async function getTasksForProjects(
   projectGids: string[],
-  options?: { optFields?: string },
+  options?: { optFields?: string; skipCache?: boolean },
 ): Promise<AsanaTask[]> {
   const groups = await Promise.all(
     projectGids.map((projectGid) =>
-      getProjectTasks(projectGid, { optFields: options?.optFields }),
+      getProjectTasks(projectGid, {
+        optFields: options?.optFields,
+        skipCache: options?.skipCache,
+      }),
     ),
   );
   const byGid = new Map<string, AsanaTask>();

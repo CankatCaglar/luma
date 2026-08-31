@@ -14,9 +14,9 @@ import { useI18n } from "@/components/i18n/I18nProvider";
 import { useAuth } from "@/components/auth/AuthProvider";
 import type { JobLists } from "@/types";
 
-const MIN_REVALIDATE_MS = 60_000;
-const POLL_MS = 180_000;
-const FOCUS_STALE_MS = 90_000;
+const MIN_REVALIDATE_MS = 15_000;
+const POLL_MS = 45_000;
+const FOCUS_STALE_MS = 10_000;
 const MAX_STORED_AGE_MS = 24 * 60 * 60 * 1000;
 
 type JobsStatus = "loading" | "ready";
@@ -48,7 +48,7 @@ function readStoredJobs(storageKey: string): JobLists | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as unknown;
 
-    if (isJobLists(parsed)) return parsed;
+    if (isJobLists(parsed)) return omitHiddenJobs(parsed);
     if (!parsed || typeof parsed !== "object") return null;
 
     const wrapped = parsed as { savedAt?: unknown; data?: unknown };
@@ -60,7 +60,7 @@ function readStoredJobs(storageKey: string): JobLists | null {
       localStorage.removeItem(storageKey);
       return null;
     }
-    return list;
+    return omitHiddenJobs(list);
   } catch {
     return null;
   }
@@ -79,6 +79,25 @@ function storeJobs(storageKey: string, data: JobLists) {
   } catch {
     /* quota / private mode */
   }
+}
+
+function titleLooksHidden(title: string): boolean {
+  return title.includes("**") || /[＊∗✱﹡]{2,}/.test(title);
+}
+
+function omitHiddenJobs(data: JobLists): JobLists {
+  const visible = <T extends { title: string }>(items: T[]) =>
+    items.filter((item) => !titleLooksHidden(item.title));
+  return {
+    ...data,
+    jobs: visible(data.jobs),
+    activeJobs: visible(data.activeJobs),
+    pendingJobs: visible(data.pendingJobs),
+    completedJobs: visible(data.completedJobs),
+    approvalItems: visible(data.approvalItems),
+    contentPlans: visible(data.contentPlans),
+    monthlyReports: visible(data.monthlyReports),
+  };
 }
 
 function createEmptyJobLists(input: {
@@ -157,7 +176,7 @@ export function JobsProvider({ children }: { children: ReactNode }) {
             | null;
           throw new Error(payload?.error ?? "jobs request failed");
         }
-        const next = (await response.json()) as JobLists;
+        const next = omitHiddenJobs((await response.json()) as JobLists);
         lastFetchAt.current = Date.now();
         setData(next);
         storeJobs(storageKey, next);
@@ -184,12 +203,12 @@ export function JobsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (enabled && !user) return;
     const kickoff = window.setTimeout(() => {
-      void refresh();
+      void refresh(true);
     }, 0);
 
     function refreshIfStale() {
       if (Date.now() - lastFetchAt.current < FOCUS_STALE_MS) return;
-      void refresh(false);
+      void refresh(true);
     }
 
     function onVisible() {
@@ -200,7 +219,7 @@ export function JobsProvider({ children }: { children: ReactNode }) {
     window.addEventListener("focus", refreshIfStale);
     window.addEventListener("online", refreshIfStale);
     const timer = window.setInterval(() => {
-      if (document.visibilityState === "visible") void refresh(false);
+      if (document.visibilityState === "visible") void refresh(true);
     }, POLL_MS);
 
     return () => {
