@@ -75,21 +75,56 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+function collapseSpaces(value: string): string {
+  return value.replace(/\s{2,}/g, " ").trim();
+}
+
+function tidyTitleSegment(value: string): string {
+  return collapseSpaces(
+    value
+      .replace(/[\[\](){}]/g, " ")
+      .replace(/^[-–—|:·\s]+/, "")
+      .replace(/[-–—|:·\s]+$/, ""),
+  );
+}
+
+const META_TITLE_SEGMENT =
+  /^(?:\**\s*)?(?:buffer|core|revize|revizyon|\d+(?:[.,]\d+)?\s*(?:dk|sa|saat)(?:\s*\+\s*\d+(?:[.,]\d+)?\s*(?:dk|sa|saat))*)$/i;
+
+function isMetaTitleSegment(value: string): boolean {
+  const folded = foldLabel(value);
+  if (!folded) return true;
+  return META_TITLE_SEGMENT.test(folded);
+}
+
 export function displayTaskTitle(name: string, brandCode: string): string {
-  let title = name.trim().replace(/^\*+\s*/, "");
+  const raw = normalizedTaskName(name).replace(/^\*+\s*/, "");
   const code = brandCode.trim();
+
   if (code) {
-    title = title.replace(new RegExp(escapeRegExp(code), "ig"), " ");
+    const marker = new RegExp(
+      `[\\[\\(\\{]?${escapeRegExp(code)}[\\]\\)\\}]?\\s*[-–—|:·]*\\s*`,
+      "i",
+    );
+    const at = raw.search(marker);
+    if (at >= 0) {
+      const matched = raw.match(marker);
+      if (matched) {
+        const after = tidyTitleSegment(raw.slice(at + matched[0].length));
+        if (after && foldLabel(after) !== foldLabel(code)) return after;
+      }
+    }
   }
-  title = title
-    .replace(/[\[\](){}]/g, " ")
-    .replace(/[\s]*[-–—|:·]+[\s]*/g, " ")
-    .replace(/\s{2,}/g, " ")
-    .trim();
-  title = title
-    .replace(/^(?:\d+(?:[.,]\d+)?\s*(?:dk|sa|saat)\s*(?:\+\s*)?)+/i, "")
-    .trim();
-  return title;
+
+  const parts = raw
+    .split(/\s*[-–—|:]\s*/)
+    .map(tidyTitleSegment)
+    .filter((part) => part && !isMetaTitleSegment(part));
+  if (code) {
+    const withoutCode = parts.filter((part) => foldLabel(part) !== foldLabel(code));
+    if (withoutCode.length) return withoutCode[withoutCode.length - 1];
+  }
+  return parts.at(-1) ?? "";
 }
 
 function normalizedTaskName(name: string): string {
@@ -113,11 +148,14 @@ export function isHiddenTask(task: AsanaTask): boolean {
   });
 }
 
+const INTERNAL_TAG_ALIASES = ["buffer", "core"];
+
 function isInternalTag(tag: AsanaTag, brandCode: string): boolean {
   const folded = foldLabel(tag.name);
   if (!folded) return true;
   if (nameHasHideMarker(tag.name)) return true;
   if (HIDE_TAG_NAMES.some((alias) => foldLabel(alias) === folded)) return true;
+  if (INTERNAL_TAG_ALIASES.some((alias) => foldLabel(alias) === folded)) return true;
   if (brandCode && folded === foldLabel(brandCode)) return true;
   return false;
 }

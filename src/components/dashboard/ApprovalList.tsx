@@ -11,6 +11,7 @@ import type { ApprovalItem } from "@/types";
 
 export function ApprovalList({ items }: { items: ApprovalItem[] }) {
   const { t, locale } = useI18n();
+  const visible = items.slice(0, 2);
 
   return (
     <section>
@@ -31,7 +32,7 @@ export function ApprovalList({ items }: { items: ApprovalItem[] }) {
             {t("jobs.empty")}
           </p>
         ) : null}
-        {items.map((item) => (
+        {visible.map((item) => (
           <Link
             key={item.id}
             href={resolveJobHref(item)}
