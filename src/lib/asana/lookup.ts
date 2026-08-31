@@ -40,20 +40,14 @@ export type BrandLookupResult = {
 };
 
 const REQUEST_PROJECT_ALIASES = [
-  "request management",
-  "request",
-  "talep yonetimi",
-  "talepler",
-  "talep",
+  "management brief",
+  "management",
 ];
 
 const REQUEST_SECTION_ALIASES = [
-  "yeni talep",
-  "talepler",
-  "talep",
-  "request",
-  "incoming",
-  "inbox",
+  "management brief",
+  "brief kontrol",
+  "brief",
 ];
 
 const MAX_WORKSPACE_SCAN = 15;
@@ -75,10 +69,19 @@ function readEnv(name: string): string | undefined {
   return value ? value : undefined;
 }
 
-function matchesAlias(name: string, aliases: string[]): boolean {
-  const folded = foldLabel(name);
-  if (!folded) return false;
-  return aliases.some((alias) => folded === alias || folded.includes(alias));
+function findByAliases<T extends { name: string }>(
+  items: T[],
+  aliases: string[],
+): T | undefined {
+  for (const alias of aliases) {
+    const foldedAlias = foldLabel(alias);
+    if (!foldedAlias) continue;
+    const exact = items.find((item) => foldLabel(item.name) === foldedAlias);
+    if (exact) return exact;
+    const partial = items.find((item) => foldLabel(item.name).includes(foldedAlias));
+    if (partial) return partial;
+  }
+  return undefined;
 }
 
 export async function listAsanaWorkspaces(): Promise<{
@@ -104,40 +107,28 @@ export async function listAsanaWorkspaces(): Promise<{
 
 async function resolveRequestTarget(input: {
   workspaceProjects: Array<{ gid: string; name: string }>;
-  storedProjectGids: string[];
   configuredRequestProjectGid?: string;
   configuredRequestSectionGid?: string;
 }): Promise<BrandLookupRequest | undefined> {
-  const namedRequest = input.workspaceProjects.find((project) =>
-    matchesAlias(project.name, REQUEST_PROJECT_ALIASES),
-  );
-  const projectGid =
-    (input.configuredRequestProjectGid &&
-    input.workspaceProjects.some((project) => project.gid === input.configuredRequestProjectGid)
-      ? input.configuredRequestProjectGid
-      : undefined) ||
-    namedRequest?.gid ||
-    input.storedProjectGids[0];
-
-  if (!projectGid) return undefined;
-
-  const projectName =
-    input.workspaceProjects.find((project) => project.gid === projectGid)?.name ??
-    "Talep projesi";
+  const configuredProject = input.configuredRequestProjectGid
+    ? input.workspaceProjects.find(
+        (project) => project.gid === input.configuredRequestProjectGid,
+      )
+    : undefined;
+  const project = configuredProject ?? findByAliases(input.workspaceProjects, REQUEST_PROJECT_ALIASES);
+  if (!project) return undefined;
 
   let sectionGid = input.configuredRequestSectionGid;
   let sectionName: string | undefined;
 
   try {
-    const sections = await getSections(projectGid);
+    const sections = await getSections(project.gid);
     if (sectionGid) {
       sectionName = sections.find((section) => section.gid === sectionGid)?.name;
       if (!sectionName) sectionGid = undefined;
     }
     if (!sectionGid) {
-      const named = sections.find((section) =>
-        matchesAlias(section.name, REQUEST_SECTION_ALIASES),
-      );
+      const named = findByAliases(sections, REQUEST_SECTION_ALIASES);
       if (named) {
         sectionGid = named.gid;
         sectionName = named.name;
@@ -148,15 +139,16 @@ async function resolveRequestTarget(input: {
   }
 
   return {
-    projectGid,
-    projectName,
+    projectGid: project.gid,
+    projectName: project.name,
     sectionGid,
     sectionName,
   };
 }
 
 async function loadWorkspaceScan(workspaceGid: string): Promise<WorkspaceScan> {
-  const cached = workspaceScans.get(workspaceGid);
+  const cacheKey = `mgmt-brief:${workspaceGid}`;
+  const cached = workspaceScans.get(cacheKey);
   if (cached && cached.expiresAt > Date.now()) {
     return cached;
   }
@@ -174,7 +166,6 @@ async function loadWorkspaceScan(workspaceGid: string): Promise<WorkspaceScan> {
   ).slice(0, MAX_WORKSPACE_SCAN);
   const request = await resolveRequestTarget({
     workspaceProjects: projects,
-    storedProjectGids: [...new Set([...configuredGids, ...scanGids])],
     configuredRequestProjectGid: readEnv("ASANA_REQUEST_PROJECT_GID"),
     configuredRequestSectionGid: readEnv("ASANA_REQUEST_SECTION_GID"),
   });
@@ -187,8 +178,17 @@ async function loadWorkspaceScan(workspaceGid: string): Promise<WorkspaceScan> {
     scanGids,
     request,
   };
-  workspaceScans.set(workspaceGid, scan);
+  workspaceScans.set(cacheKey, scan);
   return scan;
+}
+
+export async function resolveRequestDestination(
+  workspaceGid: string,
+): Promise<BrandLookupRequest | undefined> {
+  const gid = workspaceGid.trim();
+  if (!gid) return undefined;
+  const scan = await loadWorkspaceScan(gid);
+  return scan.request;
 }
 
 export async function lookupBrandInWorkspace(input: {

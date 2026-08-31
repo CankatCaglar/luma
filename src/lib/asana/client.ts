@@ -303,21 +303,21 @@ export async function createTask(input: {
   notes?: string;
   projects: string[];
   memberships?: Array<{ project: string; section: string }>;
+  assignee?: string | null;
 }): Promise<{ gid: string; permalink_url?: string }> {
   const data: {
     name: string;
     notes?: string;
     projects?: string[];
     memberships?: Array<{ project: string; section: string }>;
+    assignee?: string | null;
   } = {
     name: input.name,
     notes: input.notes,
+    assignee: input.assignee === undefined ? null : input.assignee,
   };
-  if (input.memberships?.length) {
-    data.memberships = input.memberships;
-  } else if (input.projects.length) {
-    data.projects = input.projects;
-  }
+  if (input.projects.length) data.projects = input.projects;
+  if (input.memberships?.length) data.memberships = input.memberships;
 
   const payload = await asanaPost<
     AsanaItemResponse<{ gid: string; permalink_url?: string }>

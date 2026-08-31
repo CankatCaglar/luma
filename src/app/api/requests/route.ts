@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { AsanaApiError, createTask } from "@/lib/asana/client";
+import { getAsanaEnv } from "@/lib/asana/config";
+import { resolveRequestDestination } from "@/lib/asana/lookup";
 import {
   TenantAccessError,
   requireTenantAccess,
@@ -73,19 +75,35 @@ function buildRequestNotes(input: {
   return lines.join("\n");
 }
 
+function buildRequestTaskName(brandCode: string, subject: string): string {
+  const code = brandCode.trim().toUpperCase();
+  const title = subject
+    .trim()
+    .replace(new RegExp(`^[\\[\\(]?${code}[\\]\\)]?\\s*[-–—:]?\\s*`, "i"), "")
+    .trim();
+  return title ? `${code} - ${title}` : code;
+}
+
 export async function POST(request: Request) {
   try {
     const { user, tenant } = await requireTenantAccess(request);
     const body = parseBody(await request.json());
-
-    const project = tenant.asana.requestProjectGid ?? tenant.asana.projectGids[0];
-    if (!project) {
-      throw new TenantAccessError("Tenant request project is not configured", 500);
+    const workspaceGid =
+      tenant.asana.workspaceGid?.trim() || getAsanaEnv().workspaceGid || "";
+    const destination = workspaceGid
+      ? await resolveRequestDestination(workspaceGid)
+      : undefined;
+    const project = destination?.projectGid;
+    const section = destination?.sectionGid;
+    if (!project || !section) {
+      throw new TenantAccessError(
+        "Asana Management Brief bölümü bulunamadı",
+        500,
+      );
     }
 
-    const taskName = `[${tenant.asana.brandCode}] ${body.subject}`;
     const created = await createTask({
-      name: taskName,
+      name: buildRequestTaskName(tenant.asana.brandCode, body.subject),
       notes: buildRequestNotes({
         brandCode: tenant.asana.brandCode,
         brief: body.brief,
@@ -95,9 +113,8 @@ export async function POST(request: Request) {
         fileName: body.fileName ?? undefined,
       }),
       projects: [project],
-      memberships: tenant.asana.requestSectionGid
-        ? [{ project, section: tenant.asana.requestSectionGid }]
-        : undefined,
+      memberships: [{ project, section }],
+      assignee: null,
     });
 
     return NextResponse.json({

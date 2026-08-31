@@ -151,7 +151,7 @@ async function resolveAsanaMapping(payload: CreateTenantBody) {
   return {
     workspaceGid: lookup.workspaceGid,
     projectGids: lookup.projectGids,
-    requestProjectGid: payload.requestProjectGid ?? lookup.request?.projectGid ?? lookup.projectGids[0],
+    requestProjectGid: payload.requestProjectGid ?? lookup.request?.projectGid,
     requestSectionGid: payload.requestSectionGid ?? lookup.request?.sectionGid,
   };
 }
