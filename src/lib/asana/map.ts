@@ -88,13 +88,39 @@ function tidyTitleSegment(value: string): string {
   );
 }
 
-const META_TITLE_SEGMENT =
-  /^(?:\**\s*)?(?:buffer|core|revize|revizyon|\d+(?:[.,]\d+)?\s*(?:dk|sa|saat)(?:\s*\+\s*\d+(?:[.,]\d+)?\s*(?:dk|sa|saat))*)$/i;
+const DURATION_TOKEN = String.raw`\d+(?:[.,]\d+)?\s*(?:dk|saat|sa)`;
+const META_WORD = String.raw`buffer|core|revize|revizyon`;
+const LEADING_META = new RegExp(
+  `^(?:(?:${DURATION_TOKEN}|${META_WORD})\\s*(?:\\+\\s*)?[-–—|:·]*\\s*)+`,
+  "i",
+);
 
 function isMetaTitleSegment(value: string): boolean {
   const folded = foldLabel(value);
   if (!folded) return true;
-  return META_TITLE_SEGMENT.test(folded);
+  const leftover = folded
+    .replace(new RegExp(DURATION_TOKEN, "gi"), " ")
+    .replace(new RegExp(`\\b(?:${META_WORD})\\b`, "gi"), " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return leftover.length === 0;
+}
+
+function stripLeadingMetaParts(title: string): string {
+  let rest = tidyTitleSegment(title).replace(LEADING_META, "");
+  rest = tidyTitleSegment(rest);
+  const parts = rest
+    .split(/\s*[-–—|:]\s*/)
+    .map(tidyTitleSegment)
+    .filter(Boolean);
+  while (parts.length && isMetaTitleSegment(parts[0])) {
+    parts.shift();
+  }
+  if (parts[0]) {
+    parts[0] = tidyTitleSegment(parts[0].replace(LEADING_META, ""));
+    if (!parts[0] || isMetaTitleSegment(parts[0])) parts.shift();
+  }
+  return parts.join(" - ");
 }
 
 export function displayTaskTitle(name: string, brandCode: string): string {
@@ -110,7 +136,7 @@ export function displayTaskTitle(name: string, brandCode: string): string {
     if (at >= 0) {
       const matched = raw.match(marker);
       if (matched) {
-        const after = tidyTitleSegment(raw.slice(at + matched[0].length));
+        const after = stripLeadingMetaParts(raw.slice(at + matched[0].length));
         if (after && foldLabel(after) !== foldLabel(code)) return after;
       }
     }
@@ -122,9 +148,11 @@ export function displayTaskTitle(name: string, brandCode: string): string {
     .filter((part) => part && !isMetaTitleSegment(part));
   if (code) {
     const withoutCode = parts.filter((part) => foldLabel(part) !== foldLabel(code));
-    if (withoutCode.length) return withoutCode[withoutCode.length - 1];
+    if (withoutCode.length) {
+      return stripLeadingMetaParts(withoutCode[withoutCode.length - 1]);
+    }
   }
-  return parts.at(-1) ?? "";
+  return stripLeadingMetaParts(parts.at(-1) ?? "");
 }
 
 function normalizedTaskName(name: string): string {
