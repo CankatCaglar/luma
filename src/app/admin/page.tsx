@@ -1241,7 +1241,7 @@ function DriveFields({
 
 function DriveStatusBanner({ status }: { status: DriveStatus | null }) {
   const [copied, setCopied] = useState(false);
-  const email = status?.email;
+  const email = status?.email?.trim() ?? "";
   if (!email) return null;
 
   async function copyEmail() {
