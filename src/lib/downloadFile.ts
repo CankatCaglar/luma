@@ -1,6 +1,6 @@
 function canShareFiles(file: File): boolean {
   try {
-    return Boolean(navigator.share && navigator.canShare?.({ files: [file] }));
+    return typeof navigator.canShare === "function" && navigator.canShare({ files: [file] });
   } catch {
     return false;
   }
