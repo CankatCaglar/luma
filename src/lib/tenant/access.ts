@@ -111,19 +111,18 @@ export async function listTenantDirectory(): Promise<TenantAccess[]> {
   try {
     const db = getAdminDb();
     const snapshot = await db.collection(defaultCollectionName()).get();
-    const list = snapshot.docs
+    return snapshot.docs
       .map((doc) =>
         toTenantAccess({
           tenantId: doc.id,
           ...doc.data(),
         }),
       )
-      .filter((item): item is TenantAccess => item !== null);
-    if (list.length > 0) return list;
+      .filter((item): item is TenantAccess => item !== null)
+      .sort((left, right) => left.brandName.localeCompare(right.brandName, "tr"));
   } catch {
-    /* fallback below */
+    return getTenantDirectory();
   }
-  return getTenantDirectory();
 }
 
 export async function getTenantByEmail(email: string): Promise<TenantAccess | null> {
@@ -171,6 +170,43 @@ export async function getTenantById(tenantId: string): Promise<TenantAccess | nu
     const list = getTenantDirectory();
     return list.find((tenant) => tenant.tenantId === normalizedId) ?? null;
   }
+}
+
+export async function getTenantByBrandCode(brandCode: string): Promise<TenantAccess | null> {
+  const normalized = brandCode.trim().toUpperCase();
+  if (!normalized) return null;
+  try {
+    const db = getAdminDb();
+    const snapshot = await db
+      .collection(defaultCollectionName())
+      .where("asana.brandCode", "==", normalized)
+      .limit(1)
+      .get();
+    const first = snapshot.docs[0];
+    if (first) {
+      return (
+        toTenantAccess({
+          tenantId: first.id,
+          ...first.data(),
+        }) ?? null
+      );
+    }
+  } catch {
+    /* fallback below */
+  }
+
+  return (
+    getTenantDirectory().find((tenant) => tenant.asana.brandCode === normalized) ?? null
+  );
+}
+
+export async function deleteTenant(tenantId: string): Promise<TenantAccess | null> {
+  const existing = await getTenantById(tenantId);
+  if (!existing) return null;
+
+  const db = getAdminDb();
+  await db.collection(defaultCollectionName()).doc(existing.tenantId).delete();
+  return existing;
 }
 
 export async function upsertTenant(tenant: TenantAccess): Promise<void> {

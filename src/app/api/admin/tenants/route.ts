@@ -3,7 +3,7 @@ import { getAsanaEnv } from "@/lib/asana/config";
 import { lookupBrandInWorkspace } from "@/lib/asana/lookup";
 import { getAdminAuth } from "@/lib/firebase/admin";
 import {
-  getTenantByEmail,
+  deleteTenant,
   listTenantDirectory,
   slugTenantId,
   upsertTenant,
@@ -26,11 +26,6 @@ type CreateTenantBody = {
 function parseCsv(value: string | undefined): string[] {
   if (!value) return [];
   return [...new Set(value.split(/[,\s]+/).map((part) => part.trim()).filter(Boolean))];
-}
-
-function readEnv(name: string): string | undefined {
-  const value = process.env[name]?.trim();
-  return value ? value : undefined;
 }
 
 function createTempPassword(): string {
@@ -175,71 +170,9 @@ function normalizeTenantPayload(
   };
 }
 
-async function ensureDefaultSwatchloopTenant() {
-  const bootstrapEnabled = readEnv("ENABLE_SWATCHLOOP_BOOTSTRAP") === "1";
-  if (!bootstrapEnabled) return;
-
-  const email = (readEnv("DEFAULT_SWATCHLOOP_EMAIL") ?? "swatchloop@gmail.com")
-    .trim()
-    .toLowerCase();
-  const password = readEnv("DEFAULT_SWATCHLOOP_PASSWORD") ?? "swatch123";
-  const brandName = readEnv("DEFAULT_SWATCHLOOP_BRAND_NAME") ?? "Swatchloop";
-  const brandCode = (
-    readEnv("DEFAULT_SWATCHLOOP_BRAND_CODE") ??
-    readEnv("ASANA_BRAND_CODE") ??
-    "SWH101"
-  )
-    .trim()
-    .toUpperCase();
-  const projectGids = parseCsv(
-    readEnv("DEFAULT_SWATCHLOOP_PROJECT_GIDS") ?? readEnv("ASANA_PROJECT_GID"),
-  );
-
-  if (!email.includes("@") || password.length < 8 || projectGids.length === 0) return;
-
-  const existing = await getTenantByEmail(email);
-  if (existing) return;
-
-  const payload = {
-    brandName,
-    brandCode,
-    email,
-    password,
-    projectGids: projectGids.join(","),
-    requestProjectGid:
-      readEnv("DEFAULT_SWATCHLOOP_REQUEST_PROJECT_GID") ??
-      readEnv("ASANA_REQUEST_PROJECT_GID") ??
-      projectGids[0],
-    requestSectionGid:
-      readEnv("DEFAULT_SWATCHLOOP_REQUEST_SECTION_GID") ??
-      readEnv("ASANA_REQUEST_SECTION_GID"),
-    workspaceGid:
-      readEnv("DEFAULT_SWATCHLOOP_WORKSPACE_GID") ?? readEnv("ASANA_WORKSPACE_GID"),
-  };
-  const tenant = normalizeTenantPayload(payload, {
-    workspaceGid: payload.workspaceGid,
-    projectGids,
-    requestProjectGid: payload.requestProjectGid,
-    requestSectionGid: payload.requestSectionGid,
-  });
-
-  await upsertTenant(tenant);
-  await upsertBrandUser(
-    {
-      tenantId: tenant.tenantId,
-      email,
-      password,
-      brandName: tenant.brandName,
-      brandCode: tenant.asana.brandCode,
-    },
-    { updateExistingPassword: true },
-  );
-}
-
 export async function GET(request: Request) {
   try {
     await requireAdminAccess(request);
-    await ensureDefaultSwatchloopTenant();
     const tenants = await listTenantDirectory();
     return NextResponse.json({ tenants });
   } catch (error) {
@@ -255,6 +188,33 @@ export async function POST(request: Request) {
   try {
     await requireAdminAccess(request);
     const body = parseBody(await request.json());
+
+    const directory = await listTenantDirectory();
+    if (directory.some((tenant) => tenant.emails.includes(body.email))) {
+      throw new TenantAccessError(
+        "Bu e-posta zaten kayıtlı bir markaya ait.",
+        409,
+      );
+    }
+    if (directory.some((tenant) => tenant.asana.brandCode === body.brandCode)) {
+      throw new TenantAccessError(
+        "Bu marka kodu zaten kayıtlı.",
+        409,
+      );
+    }
+
+    const auth = getAdminAuth();
+    try {
+      await auth.getUserByEmail(body.email);
+      throw new TenantAccessError(
+        "Bu e-posta zaten bir kullanıcıya kayıtlı.",
+        409,
+      );
+    } catch (error) {
+      const code = (error as { code?: string } | null)?.code ?? "";
+      if (code !== "auth/user-not-found") throw error;
+    }
+
     const mapping = await resolveAsanaMapping(body);
     const tenant = normalizeTenantPayload(body, mapping);
     await upsertTenant(tenant);
@@ -285,6 +245,45 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: code }, { status: 400 });
     }
     const message = error instanceof Error ? error.message : "Failed to create tenant";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    await requireAdminAccess(request);
+    const tenantId = new URL(request.url).searchParams.get("tenantId")?.trim() ?? "";
+    if (!tenantId) {
+      throw new TenantAccessError("Marka seçilmedi", 400);
+    }
+
+    const tenant = await deleteTenant(tenantId);
+    if (!tenant) {
+      throw new TenantAccessError("Marka bulunamadı", 404);
+    }
+
+    const auth = getAdminAuth();
+    for (const email of tenant.emails) {
+      try {
+        const existing = await auth.getUserByEmail(email);
+        const role = (existing.customClaims as { role?: string } | undefined)?.role;
+        if (role === "admin") continue;
+        await auth.deleteUser(existing.uid);
+      } catch (error) {
+        const code = (error as { code?: string } | null)?.code ?? "";
+        if (code !== "auth/user-not-found") throw error;
+      }
+    }
+
+    return NextResponse.json({
+      ok: true,
+      tenantId: tenant.tenantId,
+    });
+  } catch (error) {
+    if (error instanceof TenantAccessError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
+    const message = error instanceof Error ? error.message : "Marka silinemedi";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

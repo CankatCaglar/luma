@@ -21,6 +21,7 @@ import {
   Plus,
   RefreshCcw,
   Search,
+  Trash2,
 } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { LumaLogo, LumaStar } from "@/components/layout/NeraLogo";
@@ -136,6 +137,7 @@ export default function AdminPage() {
   const [adminReady, setAdminReady] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [tenants, setTenants] = useState<Tenant[]>([]);
@@ -289,6 +291,18 @@ export default function AdminPage() {
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!canSubmit || !lookup) return;
+    const email = form.email.trim().toLowerCase();
+    const brandCode = form.brandCode.trim().toUpperCase();
+    if (tenants.some((tenant) => tenant.emails.some((item) => item.toLowerCase() === email))) {
+      setError("Bu e-posta zaten kayıtlı bir markaya ait.");
+      setSuccess(null);
+      return;
+    }
+    if (tenants.some((tenant) => tenant.asana.brandCode === brandCode)) {
+      setError("Bu marka kodu zaten kayıtlı.");
+      setSuccess(null);
+      return;
+    }
     setSaving(true);
     setError(null);
     setSuccess(null);
@@ -334,6 +348,38 @@ export default function AdminPage() {
       setError(error instanceof Error ? error.message : "Kaydetme başarısız");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function onDeleteTenant(tenant: Tenant) {
+    const confirmed = window.confirm(
+      `${tenant.brandName} (${tenant.asana.brandCode}) markasını silmek istediğine emin misin? Giriş hesabı da kapanır.`,
+    );
+    if (!confirmed) return;
+
+    setDeletingId(tenant.tenantId);
+    setError(null);
+    setSuccess(null);
+    try {
+      const response = await fetch(
+        `/api/admin/tenants?tenantId=${encodeURIComponent(tenant.tenantId)}`,
+        {
+          method: "DELETE",
+          cache: "no-store",
+          headers: (await authHeaders()) as HeadersInit,
+        },
+      );
+      const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+      if (!response.ok) {
+        throw new Error(payload?.error ?? "Marka silinemedi");
+      }
+      setTenants((prev) => prev.filter((item) => item.tenantId !== tenant.tenantId));
+      setSuccess(`${tenant.brandName} silindi.`);
+      await loadTenants();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Marka silinemedi");
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -708,6 +754,16 @@ export default function AdminPage() {
               Yenile
             </button>
           </div>
+          {error ? (
+            <p className="mb-3 rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-luma-red">
+              {error}
+            </p>
+          ) : null}
+          {success ? (
+            <p className="mb-3 rounded-xl bg-luma-green-soft px-3 py-2 text-sm font-semibold text-luma-green">
+              {success}
+            </p>
+          ) : null}
           {loading ? (
             <p className="text-sm text-luma-muted">Yükleniyor...</p>
           ) : tenants.length === 0 ? (
@@ -720,6 +776,9 @@ export default function AdminPage() {
                     <th className="px-3 py-2 font-semibold">Marka</th>
                     <th className="px-3 py-2 font-semibold">Kod</th>
                     <th className="px-3 py-2 font-semibold">Kullanıcı</th>
+                    <th className="px-2 py-2 text-right font-semibold">
+                      <span className="sr-only">Sil</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -729,7 +788,24 @@ export default function AdminPage() {
                       <td className="px-3 py-2.5 font-semibold text-luma">
                         {tenant.asana.brandCode}
                       </td>
-                      <td className="px-3 py-2.5 text-luma-muted">{tenant.emails.join(", ")}</td>
+                      <td className="min-w-0 px-3 py-2.5 break-all text-luma-muted">
+                        {tenant.emails.join(", ")}
+                      </td>
+                      <td className="px-2 py-2.5 text-right">
+                        <button
+                          type="button"
+                          onClick={() => void onDeleteTenant(tenant)}
+                          disabled={deletingId === tenant.tenantId}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-luma-muted transition-colors hover:bg-red-50 hover:text-luma-red disabled:cursor-not-allowed disabled:opacity-60"
+                          aria-label={`${tenant.brandName} markasını sil`}
+                        >
+                          {deletingId === tenant.tenantId ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-4 w-4" />
+                          )}
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
