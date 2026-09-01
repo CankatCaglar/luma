@@ -186,16 +186,21 @@ function completedSinceIso(): string {
   return date.toISOString();
 }
 
-function projectTaskCacheKey(projectGid: string, optFields: string): string {
-  return `${projectGid}:${optFields}`;
+function projectTaskCacheKey(
+  projectGid: string,
+  optFields: string,
+  completedSince: string,
+): string {
+  return `${projectGid}:${optFields}:${completedSince}`;
 }
 
 export async function getProjectTasks(
   projectGid: string,
-  options?: { optFields?: string; skipCache?: boolean },
+  options?: { optFields?: string; skipCache?: boolean; completedSince?: string },
 ): Promise<AsanaTask[]> {
   const optFields = options?.optFields ?? TASK_LIST_OPT_FIELDS;
-  const key = projectTaskCacheKey(projectGid, optFields);
+  const completedSince = options?.completedSince ?? completedSinceIso();
+  const key = projectTaskCacheKey(projectGid, optFields, completedSince);
   if (!options?.skipCache) {
     const cached = projectTaskCache.get(key);
     if (cached && cached.expiresAt > Date.now()) {
@@ -206,7 +211,7 @@ export async function getProjectTasks(
   }
 
   const request = asanaListAll<AsanaTask>(`/projects/${projectGid}/tasks`, {
-    completed_since: completedSinceIso(),
+    completed_since: completedSince,
     opt_fields: optFields,
   }).then((tasks) => {
     projectTaskCache.set(key, {
@@ -229,25 +234,43 @@ export async function getBrandTasks(input: {
   brandCode: string;
   workspaceGid?: string;
   skipCache?: boolean;
+  completedSince?: string;
 }): Promise<AsanaTask[]> {
   const tasks = await getTasksForProjects(input.projectGids, {
     skipCache: input.skipCache,
+    completedSince: input.completedSince,
   });
   return tasks.filter((task) => isBrandTask(task, input.brandCode));
 }
 
 export async function getTasksForProjects(
   projectGids: string[],
-  options?: { optFields?: string; skipCache?: boolean },
+  options?: { optFields?: string; skipCache?: boolean; completedSince?: string },
 ): Promise<AsanaTask[]> {
-  const groups = await Promise.all(
+  const results = await Promise.allSettled(
     projectGids.map((projectGid) =>
       getProjectTasks(projectGid, {
         optFields: options?.optFields,
         skipCache: options?.skipCache,
+        completedSince: options?.completedSince,
       }),
     ),
   );
+  const groups = results.map((result, index) => {
+    if (result.status === "fulfilled") return result.value;
+    console.error(
+      `[asana] project ${projectGids[index]} failed: ${
+        result.reason instanceof Error ? result.reason.message : "unknown error"
+      }`,
+    );
+    return [] as AsanaTask[];
+  });
+  if (groups.every((tasks) => tasks.length === 0) && results.some((result) => result.status === "rejected")) {
+    const first = results.find((result) => result.status === "rejected");
+    throw first && first.status === "rejected"
+      ? first.reason
+      : new AsanaApiError("Asana project fetch failed", 502);
+  }
   const byGid = new Map<string, AsanaTask>();
   for (const tasks of groups) {
     for (const task of tasks) {

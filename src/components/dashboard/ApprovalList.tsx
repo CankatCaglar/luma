@@ -9,7 +9,13 @@ import { formatDueDate } from "@/lib/format";
 import { resolveJobHref } from "@/lib/jobHref";
 import type { ApprovalItem } from "@/types";
 
-export function ApprovalList({ items }: { items: ApprovalItem[] }) {
+export function ApprovalList({
+  items,
+  loading = false,
+}: {
+  items: ApprovalItem[];
+  loading?: boolean;
+}) {
   const { t, locale } = useI18n();
   const visible = items.slice(0, 2);
 
@@ -27,12 +33,20 @@ export function ApprovalList({ items }: { items: ApprovalItem[] }) {
         </Link>
       </div>
       <div className="space-y-2.5">
-        {items.length === 0 ? (
-          <p className="rounded-2xl bg-luma-card px-4 py-8 text-center text-sm text-luma-muted ring-1 ring-luma-border/80">
-            {t("jobs.empty")}
-          </p>
-        ) : null}
-        {visible.map((item) => (
+        {loading
+          ? [0, 1].map((index) => (
+              <div
+                key={index}
+                className="h-[4.75rem] animate-pulse rounded-2xl bg-luma-card ring-1 ring-luma-border/80"
+              />
+            ))
+          : items.length === 0
+            ? (
+                <p className="rounded-2xl bg-luma-card px-4 py-8 text-center text-sm text-luma-muted ring-1 ring-luma-border/80">
+                  {t("jobs.empty")}
+                </p>
+              )
+            : visible.map((item) => (
           <Link
             key={item.id}
             href={resolveJobHref(item)}

@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { getAsanaEnv } from "@/lib/asana/config";
 import { lookupBrandInWorkspace } from "@/lib/asana/lookup";
+import { warmupTenantJobs } from "@/lib/data/jobs";
 import { getAdminAuth } from "@/lib/firebase/admin";
 import {
   deleteTenant,
@@ -92,6 +93,7 @@ async function upsertBrandUser(input: {
       role: "brand_user",
       tenantId: input.tenantId,
       brandCode: input.brandCode,
+      brandName: input.brandName,
     });
     return { uid: existing.uid, password: input.password, created: false };
   } catch (error) {
@@ -110,6 +112,7 @@ async function upsertBrandUser(input: {
     role: "brand_user",
     tenantId: input.tenantId,
     brandCode: input.brandCode,
+    brandName: input.brandName,
   });
   return { uid: created.uid, password: input.password, created: true };
 }
@@ -225,6 +228,17 @@ export async function POST(request: Request) {
       brandName: tenant.brandName,
       brandCode: tenant.asana.brandCode,
     });
+
+    after(() =>
+      warmupTenantJobs({
+        tenantId: tenant.tenantId,
+        brandName: tenant.brandName,
+        brandCode: tenant.asana.brandCode,
+        email: body.email,
+        projectGids: tenant.asana.projectGids,
+        workspaceGid: tenant.asana.workspaceGid,
+      }),
+    );
 
     return NextResponse.json({
       ok: true,

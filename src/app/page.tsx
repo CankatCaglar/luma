@@ -1,17 +1,21 @@
 "use client";
 
 import { DashboardPage } from "@/components/dashboard/DashboardPage";
-import { DashboardSkeleton } from "@/components/ui/PageSkeleton";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { useJobs } from "@/components/jobs/JobsProvider";
 
 export default function Home() {
-  const { data, status } = useJobs();
-  if (status === "loading" || !data) return <DashboardSkeleton />;
+  const { data } = useJobs();
+  const { brandName: claimedBrand } = useAuth();
+  const brandName = data?.tenant.brandName || claimedBrand || "";
+
   return (
     <DashboardPage
-      brandName={data.tenant.brandName}
-      metrics={data.metrics}
-      approvalItems={data.approvalItems}
+      brandName={brandName}
+      metrics={data?.metrics}
+      approvalItems={data?.approvalItems}
+      loading={!data}
+      metricsPending={Boolean(data?.partial)}
     />
   );
 }

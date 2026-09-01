@@ -1,11 +1,19 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useSyncExternalStore, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { Header } from "@/components/layout/Header";
 import { JobsProvider } from "@/components/jobs/JobsProvider";
 import { AuthProvider, useAuth } from "@/components/auth/AuthProvider";
+import {
+  readLastBrandSession,
+  subscribeLastBrandSession,
+} from "@/lib/session/lastBrandSession";
+
+function getServerLastBrandSession() {
+  return null;
+}
 
 function LoadingShell() {
   return (
@@ -39,11 +47,20 @@ function ProtectedShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, loading, enabled, adminChecking, isAdmin, signOutUser } = useAuth();
+  const lastSession = useSyncExternalStore(
+    subscribeLastBrandSession,
+    readLastBrandSession,
+    getServerLastBrandSession,
+  );
   const onLoginRoute = pathname.startsWith("/giris");
   const onCanonicalAdminRoute = pathname.startsWith("/admin");
   const onAdminRoute =
     onCanonicalAdminRoute || /^\/adm(?:i|ı)n(?:\/|$)/i.test(pathname);
   const onBrandRoute = !onLoginRoute && !onAdminRoute;
+  const canPaintBrandFromCache =
+    onBrandRoute &&
+    Boolean(lastSession?.uid) &&
+    lastSession?.isAdmin !== true;
 
   useEffect(() => {
     if (!enabled || loading) return;
@@ -88,16 +105,16 @@ function ProtectedShell({ children }: { children: ReactNode }) {
     return <AdminShell>{children}</AdminShell>;
   }
 
-  if (enabled && loading) return <LoadingShell />;
+  if (enabled && loading && !canPaintBrandFromCache) return <LoadingShell />;
   if (enabled && user && isAdmin && onBrandRoute) return <LoadingShell />;
-  if (enabled && !user && onBrandRoute) return <LoadingShell />;
+  if (enabled && !user && !loading && onBrandRoute) return <LoadingShell />;
 
   if (onLoginRoute) {
     return <AuthRouteShell>{children}</AuthRouteShell>;
   }
 
   return (
-    <JobsProvider key={enabled ? user?.uid ?? "public" : "public"}>
+    <JobsProvider key={enabled ? user?.uid ?? lastSession?.uid ?? "public" : "public"}>
       <div className="min-h-screen w-full bg-[#FBF9F5]">
         <div className="mx-auto flex min-h-screen w-full max-w-md flex-col">
           <Header />

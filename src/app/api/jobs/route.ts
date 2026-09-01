@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { getJobLists } from "@/lib/data/jobs";
 import {
   TenantAccessError,
@@ -12,7 +12,7 @@ export async function GET(request: Request) {
     const fresh = new URL(request.url).searchParams.get("fresh") === "1";
     const { user, tenant } = await requireTenantAccess(request);
 
-    const data = await getJobLists({
+    const { data, revalidate } = await getJobLists({
       fresh,
       scope: {
         tenantId: tenant.tenantId,
@@ -24,7 +24,15 @@ export async function GET(request: Request) {
       },
     });
 
-    return NextResponse.json(data);
+    if (revalidate) {
+      after(() => revalidate());
+    }
+
+    return NextResponse.json(data, {
+      headers: {
+        "Cache-Control": "private, no-cache, must-revalidate",
+      },
+    });
   } catch (error) {
     if (error instanceof TenantAccessError) {
       return NextResponse.json({ error: error.message }, { status: error.status });

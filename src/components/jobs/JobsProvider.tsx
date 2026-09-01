@@ -12,6 +12,8 @@ import {
 } from "react";
 import { useI18n } from "@/components/i18n/I18nProvider";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { compactJobLists, expandJobLists } from "@/lib/data/jobLists";
+import { readLastBrandSession } from "@/lib/session/lastBrandSession";
 import type { JobLists } from "@/types";
 
 const MIN_REVALIDATE_MS = 20_000;
@@ -43,6 +45,20 @@ function isJobLists(value: unknown): value is JobLists {
 
 function readStoredJobs(storageKey: string): JobLists | null {
   if (typeof window === "undefined") return null;
+  const keys = [storageKey];
+  const uid = storageKey.split(":")[1];
+  if (uid && storageKey.startsWith("luma-jobs-v3:")) {
+    keys.push(`luma-jobs-v2:${uid}`);
+  }
+  for (const key of keys) {
+    const stored = readStoredJobsKey(key);
+    if (stored) return stored;
+  }
+  return null;
+}
+
+function readStoredJobsKey(storageKey: string): JobLists | null {
+  if (typeof window === "undefined") return null;
   try {
     const raw = localStorage.getItem(storageKey);
     if (!raw) return null;
@@ -52,15 +68,16 @@ function readStoredJobs(storageKey: string): JobLists | null {
     if (!parsed || typeof parsed !== "object") return null;
 
     const wrapped = parsed as { savedAt?: unknown; data?: unknown };
-    const list = wrapped.data;
-    if (!isJobLists(list)) return null;
-
     const savedAt = Number(wrapped.savedAt ?? 0);
     if (Number.isFinite(savedAt) && savedAt > 0 && Date.now() - savedAt > MAX_STORED_AGE_MS) {
       localStorage.removeItem(storageKey);
       return null;
     }
-    return omitHiddenJobs(list);
+
+    const list = wrapped.data;
+    if (isJobLists(list)) return omitHiddenJobs(list);
+    const expanded = expandJobLists(list as Parameters<typeof expandJobLists>[0]);
+    return expanded ? omitHiddenJobs(expanded) : null;
   } catch {
     return null;
   }
@@ -73,11 +90,26 @@ function storeJobs(storageKey: string, data: JobLists) {
       storageKey,
       JSON.stringify({
         savedAt: Date.now(),
-        data,
+        data: compactJobLists(data),
       }),
     );
   } catch {
-    /* quota / private mode */
+    try {
+      localStorage.setItem(
+        storageKey,
+        JSON.stringify({
+          savedAt: Date.now(),
+          data: {
+            tenant: data.tenant,
+            source: data.source,
+            jobs: data.jobs.map(({ tags: _tags, resourceUrl: _resourceUrl, ...job }) => job),
+            referenceNowIso: data.referenceNowIso,
+          },
+        }),
+      );
+    } catch {
+      /* quota / private mode */
+    }
   }
 }
 
@@ -97,26 +129,34 @@ function omitHiddenJobs(data: JobLists): JobLists {
     approvalItems: visible(data.approvalItems),
     contentPlans: visible(data.contentPlans),
     monthlyReports: visible(data.monthlyReports),
+    partial: data.partial,
   };
+}
+
+function jobsStorageKey(uid: string) {
+  return `luma-jobs-v3:${uid}`;
 }
 
 export function JobsProvider({ children }: { children: ReactNode }) {
   const { t } = useI18n();
-  const { enabled, user } = useAuth();
+  const { enabled, user, loading } = useAuth();
+  const persistUid = user?.uid ?? (!loading ? null : readLastBrandSession()?.uid ?? null);
   const storageKey = useMemo(
-    () => `luma-jobs-v2:${enabled ? user?.uid ?? "guest" : "public"}`,
-    [enabled, user?.uid],
+    () => jobsStorageKey(enabled ? persistUid ?? "guest" : "public"),
+    [enabled, persistUid],
   );
   const [data, setData] = useState<JobLists | null>(() => readStoredJobs(storageKey));
   const [refreshing, setRefreshing] = useState(false);
   const inflight = useRef<Promise<void> | null>(null);
   const lastFetchAt = useRef(0);
   const hasDataRef = useRef(Boolean(data));
+  const dataPartialRef = useRef(Boolean(data?.partial));
 
   const status: JobsStatus = data ? "ready" : "loading";
 
   useEffect(() => {
     hasDataRef.current = Boolean(data);
+    dataPartialRef.current = Boolean(data?.partial);
   }, [data]);
 
   useEffect(() => {
@@ -126,11 +166,15 @@ export function JobsProvider({ children }: { children: ReactNode }) {
 
   const refresh = useCallback(async (force = false) => {
     if (enabled && !user) {
-      setData(null);
+      if (!loading) setData(null);
       return;
     }
     if (inflight.current) return inflight.current;
-    if (!force && Date.now() - lastFetchAt.current < MIN_REVALIDATE_MS) {
+    if (
+      !force &&
+      !dataPartialRef.current &&
+      Date.now() - lastFetchAt.current < MIN_REVALIDATE_MS
+    ) {
       return;
     }
 
@@ -174,7 +218,7 @@ export function JobsProvider({ children }: { children: ReactNode }) {
 
     inflight.current = run;
     return run;
-  }, [enabled, storageKey, user]);
+  }, [enabled, loading, storageKey, user]);
 
   useEffect(() => {
     if (enabled && !user) return;
@@ -206,6 +250,14 @@ export function JobsProvider({ children }: { children: ReactNode }) {
       window.clearInterval(timer);
     };
   }, [enabled, refresh, user]);
+
+  useEffect(() => {
+    if (!data?.partial) return;
+    const timer = window.setTimeout(() => {
+      void refresh(false);
+    }, 1500);
+    return () => window.clearTimeout(timer);
+  }, [data?.partial, refresh]);
 
   const value = useMemo(
     () => ({

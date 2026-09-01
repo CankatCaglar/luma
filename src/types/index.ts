@@ -116,6 +116,7 @@ export type JobLists = {
   contentPlans: ContentPlan[];
   monthlyReports: MonthlyReport[];
   referenceNowIso: string;
+  partial?: boolean;
 };
 
 export type BrandAsset = {

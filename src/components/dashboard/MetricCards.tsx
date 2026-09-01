@@ -5,14 +5,22 @@ import { Briefcase, CheckCircle2, CircleCheck } from "lucide-react";
 import { useI18n } from "@/components/i18n/I18nProvider";
 import type { DashboardMetrics } from "@/types";
 
-export function MetricCards({ metrics }: { metrics: DashboardMetrics }) {
+export function MetricCards({
+  metrics,
+  loading = false,
+  pendingCompleted = false,
+}: {
+  metrics?: DashboardMetrics;
+  loading?: boolean;
+  pendingCompleted?: boolean;
+}) {
   const { t } = useI18n();
 
   const cards = [
     {
       href: "/isler/onay",
       label: t("dashboard.metrics.pendingApproval"),
-      value: metrics.pendingApproval,
+      value: metrics?.pendingApproval ?? 0,
       footer: t("dashboard.metrics.pendingApprovalFooter"),
       icon: CircleCheck,
       wrap: "bg-gradient-to-b from-[#f4f2fc] to-luma-soft",
@@ -22,7 +30,7 @@ export function MetricCards({ metrics }: { metrics: DashboardMetrics }) {
     {
       href: "/isler/aktif",
       label: t("dashboard.metrics.activeJobs"),
-      value: metrics.activeJobs,
+      value: metrics?.activeJobs ?? 0,
       footer: t("dashboard.metrics.activeJobsFooter"),
       icon: Briefcase,
       wrap: "bg-gradient-to-b from-[#fcf6ee] to-luma-gold-soft",
@@ -32,12 +40,13 @@ export function MetricCards({ metrics }: { metrics: DashboardMetrics }) {
     {
       href: "/isler/tamamlanan",
       label: t("dashboard.metrics.completedThisMonth"),
-      value: metrics.completedThisMonth,
+      value: metrics?.completedThisMonth ?? 0,
       footer: t("dashboard.metrics.completedThisMonthFooter"),
       icon: CheckCircle2,
       wrap: "bg-gradient-to-b from-[#f1faf5] to-luma-green-soft",
       iconWrap: "bg-white text-luma-green",
       labelClass: "text-luma-green",
+      pending: pendingCompleted,
     },
   ];
 
@@ -62,7 +71,11 @@ export function MetricCards({ metrics }: { metrics: DashboardMetrics }) {
               {card.label}
             </p>
             <p className="mt-1.5 text-2xl font-bold tracking-tight text-foreground">
-              {card.value}
+              {loading || ("pending" in card && card.pending) ? (
+                <span className="inline-block h-7 w-8 animate-pulse rounded-md bg-luma-border/80" />
+              ) : (
+                card.value
+              )}
             </p>
             <p className="mt-0.5 whitespace-nowrap text-[10px] leading-tight text-luma-muted">
               {card.footer}
