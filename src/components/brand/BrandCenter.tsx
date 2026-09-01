@@ -1,8 +1,11 @@
 "use client";
 
-import { Download, Eye, Folder, Info } from "lucide-react";
+import { useState } from "react";
+import { Download, Eye, Folder, Info, Loader2 } from "lucide-react";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { useI18n } from "@/components/i18n/I18nProvider";
 import { IconTile } from "@/components/ui/IconTile";
+import { downloadBrandFile } from "@/lib/downloadFile";
 import { formatFileSize, formatUpdatedDate } from "@/lib/format";
 import type { Locale } from "@/i18n";
 import type { BrandAsset, BrandFile } from "@/types";
@@ -40,8 +43,30 @@ function FileRow({
   action: "download" | "view";
 }) {
   const { t, locale } = useI18n();
+  const { user } = useAuth();
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
   const meta = fileMeta(file, locale, (date) => t("brandCenter.updated", { date }));
-  const showDownload = action === "download" && Boolean(file.downloadUrl);
+  const showDownload = action === "download";
+
+  async function handleDownload() {
+    if (busy) return;
+    setBusy(true);
+    setFailed(false);
+    try {
+      const token = user ? await user.getIdToken() : null;
+      await downloadBrandFile({
+        fileId: file.id,
+        fileName: file.name,
+        mimeType: file.mimeType,
+        token,
+      });
+    } catch {
+      setFailed(true);
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return (
     <div className="flex items-center gap-3 px-4 py-3">
@@ -56,17 +81,24 @@ function FileRow({
       >
         <span className="block truncate font-semibold text-foreground">{file.name}</span>
         {meta ? <span className="block text-sm text-luma-muted">{meta}</span> : null}
+        {failed ? (
+          <span className="mt-0.5 block text-xs text-luma-red">{t("brandCenter.downloadFailed")}</span>
+        ) : null}
       </a>
       {showDownload ? (
-        <a
-          href={file.downloadUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label={t("brandCenter.download")}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-luma transition-transform duration-150 ease-out active:scale-95"
+        <button
+          type="button"
+          onClick={() => void handleDownload()}
+          disabled={busy}
+          aria-label={busy ? t("brandCenter.downloading") : t("brandCenter.download")}
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-luma transition-transform duration-150 ease-out active:scale-95 disabled:opacity-60"
         >
-          <Download className="h-5 w-5" strokeWidth={1.8} />
-        </a>
+          {busy ? (
+            <Loader2 className="h-5 w-5 animate-spin" strokeWidth={1.8} />
+          ) : (
+            <Download className="h-5 w-5" strokeWidth={1.8} />
+          )}
+        </button>
       ) : (
         <a
           href={file.viewUrl}

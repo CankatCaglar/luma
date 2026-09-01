@@ -95,6 +95,7 @@
       "source": "Link source",
       "accessViewOnly": "View only",
       "accessPending": "Link is being prepared",
+      "missing": "This job was not found.",
       "help": "If the resource link is missing, you can ask the team to refresh sharing access or create a support request."
     }
   },
@@ -111,6 +112,7 @@
     "archive": "Archive",
     "archiveSub": "View this year's past content plans in Drive",
     "emptyYear": "No content plans for {year}",
+    "missing": "This content plan was not found.",
     "comingSoon": "The detailed view for this plan is coming soon.",
     "comingSoonWithLink": "The detailed view is coming soon. You can view the slides for now.",
     "openSlides": "View plan",
@@ -131,6 +133,7 @@
     "new": "New",
     "kind": "Social Media Report",
     "empty": "No reports yet",
+    "missing": "This report was not found.",
     "comingSoon": "The detailed view for this report is coming soon.",
     "comingSoonWithLink": "The detailed view is coming soon. You can view the Drive file for now.",
     "openDrive": "View report",
@@ -156,11 +159,13 @@
     "competitor": "Competitor analysis",
     "competitorDescription": "Competitor and market analysis document",
     "download": "Download",
+    "downloading": "Downloading",
+    "downloadFailed": "The file could not be downloaded. Please try again.",
     "view": "View",
     "updated": "Updated: {date}",
     "openFolder": "Open folder",
     "empty": "No brand files have been added yet.",
-    "info": "You can view or download these files."
+    "info": "Download saves the file to your phone. On iPhone you can save it to Files."
   },
   "notifications": {
     "title": "Notifications",

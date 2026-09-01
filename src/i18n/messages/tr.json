@@ -95,6 +95,7 @@
       "source": "Bağlantı kaynağı",
       "accessViewOnly": "Sadece görüntüleme",
       "accessPending": "Bağlantı hazırlanıyor",
+      "missing": "Bu iş bulunamadı.",
       "help": "Dosya bağlantısı görünmüyorsa ekipten paylaşım güncellemesi isteyebilir veya destek talebi oluşturabilirsiniz."
     }
   },
@@ -111,6 +112,7 @@
     "archive": "Arşiv",
     "archiveSub": "Bu yıla ait geçmiş içerik planlarını Drive üzerinden görüntüleyin",
     "emptyYear": "{year} yılına ait içerik planı yok",
+    "missing": "Bu içerik planı bulunamadı.",
     "comingSoon": "Bu planın detay görünümü yakında eklenecek.",
     "comingSoonWithLink": "Detay görünümü yakında eklenecek. Şimdilik slaytı görüntüleyebilirsiniz.",
     "openSlides": "Planı görüntüle",
@@ -131,6 +133,7 @@
     "new": "Yeni",
     "kind": "Sosyal Medya Raporu",
     "empty": "Henüz rapor yok",
+    "missing": "Bu rapor bulunamadı.",
     "comingSoon": "Bu raporun detay görünümü yakında eklenecek.",
     "comingSoonWithLink": "Detay görünümü yakında eklenecek. Şimdilik Drive dosyasını görüntüleyebilirsiniz.",
     "openDrive": "Raporu görüntüle",
@@ -156,11 +159,13 @@
     "competitor": "Rakip Analizi",
     "competitorDescription": "Rakip ve pazar analizi dokümanı",
     "download": "İndir",
+    "downloading": "İndiriliyor",
+    "downloadFailed": "Dosya indirilemedi. Lütfen tekrar deneyin.",
     "view": "Görüntüle",
     "updated": "Güncellendi: {date}",
     "openFolder": "Klasörü aç",
     "empty": "Henüz marka dosyası eklenmedi.",
-    "info": "Dosyaları görüntüleyebilir veya cihazınıza indirebilirsiniz."
+    "info": "İndir’e basınca dosya telefonunuza kaydedilir. iPhone’da Dosyalar’a kaydetmeniz istenir."
   },
   "notifications": {
     "title": "Bildirimler",

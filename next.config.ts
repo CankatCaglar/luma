@@ -10,7 +10,9 @@ const nextConfig: NextConfig = {
   devIndicators: false,
   experimental: {
     staleTimes: {
-      dynamic: 0,
+      // Jobs live in JobsProvider; keep route shells cached so card taps
+      // don't flash a skeleton on every navigation.
+      dynamic: 60,
       static: 180,
     },
   },

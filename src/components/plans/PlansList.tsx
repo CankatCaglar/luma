@@ -54,7 +54,7 @@ function PlanCard({ plan }: { plan: ContentPlan }) {
   }
 
   return (
-    <Link href={`/planlar/${plan.id}`} className={cardClass}>
+    <Link href={`/planlar/${plan.id}`} prefetch className={cardClass}>
       {body}
     </Link>
   );

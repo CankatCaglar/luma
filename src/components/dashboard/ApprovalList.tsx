@@ -50,6 +50,7 @@ export function ApprovalList({
           <Link
             key={item.id}
             href={resolveJobHref(item)}
+            prefetch
             className="flex select-none items-center gap-3 rounded-2xl bg-luma-card p-3 ring-1 ring-luma-border/80 transition-transform duration-150 ease-out active:scale-[0.97]"
           >
             <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-luma-soft">

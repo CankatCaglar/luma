@@ -52,6 +52,7 @@ export function JobList({
           <Link
             key={job.id}
             href={resolveJobHref(job)}
+            prefetch
             className="flex select-none items-center gap-3 rounded-2xl bg-luma-card p-3.5 ring-1 ring-luma-border/80 transition-transform duration-150 ease-out active:scale-[0.97]"
           >
             <IconTile className="h-12 w-12">

@@ -58,6 +58,7 @@ export function QuickAccess() {
             <Link
               key={link.id}
               href={link.href}
+              prefetch
               className="flex select-none flex-col items-center rounded-2xl bg-luma-card px-1.5 py-3 text-center ring-1 ring-luma-border/80 transition-transform duration-150 ease-out active:scale-[0.97]"
             >
               <span

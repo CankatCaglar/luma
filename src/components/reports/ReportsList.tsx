@@ -66,7 +66,7 @@ export function ReportsList({ reports }: { reports: MonthlyReport[] }) {
             }
 
             return (
-              <Link key={report.id} href={`/raporlar/${report.id}`} className={cardClass}>
+              <Link key={report.id} href={`/raporlar/${report.id}`} prefetch className={cardClass}>
                 {body}
               </Link>
             );

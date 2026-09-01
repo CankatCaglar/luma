@@ -248,6 +248,127 @@ export async function listDriveChildren(folderId: string): Promise<DriveFile[]> 
   return files;
 }
 
+const FOLDER_MIME = "application/vnd.google-apps.folder";
+const SHORTCUT_MIME = "application/vnd.google-apps.shortcut";
+const MAX_DOWNLOAD_BYTES = 40 * 1024 * 1024;
+const MAX_PARENT_WALK = 10;
+
+const GOOGLE_EXPORT: Record<string, { mime: string; ext: string }> = {
+  "application/vnd.google-apps.document": {
+    mime: "application/pdf",
+    ext: ".pdf",
+  },
+  "application/vnd.google-apps.presentation": {
+    mime: "application/pdf",
+    ext: ".pdf",
+  },
+  "application/vnd.google-apps.spreadsheet": {
+    mime: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ext: ".xlsx",
+  },
+  "application/vnd.google-apps.drawing": {
+    mime: "image/png",
+    ext: ".png",
+  },
+};
+
+function withFileExt(name: string, ext: string): string {
+  if (name.toLowerCase().endsWith(ext)) return name;
+  return `${name}${ext}`;
+}
+
+async function getDriveParents(fileId: string): Promise<{
+  id: string;
+  mimeType: string;
+  parents: string[];
+  shortcutTargetId?: string;
+}> {
+  const url = new URL(`${FILES_URL}/${encodeURIComponent(fileId)}`);
+  url.searchParams.set("fields", "id,mimeType,parents,shortcutDetails(targetId)");
+  url.searchParams.set("supportsAllDrives", "true");
+  const response = await driveFetch(url.toString());
+  const payload = (await response.json().catch(() => null)) as {
+    error?: { message?: string };
+    id?: string;
+    mimeType?: string;
+    parents?: string[];
+    shortcutDetails?: { targetId?: string };
+  } | null;
+  if (!response.ok || !payload?.id) {
+    throw new DriveApiError(payload?.error?.message || "Drive dosyası doğrulanamadı", response.status);
+  }
+  return {
+    id: payload.id,
+    mimeType: payload.mimeType ?? "application/octet-stream",
+    parents: payload.parents ?? [],
+    shortcutTargetId: payload.shortcutDetails?.targetId,
+  };
+}
+
+export async function isDriveFileUnderFolder(
+  fileId: string,
+  rootFolderId: string,
+): Promise<boolean> {
+  const root = rootFolderId.trim();
+  const start = fileId.trim();
+  if (!root || !start || start === root) return false;
+
+  let current = start;
+  const seen = new Set<string>();
+  for (let i = 0; i < MAX_PARENT_WALK; i += 1) {
+    if (seen.has(current)) return false;
+    seen.add(current);
+    const meta = await getDriveParents(current);
+    if (meta.shortcutTargetId && meta.mimeType === SHORTCUT_MIME) {
+      current = meta.shortcutTargetId;
+      continue;
+    }
+    if (meta.parents.includes(root)) return true;
+    const parent = meta.parents[0];
+    if (!parent) return false;
+    if (parent === root) return true;
+    current = parent;
+  }
+  return false;
+}
+
+export type DriveDownloadStream = {
+  body: ReadableStream<Uint8Array>;
+  contentType: string;
+  filename: string;
+};
+
+export async function streamDriveDownload(fileId: string): Promise<DriveDownloadStream> {
+  const file = await getDriveFile(fileId);
+  const target =
+    file.mimeType === SHORTCUT_MIME && file.shortcutTargetId
+      ? await getDriveFile(file.shortcutTargetId)
+      : file;
+  if (target.mimeType === FOLDER_MIME) {
+    throw new DriveApiError("Klasör indirilemez", 400);
+  }
+
+  const size = Number(target.size ?? 0);
+  if (Number.isFinite(size) && size > MAX_DOWNLOAD_BYTES) {
+    throw new DriveApiError("Dosya indirme için çok büyük", 413);
+  }
+
+  const exported = GOOGLE_EXPORT[target.mimeType];
+  const url = exported
+    ? `${FILES_URL}/${encodeURIComponent(target.id)}/export?mimeType=${encodeURIComponent(exported.mime)}&supportsAllDrives=true`
+    : `${FILES_URL}/${encodeURIComponent(target.id)}?alt=media&supportsAllDrives=true`;
+  const response = await driveFetch(url);
+  if (!response.ok || !response.body) {
+    throw new DriveApiError("Dosya indirilemedi", response.status || 502);
+  }
+
+  return {
+    body: response.body,
+    contentType: exported?.mime || target.mimeType || "application/octet-stream",
+    filename: exported ? withFileExt(target.name, exported.ext) : target.name,
+  };
+}
+
 export type DriveProbe = {
   ok: boolean;
   id?: string;
