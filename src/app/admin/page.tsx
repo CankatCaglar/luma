@@ -473,7 +473,7 @@ export default function AdminPage() {
             <div className="w-full min-w-0 max-w-md">
               <div className="text-center">
                 <div className="mb-6 flex justify-center">
-                  <LumaLogo className="h-16" />
+                  <LumaLogo height={64} />
                 </div>
                 <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl lg:text-4xl">
                   Luma Admin

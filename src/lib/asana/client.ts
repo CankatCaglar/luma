@@ -18,7 +18,7 @@ import type {
 
 const PAGE_LIMIT = 100;
 const MAX_PAGES = 20;
-const PROJECT_TASK_CACHE_MS = 20_000;
+const PROJECT_TASK_CACHE_MS = 60_000;
 
 type ProjectTaskCache = {
   expiresAt: number;

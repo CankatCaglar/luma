@@ -103,8 +103,8 @@ function mockJobLists(tenant: TenantSummary): JobLists {
   };
 }
 
-const JOBS_FRESH_MS = 15_000;
-const JOBS_STALE_MS = 45_000;
+const JOBS_FRESH_MS = 20_000;
+const JOBS_STALE_MS = 2 * 60_000;
 
 const jobsCache = new Map<string, { fetchedAt: number; data: JobLists }>();
 const inflight = new Map<string, Promise<JobLists>>();

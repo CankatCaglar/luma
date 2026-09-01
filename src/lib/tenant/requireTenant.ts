@@ -30,13 +30,14 @@ export async function requireTenantAccess(
 
   const tokenTenantId =
     typeof user.token.tenantId === "string" ? user.token.tenantId : null;
-  const tenant = tokenTenantId
-    ? await getTenantById(tokenTenantId)
-    : await getTenantByEmail(user.email);
-  if (!tenant) {
-    throw new TenantAccessError("No tenant access found for this user", 403);
-  }
-  if (!tenant.emails.includes(user.email.toLowerCase())) {
+  const email = user.email.toLowerCase();
+  const claimed =
+    tokenTenantId ? await getTenantById(tokenTenantId) : null;
+  const tenant =
+    claimed && claimed.emails.includes(email)
+      ? claimed
+      : await getTenantByEmail(email);
+  if (!tenant || !tenant.emails.includes(email)) {
     throw new TenantAccessError("User is not allowed for this tenant", 403);
   }
 

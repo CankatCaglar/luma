@@ -1,22 +1,28 @@
 import Image from "next/image";
 import { cn } from "@/lib/cn";
 
-export function LumaLogo({ className }: { className?: string }) {
+const WORDMARK_WIDTH = 176;
+const WORDMARK_HEIGHT = 56;
+
+export function LumaLogo({
+  className,
+  height = 44,
+}: {
+  className?: string;
+  height?: number;
+}) {
+  const width = Math.round((WORDMARK_WIDTH / WORDMARK_HEIGHT) * height);
+
   return (
-    <span className={cn("inline-flex h-11 shrink-0 items-center", className)}>
-      <Image
-        src="/brand/luma-wordmark.png"
-        alt="LUMA"
-        width={176}
-        height={56}
-        priority
-        loading="eager"
-        fetchPriority="high"
-        sizes="176px"
-        className="h-full w-auto max-w-none select-none object-contain"
-        style={{ width: "auto" }}
-      />
-    </span>
+    <Image
+      src="/brand/luma-wordmark.png"
+      alt="LUMA"
+      width={width}
+      height={height}
+      priority
+      sizes={`${width}px`}
+      className={cn("select-none", className)}
+    />
   );
 }
 

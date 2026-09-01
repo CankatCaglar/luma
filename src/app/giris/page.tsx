@@ -155,7 +155,7 @@ export default function GirisPage() {
   return (
     <div className="flex min-h-full flex-1 flex-col justify-center pb-8">
       <div className="mb-10 flex items-center justify-center">
-        <LumaLogo className="h-14" />
+        <LumaLogo height={56} />
       </div>
 
       <section className="rounded-3xl bg-white p-5 shadow-[0_16px_48px_rgba(28,25,23,0.08)] ring-1 ring-luma-border/80">

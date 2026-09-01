@@ -14,9 +14,9 @@ import { useI18n } from "@/components/i18n/I18nProvider";
 import { useAuth } from "@/components/auth/AuthProvider";
 import type { JobLists } from "@/types";
 
-const MIN_REVALIDATE_MS = 15_000;
-const POLL_MS = 45_000;
-const FOCUS_STALE_MS = 10_000;
+const MIN_REVALIDATE_MS = 20_000;
+const POLL_MS = 60_000;
+const FOCUS_STALE_MS = 45_000;
 const MAX_STORED_AGE_MS = 24 * 60 * 60 * 1000;
 
 type JobsStatus = "loading" | "ready";
@@ -100,35 +100,6 @@ function omitHiddenJobs(data: JobLists): JobLists {
   };
 }
 
-function createEmptyJobLists(input: {
-  email?: string | null;
-  brandName?: string | null;
-}): JobLists {
-  const nowIso = new Date().toISOString();
-  return {
-    tenant: {
-      tenantId: "unassigned",
-      brandName: input.brandName?.trim() || "LUMA",
-      brandCode: "UNASSIGNED",
-      email: input.email?.trim() || "unknown@tenant.local",
-    },
-    source: "mock",
-    jobs: [],
-    activeJobs: [],
-    pendingJobs: [],
-    completedJobs: [],
-    approvalItems: [],
-    metrics: {
-      pendingApproval: 0,
-      activeJobs: 0,
-      completedThisMonth: 0,
-    },
-    contentPlans: [],
-    monthlyReports: [],
-    referenceNowIso: nowIso,
-  };
-}
-
 export function JobsProvider({ children }: { children: ReactNode }) {
   const { t } = useI18n();
   const { enabled, user } = useAuth();
@@ -148,6 +119,11 @@ export function JobsProvider({ children }: { children: ReactNode }) {
     hasDataRef.current = Boolean(data);
   }, [data]);
 
+  useEffect(() => {
+    const stored = readStoredJobs(storageKey);
+    if (stored) setData(stored);
+  }, [storageKey]);
+
   const refresh = useCallback(async (force = false) => {
     if (enabled && !user) {
       setData(null);
@@ -161,15 +137,22 @@ export function JobsProvider({ children }: { children: ReactNode }) {
     const run = (async () => {
       setRefreshing(true);
       try {
-        const endpoint = force ? "/api/jobs?fresh=1" : "/api/jobs";
-        const headers: HeadersInit = {};
-        if (enabled && user) {
-          headers.Authorization = `Bearer ${await user.getIdToken()}`;
+        async function load(fresh: boolean, tokenRefresh: boolean) {
+          const headers: HeadersInit = {};
+          if (enabled && user) {
+            headers.Authorization = `Bearer ${await user.getIdToken(tokenRefresh)}`;
+          }
+          const endpoint = fresh ? "/api/jobs?fresh=1" : "/api/jobs";
+          return fetch(endpoint, {
+            cache: "no-store",
+            headers,
+          });
         }
-        const response = await fetch(endpoint, {
-          cache: "no-store",
-          headers,
-        });
+
+        let response = await load(force, false);
+        if (response.status === 403 && enabled && user) {
+          response = await load(false, true);
+        }
         if (!response.ok) {
           const payload = (await response.json().catch(() => null)) as
             | { error?: string }
@@ -181,15 +164,8 @@ export function JobsProvider({ children }: { children: ReactNode }) {
         setData(next);
         storeJobs(storageKey, next);
       } catch (error) {
-        if (!hasDataRef.current) {
-          const fallback = createEmptyJobLists({
-            email: user?.email,
-            brandName: user?.displayName ?? "LUMA",
-          });
-          setData(fallback);
-        }
         const message = error instanceof Error ? error.message : "jobs request failed";
-        console.error(`[jobs] ${message}`);
+        console.warn(`[jobs] ${message}`);
       } finally {
         setRefreshing(false);
         inflight.current = null;
@@ -203,7 +179,7 @@ export function JobsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (enabled && !user) return;
     const kickoff = window.setTimeout(() => {
-      void refresh(true);
+      void refresh(false);
     }, 0);
 
     function refreshIfStale() {
@@ -219,7 +195,7 @@ export function JobsProvider({ children }: { children: ReactNode }) {
     window.addEventListener("focus", refreshIfStale);
     window.addEventListener("online", refreshIfStale);
     const timer = window.setInterval(() => {
-      if (document.visibilityState === "visible") void refresh(true);
+      if (document.visibilityState === "visible") void refresh(false);
     }, POLL_MS);
 
     return () => {
