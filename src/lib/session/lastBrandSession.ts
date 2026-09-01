@@ -48,7 +48,7 @@ export function writeLastBrandSession(session: LastBrandSession | null) {
   const nextRaw = session ? JSON.stringify(session) : null;
   if (hasCache && nextRaw === cachedRaw) return;
   try {
-    if (!session) window.localStorage.removeItem(STORAGE_KEY);
+    if (!session || nextRaw === null) window.localStorage.removeItem(STORAGE_KEY);
     else window.localStorage.setItem(STORAGE_KEY, nextRaw);
   } catch {
     /* quota / private mode */

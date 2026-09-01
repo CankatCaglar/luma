@@ -20,6 +20,12 @@ const nextConfig: NextConfig = {
     "*.ngrok.io",
     "*.trycloudflare.com",
   ],
+  rewrites: async () => [
+    {
+      source: "/favicon.ico",
+      destination: "/favicon.png",
+    },
+  ],
   images: {
     dangerouslyAllowSVG: true,
     contentDispositionType: "inline",

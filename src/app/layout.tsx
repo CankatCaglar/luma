@@ -24,11 +24,8 @@ export const metadata: Metadata = {
     title: "LUMA",
   },
   icons: {
-    icon: [
-      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
-      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
-    ],
-    apple: "/icons/apple-touch-icon.png",
+    icon: [{ url: "/favicon.png", type: "image/png" }],
+    apple: "/favicon.png",
   },
   other: {
     "apple-mobile-web-app-capable": "yes",
@@ -47,6 +44,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="tr" className={`${montserrat.variable} antialiased`}>
       <head>
+        <link rel="icon" href="/favicon.png" type="image/png" />
         <link
           rel="preload"
           as="image"
