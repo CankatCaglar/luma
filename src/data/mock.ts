@@ -272,18 +272,70 @@ export const monthlyReports: MonthlyReport[] = [
 
 export const brandAssets: BrandAsset[] = [
   {
+    id: "asset-box",
+    nameKey: "brandCenter.box",
+    descriptionKey: "brandCenter.boxDescription",
+    kind: "box",
+    url: "https://drive.google.com/drive/folders/example-box",
+  },
+  {
     id: "asset-logo",
     nameKey: "brandCenter.logo",
-    descriptionKey: "brandCenter.logoFormats",
+    descriptionKey: "brandCenter.logoDescription",
     kind: "logo",
     url: "https://drive.google.com/drive/folders/example-logo",
+    files: [
+      {
+        id: "logo-png",
+        name: "Logo.png",
+        mimeType: "image/png",
+        size: "2400000",
+        width: 1600,
+        height: 1600,
+        viewUrl: "https://drive.google.com/file/d/example-logo-png/view",
+        downloadUrl: "https://drive.google.com/uc?export=download&id=example-logo-png",
+      },
+      {
+        id: "logo-svg",
+        name: "Logo.svg",
+        mimeType: "image/svg+xml",
+        size: "48000",
+        viewUrl: "https://drive.google.com/file/d/example-logo-svg/view",
+        downloadUrl: "https://drive.google.com/uc?export=download&id=example-logo-svg",
+      },
+      {
+        id: "logo-pdf",
+        name: "Logo.pdf",
+        mimeType: "application/pdf",
+        size: "1200000",
+        viewUrl: "https://drive.google.com/file/d/example-logo-pdf/view",
+        downloadUrl: "https://drive.google.com/uc?export=download&id=example-logo-pdf",
+      },
+    ],
   },
   {
     id: "asset-brief",
     nameKey: "brandCenter.brief",
     descriptionKey: "brandCenter.briefDescription",
     kind: "brief",
-    url: "https://drive.google.com/drive/folders/example-brief",
+    url: "https://drive.google.com/file/d/example-brief/view",
+    files: [
+      {
+        id: "brief-pdf",
+        name: "Brand Brief.pdf",
+        mimeType: "application/pdf",
+        size: "1800000",
+        modifiedTime: "2026-08-28T10:00:00.000Z",
+        viewUrl: "https://drive.google.com/file/d/example-brief/view",
+      },
+    ],
+  },
+  {
+    id: "asset-competitor",
+    nameKey: "brandCenter.competitor",
+    descriptionKey: "brandCenter.competitorDescription",
+    kind: "competitor",
+    url: "https://drive.google.com/drive/folders/example-competitor",
   },
 ];
 

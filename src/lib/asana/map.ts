@@ -206,12 +206,14 @@ export function mapTaskTags(task: AsanaTask, brandCode: string): JobTag[] {
   return tags;
 }
 
-export function parseMonthKey(title: string, fallbackIsoDate: string): string {
+export function parseMonthFromLabel(
+  title: string,
+  fallbackYear?: string,
+): string | null {
   const folded = foldLabel(title);
   const yearMatch = folded.match(/\b(20\d{2})\b/);
-  const fallbackYear = fallbackIsoDate.slice(0, 4);
-  const fallbackMonth = fallbackIsoDate.slice(5, 7);
-  const year = yearMatch?.[1] ?? (fallbackYear || String(new Date().getFullYear()));
+  const year = yearMatch?.[1] ?? fallbackYear;
+  if (!year) return null;
 
   const tokens = folded.split(" ").filter(Boolean);
   for (const token of tokens) {
@@ -219,8 +221,32 @@ export function parseMonthKey(title: string, fallbackIsoDate: string): string {
     if (month) return `${year}-${String(month).padStart(2, "0")}`;
   }
 
+  const yearFirst = folded.match(/\b(20\d{2})\s+(\d{1,2})\b/);
+  if (yearFirst) {
+    const month = Number(yearFirst[2]);
+    if (month >= 1 && month <= 12) {
+      return `${yearFirst[1]}-${String(month).padStart(2, "0")}`;
+    }
+  }
+  const monthFirst = folded.match(/\b(\d{1,2})\s+(20\d{2})\b/);
+  if (monthFirst) {
+    const month = Number(monthFirst[1]);
+    if (month >= 1 && month <= 12) {
+      return `${monthFirst[2]}-${String(month).padStart(2, "0")}`;
+    }
+  }
+
+  return null;
+}
+
+export function parseMonthKey(title: string, fallbackIsoDate: string): string {
+  const fallbackYear = fallbackIsoDate.slice(0, 4);
+  const fromLabel = parseMonthFromLabel(title, fallbackYear || undefined);
+  if (fromLabel) return fromLabel;
+
+  const fallbackMonth = fallbackIsoDate.slice(5, 7);
   if (fallbackYear && fallbackMonth) return `${fallbackYear}-${fallbackMonth}`;
-  return `${year}-01`;
+  return `${fallbackYear || String(new Date().getFullYear())}-01`;
 }
 
 export function catalogId(kind: "plan" | "report", month: string): string {

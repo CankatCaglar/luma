@@ -1,7 +1,28 @@
 import { mapJobsToApprovalItems } from "@/lib/asana/map";
-import { plansFromJobs, reportsFromJobs } from "@/lib/data/catalog";
+import { mergeContentPlans, reportsFromJobs } from "@/lib/data/catalog";
+import type { DrivePlanFile } from "@/lib/drive/plans";
 import { isWithinLastMonths } from "@/lib/period";
-import type { DashboardMetrics, Job, JobLists, JobSource, TenantSummary } from "@/types";
+import type {
+  BrandAsset,
+  ContentPlan,
+  DashboardMetrics,
+  Job,
+  JobLists,
+  JobSource,
+  PlanYear,
+  TenantSummary,
+} from "@/types";
+
+export type JobListExtras = {
+  partial?: boolean;
+  brandAssets?: BrandAsset[];
+  driveBoxUrl?: string;
+  plansFolderUrl?: string;
+  plansFolderTitle?: string;
+  planYears?: PlanYear[];
+  drivePlans?: DrivePlanFile[];
+  contentPlans?: ContentPlan[];
+};
 
 export type CompactJobLists = {
   tenant: TenantSummary;
@@ -9,6 +30,12 @@ export type CompactJobLists = {
   jobs: Job[];
   referenceNowIso: string;
   partial?: boolean;
+  brandAssets?: BrandAsset[];
+  driveBoxUrl?: string;
+  plansFolderUrl?: string;
+  plansFolderTitle?: string;
+  planYears?: PlanYear[];
+  contentPlans?: ContentPlan[];
 };
 
 function isActive(job: Job): boolean {
@@ -41,7 +68,7 @@ export function listsFromJobs(
   source: JobSource,
   now: Date,
   tenant: TenantSummary,
-  extra?: { partial?: boolean },
+  extra?: JobListExtras,
 ): JobLists {
   return {
     tenant,
@@ -54,8 +81,13 @@ export function listsFromJobs(
       .sort((a, b) => (b.completedAt ?? "").localeCompare(a.completedAt ?? "")),
     approvalItems: mapJobsToApprovalItems(jobs),
     metrics: metricsFromJobs(jobs, now),
-    contentPlans: plansFromJobs(jobs, now),
+    contentPlans: extra?.contentPlans ?? mergeContentPlans(jobs, extra?.drivePlans, now),
     monthlyReports: reportsFromJobs(jobs, now),
+    brandAssets: extra?.brandAssets,
+    driveBoxUrl: extra?.driveBoxUrl,
+    plansFolderUrl: extra?.plansFolderUrl,
+    plansFolderTitle: extra?.plansFolderTitle,
+    planYears: extra?.planYears,
     referenceNowIso: now.toISOString(),
     partial: extra?.partial,
   };
@@ -68,6 +100,12 @@ export function compactJobLists(data: JobLists): CompactJobLists {
     jobs: data.jobs,
     referenceNowIso: data.referenceNowIso,
     partial: data.partial,
+    brandAssets: data.brandAssets,
+    driveBoxUrl: data.driveBoxUrl,
+    plansFolderUrl: data.plansFolderUrl,
+    plansFolderTitle: data.plansFolderTitle,
+    planYears: data.planYears,
+    contentPlans: data.contentPlans,
   };
 }
 
@@ -80,6 +118,14 @@ export function expandJobLists(data: CompactJobLists): JobLists | null {
     data.source === "mock" ? "mock" : "asana",
     now,
     data.tenant,
-    { partial: data.partial },
+    {
+      partial: data.partial,
+      brandAssets: data.brandAssets,
+      driveBoxUrl: data.driveBoxUrl,
+      plansFolderUrl: data.plansFolderUrl,
+      plansFolderTitle: data.plansFolderTitle,
+      planYears: data.planYears,
+      contentPlans: data.contentPlans,
+    },
   );
 }

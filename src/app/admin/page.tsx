@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import {
   browserLocalPersistence,
   browserSessionPersistence,
@@ -12,8 +12,10 @@ import {
   ArrowLeft,
   Check,
   ChevronDown,
+  Copy,
   Eye,
   EyeOff,
+  FolderOpen,
   Loader2,
   LockKeyhole,
   LogOut,
@@ -27,6 +29,19 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { LumaLogo, LumaStar } from "@/components/layout/NeraLogo";
 import { firebaseAuth, firebaseEnabled } from "@/lib/firebase/client";
 
+type DriveStatus = {
+  configured: boolean;
+  apiOk: boolean;
+  email?: string;
+  source?: "drive_json" | "drive_file" | "firebase_admin";
+  error?: string;
+  shareHint?: string;
+};
+
+type DriveForm = {
+  rootUrl: string;
+};
+
 type Tenant = {
   tenantId: string;
   brandName: string;
@@ -36,6 +51,9 @@ type Tenant = {
     projectGids: string[];
     requestProjectGid?: string;
     requestSectionGid?: string;
+  };
+  drive?: {
+    rootUrl?: string;
   };
 };
 
@@ -79,6 +97,10 @@ type FormState = {
   email: string;
   password: string;
   workspaceGid: string;
+} & DriveForm;
+
+const EMPTY_DRIVE: DriveForm = {
+  rootUrl: "",
 };
 
 const INITIAL_FORM: FormState = {
@@ -87,6 +109,7 @@ const INITIAL_FORM: FormState = {
   email: "",
   password: "",
   workspaceGid: "",
+  ...EMPTY_DRIVE,
 };
 
 const fieldClassName =
@@ -123,6 +146,41 @@ function adminLoginErrorMessage(error: unknown): string {
   }
 }
 
+function tenantHasDrive(tenant: Tenant): boolean {
+  const drive = tenant.drive;
+  if (!drive) return false;
+  return Boolean(drive.rootUrl);
+}
+
+function driveFormFromTenant(tenant: Tenant): DriveForm {
+  return {
+    rootUrl: tenant.drive?.rootUrl ?? "",
+  };
+}
+
+function formatDriveCheck(check: {
+  root?: { ok: boolean; name?: string; error?: string };
+  plans?: { ok: boolean; name?: string; error?: string };
+} | null): string | null {
+  if (!check) return null;
+  const parts: string[] = [];
+  if (check.root) {
+    parts.push(
+      check.root.ok
+        ? `Kutu: ${check.root.name ?? "erişildi"}`
+        : `Kutu: ${check.root.error ?? "erişilemedi"}`,
+    );
+  }
+  if (check.plans) {
+    parts.push(
+      check.plans.ok
+        ? `Planlar: ${check.plans.name ?? "erişildi"}`
+        : `Planlar: ${check.plans.error ?? "erişilemedi"}`,
+    );
+  }
+  return parts.length ? parts.join(" · ") : null;
+}
+
 export default function AdminPage() {
   const router = useRouter();
   const { enabled, user, isAdmin, adminChecking, signOutUser } = useAuth();
@@ -138,6 +196,10 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [driveDraft, setDriveDraft] = useState<DriveForm>(EMPTY_DRIVE);
+  const [savingDriveId, setSavingDriveId] = useState<string | null>(null);
+  const [driveStatus, setDriveStatus] = useState<DriveStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [tenants, setTenants] = useState<Tenant[]>([]);
@@ -185,6 +247,20 @@ export default function AdminPage() {
       setError(error instanceof Error ? error.message : "İşlem başarısız");
     } finally {
       setLoading(false);
+    }
+  }, [authHeaders]);
+
+  const loadDriveStatus = useCallback(async () => {
+    try {
+      const response = await fetch("/api/admin/drive/status", {
+        cache: "no-store",
+        headers: (await authHeaders()) as HeadersInit,
+      });
+      const payload = (await response.json().catch(() => null)) as DriveStatus | null;
+      if (!response.ok || !payload) return;
+      setDriveStatus(payload);
+    } catch {
+      /* banner email optional */
     }
   }, [authHeaders]);
 
@@ -264,12 +340,12 @@ export default function AdminPage() {
       return;
     }
     const kickoff = window.setTimeout(() => {
-      void Promise.all([loadTenants(), loadWorkspaces()]).finally(() => {
+      void Promise.all([loadTenants(), loadWorkspaces(), loadDriveStatus()]).finally(() => {
         setAdminReady(true);
       });
     }, 0);
     return () => window.clearTimeout(kickoff);
-  }, [enabled, user, isAdmin, adminReady, loadTenants, loadWorkspaces]);
+  }, [enabled, user, isAdmin, adminReady, loadTenants, loadWorkspaces, loadDriveStatus]);
 
   useEffect(() => {
     if (!adminReady) return;
@@ -322,6 +398,7 @@ export default function AdminPage() {
           projectGids: lookup.projectGids.join(","),
           requestProjectGid: lookup.request?.projectGid,
           requestSectionGid: lookup.request?.sectionGid,
+          rootUrl: form.rootUrl,
         }),
       });
       const payload = (await response.json().catch(() => null)) as
@@ -329,14 +406,19 @@ export default function AdminPage() {
             error?: string;
             user?: { email: string; password: string; created: boolean };
             tenant?: { brandName: string; tenantId: string };
+            driveCheck?: {
+              root?: { ok: boolean; name?: string; error?: string };
+              plans?: { ok: boolean; name?: string; error?: string };
+            };
           }
         | null;
       if (!response.ok) {
         throw new Error(payload?.error ?? "Tenant oluşturulamadı");
       }
       const created = payload?.user?.created ? "oluşturuldu" : "güncellendi";
+      const driveNote = formatDriveCheck(payload?.driveCheck ?? null);
       setSuccess(
-        `${payload?.tenant?.brandName ?? "Marka"} kaydedildi. Kullanıcı ${created}: ${payload?.user?.email}`,
+        `${payload?.tenant?.brandName ?? "Marka"} kaydedildi. Kullanıcı ${created}: ${payload?.user?.email}${driveNote ? ` · ${driveNote}` : ""}`,
       );
       setForm((prev) => ({
         ...INITIAL_FORM,
@@ -380,6 +462,57 @@ export default function AdminPage() {
       setError(error instanceof Error ? error.message : "Marka silinemedi");
     } finally {
       setDeletingId(null);
+    }
+  }
+
+  function onEditDrive(tenant: Tenant) {
+    setEditingId((current) => (current === tenant.tenantId ? null : tenant.tenantId));
+    setDriveDraft(driveFormFromTenant(tenant));
+    setError(null);
+    setSuccess(null);
+  }
+
+  async function onSaveDrive(tenant: Tenant) {
+    setSavingDriveId(tenant.tenantId);
+    setError(null);
+    setSuccess(null);
+    try {
+      const headers = await authHeaders();
+      headers["Content-Type"] = "application/json";
+      const response = await fetch("/api/admin/tenants", {
+        method: "PATCH",
+        headers: headers as HeadersInit,
+        body: JSON.stringify({
+          tenantId: tenant.tenantId,
+          ...driveDraft,
+        }),
+      });
+      const payload = (await response.json().catch(() => null)) as {
+        error?: string;
+        tenant?: Tenant;
+        driveCheck?: {
+          root?: { ok: boolean; name?: string; error?: string };
+          plans?: { ok: boolean; name?: string; error?: string };
+        };
+      } | null;
+      if (!response.ok) {
+        throw new Error(payload?.error ?? "Drive bilgisi kaydedilemedi");
+      }
+      if (payload?.tenant) {
+        setTenants((prev) =>
+          prev.map((item) => (item.tenantId === tenant.tenantId ? payload.tenant! : item)),
+        );
+      }
+      const driveNote = formatDriveCheck(payload?.driveCheck ?? null);
+      setSuccess(
+        `${tenant.brandName} Drive bilgileri kaydedildi${driveNote ? ` · ${driveNote}` : ""}`,
+      );
+      setEditingId(null);
+      await loadTenants();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Drive bilgisi kaydedilemedi");
+    } finally {
+      setSavingDriveId(null);
     }
   }
 
@@ -633,6 +766,8 @@ export default function AdminPage() {
         </div>
       </header>
 
+      <DriveStatusBanner status={driveStatus} />
+
       <div className="grid min-w-0 gap-4 sm:gap-6 lg:grid-cols-[1.1fr_1fr]">
         <section className="min-w-0 rounded-3xl bg-white p-4 shadow-[0_16px_48px_rgba(28,25,23,0.08)] ring-1 ring-luma-border/80 sm:p-5">
           <h2 className="mb-1 text-base font-bold text-foreground">Yeni Marka Tanımla</h2>
@@ -722,6 +857,10 @@ export default function AdminPage() {
               placeholder="Şifre (boşsa otomatik üretilir)"
               className={fieldClassName}
             />
+            <DriveFields
+              value={form}
+              onChange={(next) => setForm((prev) => ({ ...prev, ...next }))}
+            />
             <button
               type="submit"
               disabled={saving || !canSubmit}
@@ -777,36 +916,89 @@ export default function AdminPage() {
                     <th className="px-3 py-2 font-semibold">Kod</th>
                     <th className="px-3 py-2 font-semibold">Kullanıcı</th>
                     <th className="px-2 py-2 text-right font-semibold">
-                      <span className="sr-only">Sil</span>
+                      <span className="sr-only">İşlemler</span>
                     </th>
                   </tr>
                 </thead>
                 <tbody>
                   {tenants.map((tenant) => (
-                    <tr key={tenant.tenantId} className="border-t border-luma-border">
-                      <td className="px-3 py-2.5 text-foreground">{tenant.brandName}</td>
-                      <td className="px-3 py-2.5 font-semibold text-luma">
-                        {tenant.asana.brandCode}
-                      </td>
-                      <td className="min-w-0 px-3 py-2.5 break-all text-luma-muted">
-                        {tenant.emails.join(", ")}
-                      </td>
-                      <td className="px-2 py-2.5 text-right">
-                        <button
-                          type="button"
-                          onClick={() => void onDeleteTenant(tenant)}
-                          disabled={deletingId === tenant.tenantId}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-luma-muted transition-colors hover:bg-red-50 hover:text-luma-red disabled:cursor-not-allowed disabled:opacity-60"
-                          aria-label={`${tenant.brandName} markasını sil`}
-                        >
-                          {deletingId === tenant.tenantId ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
+                    <Fragment key={tenant.tenantId}>
+                      <tr className="border-t border-luma-border">
+                        <td className="px-3 py-2.5 text-foreground">
+                          <span className="block">{tenant.brandName}</span>
+                          {tenantHasDrive(tenant) ? (
+                            <span className="mt-0.5 inline-block text-[10px] font-semibold text-luma">
+                              Drive bağlı
+                            </span>
                           ) : (
-                            <Trash2 className="h-4 w-4" />
+                            <span className="mt-0.5 inline-block text-[10px] font-semibold text-luma-muted">
+                              Drive yok
+                            </span>
                           )}
-                        </button>
-                      </td>
-                    </tr>
+                        </td>
+                        <td className="px-3 py-2.5 font-semibold text-luma">
+                          {tenant.asana.brandCode}
+                        </td>
+                        <td className="min-w-0 px-3 py-2.5 break-all text-luma-muted">
+                          {tenant.emails.join(", ")}
+                        </td>
+                        <td className="px-2 py-2.5 text-right">
+                          <div className="inline-flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => onEditDrive(tenant)}
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-luma-muted transition-colors hover:bg-luma-soft hover:text-luma"
+                              aria-label={`${tenant.brandName} Drive düzenle`}
+                            >
+                              <FolderOpen className="h-4 w-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void onDeleteTenant(tenant)}
+                              disabled={deletingId === tenant.tenantId}
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-luma-muted transition-colors hover:bg-red-50 hover:text-luma-red disabled:cursor-not-allowed disabled:opacity-60"
+                              aria-label={`${tenant.brandName} markasını sil`}
+                            >
+                              {deletingId === tenant.tenantId ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-4 w-4" />
+                              )}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                      {editingId === tenant.tenantId ? (
+                        <tr className="border-t border-luma-border bg-luma-soft/60">
+                          <td colSpan={4} className="px-3 py-3">
+                            <p className="mb-2 text-xs font-semibold text-luma-kahve">
+                              {tenant.brandName} Drive bağlantıları
+                            </p>
+                            <DriveFields value={driveDraft} onChange={setDriveDraft} />
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                onClick={() => void onSaveDrive(tenant)}
+                                disabled={savingDriveId === tenant.tenantId}
+                                className="inline-flex items-center justify-center gap-2 rounded-xl bg-luma px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                              >
+                                {savingDriveId === tenant.tenantId ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : null}
+                                Kaydet
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setEditingId(null)}
+                                className="rounded-xl px-4 py-2 text-sm font-semibold text-luma-muted"
+                              >
+                                Vazgeç
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ) : null}
+                    </Fragment>
                   ))}
                 </tbody>
               </table>
@@ -1014,5 +1206,74 @@ function LookupPreview({
     <p className="rounded-2xl bg-red-50 px-3 py-2.5 text-sm font-medium text-luma-red">
       Bu kod Asana&apos;da bulunamadı. Marka kodunu kontrol et.
     </p>
+  );
+}
+
+function DriveFields({
+  value,
+  onChange,
+}: {
+  value: DriveForm;
+  onChange: (next: DriveForm) => void;
+}) {
+  function patch(partial: Partial<DriveForm>) {
+    onChange({ ...value, ...partial });
+  }
+
+  return (
+    <div className="space-y-2">
+      <p className="pt-1 text-xs font-semibold uppercase tracking-wide text-luma-kahve">
+        Drive
+      </p>
+      <p className="text-xs leading-relaxed text-luma-muted">
+        Kutuyu Firebase Admin e-postasına Viewer paylaş, linki buraya yapıştır. Logo, brief,
+        rakip analizi ve aylık planlar klasörden otomatik gelir.
+      </p>
+      <input
+        value={value.rootUrl}
+        onChange={(event) => patch({ rootUrl: event.target.value })}
+        placeholder="Genel Drive kutusu linki"
+        className={fieldClassName}
+      />
+    </div>
+  );
+}
+
+function DriveStatusBanner({ status }: { status: DriveStatus | null }) {
+  const [copied, setCopied] = useState(false);
+  const email = status?.email;
+  if (!email) return null;
+
+  async function copyEmail() {
+    try {
+      await navigator.clipboard.writeText(email);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1600);
+    } catch {
+      setCopied(false);
+    }
+  }
+
+  return (
+    <section className="rounded-3xl bg-luma-soft px-4 py-4 ring-1 ring-luma-border/80 sm:px-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm font-bold text-foreground">Drive paylaşım e-postası</p>
+          <p className="mt-1 text-sm text-luma-muted">
+            Bu adresi markanın Drive kutusuna Viewer ekle, sonra sağdaki klasör ikonuna kutu
+            linkini kaydet.
+          </p>
+          <p className="mt-2 break-all font-mono text-xs text-foreground">{email}</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => void copyEmail()}
+          className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3 py-2 text-sm font-semibold text-foreground ring-1 ring-luma-border"
+        >
+          {copied ? <Check className="h-4 w-4 text-luma-green" /> : <Copy className="h-4 w-4" />}
+          {copied ? "Kopyalandı" : "E-postayı kopyala"}
+        </button>
+      </div>
+    </section>
   );
 }

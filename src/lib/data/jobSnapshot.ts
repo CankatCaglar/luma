@@ -37,6 +37,13 @@ export async function readJobSnapshot(tenantId: string): Promise<StoredJobSnapsh
       jobs: data.jobs,
       referenceNowIso: data.referenceNowIso ?? new Date(data.fetchedAt).toISOString(),
       fetchedAt: data.fetchedAt,
+      brandAssets: data.brandAssets,
+      driveBoxUrl: data.driveBoxUrl,
+      plansFolderUrl: data.plansFolderUrl,
+      plansFolderTitle: data.plansFolderTitle,
+      planYears: data.planYears,
+      contentPlans: data.contentPlans,
+      partial: data.partial,
     };
   } catch {
     return null;

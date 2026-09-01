@@ -2,11 +2,17 @@ import { after, NextResponse } from "next/server";
 import { getAsanaEnv } from "@/lib/asana/config";
 import { lookupBrandInWorkspace } from "@/lib/asana/lookup";
 import { warmupTenantJobs } from "@/lib/data/jobs";
+import { probeDriveFolder } from "@/lib/drive/client";
+import {
+  driveConfigFromFields,
+  type DriveUrlFields,
+} from "@/lib/drive/parse";
 import { getAdminAuth } from "@/lib/firebase/admin";
 import {
   deleteTenant,
   listTenantDirectory,
   slugTenantId,
+  updateTenantDrive,
   upsertTenant,
   type TenantAccess,
 } from "@/lib/tenant/access";
@@ -22,6 +28,12 @@ type CreateTenantBody = {
   requestProjectGid?: string;
   requestSectionGid?: string;
   workspaceGid?: string;
+  rootUrl?: string;
+  logoUrl?: string;
+  briefUrl?: string;
+  competitorUrl?: string;
+  plansFolderUrl?: string;
+  planUrlsText?: string;
 };
 
 function parseCsv(value: string | undefined): string[] {
@@ -67,6 +79,12 @@ function parseBody(input: unknown): CreateTenantBody {
     requestProjectGid: body.requestProjectGid?.trim() || undefined,
     requestSectionGid: body.requestSectionGid?.trim() || undefined,
     workspaceGid: body.workspaceGid?.trim() || undefined,
+    rootUrl: body.rootUrl?.trim() || undefined,
+    logoUrl: body.logoUrl?.trim() || undefined,
+    briefUrl: body.briefUrl?.trim() || undefined,
+    competitorUrl: body.competitorUrl?.trim() || undefined,
+    plansFolderUrl: body.plansFolderUrl?.trim() || undefined,
+    planUrlsText: body.planUrlsText?.trim() || undefined,
   };
 }
 
@@ -115,6 +133,27 @@ async function upsertBrandUser(input: {
     brandName: input.brandName,
   });
   return { uid: created.uid, password: input.password, created: true };
+}
+
+function driveFieldsFromBody(body: DriveUrlFields): DriveUrlFields {
+  return {
+    rootUrl: body.rootUrl?.trim() || undefined,
+    logoUrl: body.logoUrl?.trim() || undefined,
+    briefUrl: body.briefUrl?.trim() || undefined,
+    competitorUrl: body.competitorUrl?.trim() || undefined,
+    plansFolderUrl: body.plansFolderUrl?.trim() || undefined,
+    planUrlsText: body.planUrlsText?.trim() || undefined,
+  };
+}
+
+async function driveAccessCheck(tenant: TenantAccess) {
+  const root = tenant.drive?.rootFolderId
+    ? await probeDriveFolder(tenant.drive.rootFolderId)
+    : undefined;
+  const plans = tenant.drive?.plansFolderId
+    ? await probeDriveFolder(tenant.drive.plansFolderId)
+    : undefined;
+  return { root, plans };
 }
 
 async function resolveAsanaMapping(payload: CreateTenantBody) {
@@ -170,6 +209,7 @@ function normalizeTenantPayload(
       requestSectionGid: mapping.requestSectionGid,
       workspaceGid: mapping.workspaceGid,
     },
+    drive: driveConfigFromFields(driveFieldsFromBody(payload)),
   };
 }
 
@@ -237,12 +277,16 @@ export async function POST(request: Request) {
         email: body.email,
         projectGids: tenant.asana.projectGids,
         workspaceGid: tenant.asana.workspaceGid,
+        drive: tenant.drive,
       }),
     );
+
+    const driveCheck = tenant.drive ? await driveAccessCheck(tenant) : undefined;
 
     return NextResponse.json({
       ok: true,
       tenant,
+      driveCheck,
       user: {
         uid: user.uid,
         email: body.email,
@@ -259,6 +303,52 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: code }, { status: 400 });
     }
     const message = error instanceof Error ? error.message : "Failed to create tenant";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
+export async function PATCH(request: Request) {
+  try {
+    await requireAdminAccess(request);
+    const body = (await request.json()) as {
+      tenantId?: string;
+      rootUrl?: string;
+      logoUrl?: string;
+      briefUrl?: string;
+      competitorUrl?: string;
+      plansFolderUrl?: string;
+      planUrlsText?: string;
+    };
+    const tenantId = body.tenantId?.trim() ?? "";
+    if (!tenantId) {
+      throw new TenantAccessError("Marka seçilmedi", 400);
+    }
+
+    const drive = driveConfigFromFields(driveFieldsFromBody(body));
+    const tenant = await updateTenantDrive(tenantId, drive);
+    if (!tenant) {
+      throw new TenantAccessError("Marka bulunamadı", 404);
+    }
+
+    after(() =>
+      warmupTenantJobs({
+        tenantId: tenant.tenantId,
+        brandName: tenant.brandName,
+        brandCode: tenant.asana.brandCode,
+        email: tenant.emails[0] ?? "",
+        projectGids: tenant.asana.projectGids,
+        workspaceGid: tenant.asana.workspaceGid,
+        drive: tenant.drive,
+      }),
+    );
+
+    const driveCheck = await driveAccessCheck(tenant);
+    return NextResponse.json({ ok: true, tenant, driveCheck });
+  } catch (error) {
+    if (error instanceof TenantAccessError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
+    const message = error instanceof Error ? error.message : "Drive bilgisi kaydedilemedi";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

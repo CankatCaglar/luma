@@ -9,6 +9,26 @@ export function formatDueDate(isoDate: string, locale: Locale): string {
   }).format(date);
 }
 
+export function formatFileSize(bytes: string | number | undefined): string | undefined {
+  const value = typeof bytes === "string" ? Number(bytes) : bytes;
+  if (!value || !Number.isFinite(value) || value <= 0) return undefined;
+  if (value < 1000) return `${Math.round(value)} B`;
+  if (value < 1_000_000) return `${Math.round(value / 1000)} KB`;
+  const mb = value / 1_000_000;
+  return `${mb >= 10 ? Math.round(mb) : mb.toFixed(1)} MB`;
+}
+
+export function formatUpdatedDate(iso: string | undefined, locale: Locale): string | undefined {
+  if (!iso) return undefined;
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return undefined;
+  return new Intl.DateTimeFormat(locale === "tr" ? "tr-TR" : "en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(date);
+}
+
 export function formatMonth(yearMonth: string, locale: Locale): string {
   const [year, month] = yearMonth.split("-").map(Number);
   const date = new Date(year, month - 1, 1);

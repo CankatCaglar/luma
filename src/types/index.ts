@@ -18,7 +18,19 @@ export type JobKind =
 
 export type ApprovalKind = "video" | "plan";
 
-export type BrandAssetKind = "logo" | "brief";
+export type BrandAssetKind = "box" | "logo" | "brief" | "competitor";
+
+export type BrandFile = {
+  id: string;
+  name: string;
+  mimeType: string;
+  size?: string;
+  width?: number;
+  height?: number;
+  modifiedTime?: string;
+  viewUrl: string;
+  downloadUrl?: string;
+};
 
 export type NotificationCategory =
   | "plan"
@@ -85,6 +97,12 @@ export type Job = {
   tags?: JobTag[];
 };
 
+export type PlanYear = {
+  year: string;
+  title?: string;
+  url?: string;
+};
+
 export type ContentPlan = {
   id: string;
   month: string;
@@ -115,16 +133,31 @@ export type JobLists = {
   metrics: DashboardMetrics;
   contentPlans: ContentPlan[];
   monthlyReports: MonthlyReport[];
+  brandAssets?: BrandAsset[];
+  driveBoxUrl?: string;
+  plansFolderUrl?: string;
+  plansFolderTitle?: string;
+  planYears?: PlanYear[];
   referenceNowIso: string;
   partial?: boolean;
 };
 
 export type BrandAsset = {
   id: string;
-  nameKey: "brandCenter.logo" | "brandCenter.brief";
-  descriptionKey: "brandCenter.logoFormats" | "brandCenter.briefDescription";
+  nameKey:
+    | "brandCenter.box"
+    | "brandCenter.logo"
+    | "brandCenter.brief"
+    | "brandCenter.competitor";
+  descriptionKey:
+    | "brandCenter.boxDescription"
+    | "brandCenter.logoFormats"
+    | "brandCenter.logoDescription"
+    | "brandCenter.briefDescription"
+    | "brandCenter.competitorDescription";
   kind: BrandAssetKind;
   url: string;
+  files?: BrandFile[];
 };
 
 export type NotificationItem = {

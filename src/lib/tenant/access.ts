@@ -1,5 +1,10 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { getAdminDb } from "@/lib/firebase/admin";
+import {
+  serializeDrive,
+  toTenantDrive,
+  type TenantDriveConfig,
+} from "@/lib/drive/parse";
 
 export type TenantAsanaConfig = {
   workspaceGid?: string;
@@ -14,7 +19,10 @@ export type TenantAccess = {
   brandName: string;
   emails: string[];
   asana: TenantAsanaConfig;
+  drive?: TenantDriveConfig;
 };
+
+export type { TenantDriveConfig };
 
 function readEnv(name: string): string | undefined {
   const value = process.env[name]?.trim();
@@ -48,6 +56,10 @@ function toTenantAccess(input: unknown): TenantAccess | null {
     return null;
   }
 
+  const drive = toTenantDrive(
+    "drive" in candidate ? candidate.drive : undefined,
+  );
+
   return {
     tenantId,
     brandName,
@@ -59,6 +71,7 @@ function toTenantAccess(input: unknown): TenantAccess | null {
       requestProjectGid: candidate.asana?.requestProjectGid?.trim() || undefined,
       requestSectionGid: candidate.asana?.requestSectionGid?.trim() || undefined,
     },
+    drive,
   };
 }
 
@@ -211,27 +224,49 @@ export async function deleteTenant(tenantId: string): Promise<TenantAccess | nul
 
 export async function upsertTenant(tenant: TenantAccess): Promise<void> {
   const db = getAdminDb();
-  await db
-    .collection(defaultCollectionName())
-    .doc(tenant.tenantId)
-    .set(
-      {
-        tenantId: tenant.tenantId,
-        brandName: tenant.brandName,
-        emails: [...new Set(tenant.emails.map(normalizeEmail))],
-        asana: {
-          brandCode: tenant.asana.brandCode.toUpperCase().trim(),
-          projectGids: [...new Set(tenant.asana.projectGids.map((gid) => gid.trim()))],
-          workspaceGid: tenant.asana.workspaceGid ?? null,
-          requestProjectGid: tenant.asana.requestProjectGid ?? null,
-          requestSectionGid: tenant.asana.requestSectionGid ?? null,
-        },
-        active: true,
-        updatedAt: FieldValue.serverTimestamp(),
-        createdAt: FieldValue.serverTimestamp(),
-      },
-      { merge: true },
-    );
+  const payload: Record<string, unknown> = {
+    tenantId: tenant.tenantId,
+    brandName: tenant.brandName,
+    emails: [...new Set(tenant.emails.map(normalizeEmail))],
+    asana: {
+      brandCode: tenant.asana.brandCode.toUpperCase().trim(),
+      projectGids: [...new Set(tenant.asana.projectGids.map((gid) => gid.trim()))],
+      workspaceGid: tenant.asana.workspaceGid ?? null,
+      requestProjectGid: tenant.asana.requestProjectGid ?? null,
+      requestSectionGid: tenant.asana.requestSectionGid ?? null,
+    },
+    active: true,
+    updatedAt: FieldValue.serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
+  };
+  if (tenant.drive !== undefined) {
+    payload.drive = serializeDrive(tenant.drive);
+  }
+  await db.collection(defaultCollectionName()).doc(tenant.tenantId).set(payload, {
+    merge: true,
+  });
+}
+
+export async function updateTenantDrive(
+  tenantId: string,
+  drive: TenantDriveConfig | undefined,
+): Promise<TenantAccess | null> {
+  const existing = await getTenantById(tenantId);
+  if (!existing) return null;
+
+  const db = getAdminDb();
+  await db.collection(defaultCollectionName()).doc(existing.tenantId).set(
+    {
+      drive: serializeDrive(drive),
+      updatedAt: FieldValue.serverTimestamp(),
+    },
+    { merge: true },
+  );
+
+  return {
+    ...existing,
+    drive,
+  };
 }
 
 export function slugTenantId(brandName: string): string {

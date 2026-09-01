@@ -2,6 +2,9 @@ import { unstable_noStore as noStore } from "next/cache";
 import { AsanaApiError, getBrandTasks } from "@/lib/asana/client";
 import { getAsanaEnv } from "@/lib/asana/config";
 import { mapJobsToApprovalItems, mapTaskToJob } from "@/lib/asana/map";
+import { applyCompetitorOverlay, brandAssetsFromDrive } from "@/lib/drive/assets";
+import { loadDrivePlansCatalog, type DrivePlanFile, type DrivePlanYear } from "@/lib/drive/plans";
+import type { TenantDriveConfig } from "@/lib/drive/parse";
 import { listsFromJobs } from "@/lib/data/jobLists";
 import {
   readJobSnapshot,
@@ -10,6 +13,7 @@ import {
 } from "@/lib/data/jobSnapshot";
 import {
   activeJobs as mockActiveJobs,
+  brandAssets as mockBrandAssets,
   completedJobs as mockCompletedJobs,
   contentPlans as mockContentPlans,
   dashboardMetrics as mockDashboardMetrics,
@@ -28,6 +32,7 @@ export type TenantScope = {
   email: string;
   projectGids: string[];
   workspaceGid?: string;
+  drive?: TenantDriveConfig;
 };
 
 export type JobListsLoad = {
@@ -47,6 +52,7 @@ function mockJobLists(tenant: TenantSummary): JobLists {
     metrics: mockDashboardMetrics,
     contentPlans: mockContentPlans,
     monthlyReports: mockMonthlyReports,
+    brandAssets: mockBrandAssets,
     referenceNowIso: REFERENCE_NOW.toISOString(),
   };
 }
@@ -92,18 +98,41 @@ async function fetchJobLists(
     skipCache: options?.skipCache,
     completedSince: options?.openOnly ? OPEN_TASKS_SINCE : undefined,
   });
-  const jobs = brandTasks
-    .map((task) =>
-      mapTaskToJob(task, scope.projectGids[0], {
-        brandCode: scope.brandCode,
-        statusFieldName: env.statusFieldName,
-        kindFieldName: env.kindFieldName,
-      }),
-    )
-    .filter((job): job is Job => job !== null);
+  const driveCatalog = await loadDrivePlansCatalog(scope.drive).catch(() => ({
+    plansFolderUrl: scope.drive?.plansFolderUrl,
+    plansFolderTitle: undefined as string | undefined,
+    plans: [] as DrivePlanFile[],
+    planYears: [] as DrivePlanYear[],
+    logoUrl: scope.drive?.logoUrl,
+    briefUrl: scope.drive?.briefUrl,
+    competitorUrl: scope.drive?.competitorUrl,
+    logoFiles: [],
+    briefFiles: [],
+    competitorFiles: [],
+  }));
+  const competitorUrl = scope.drive?.competitorUrl || driveCatalog.competitorUrl;
+  const jobs = applyCompetitorOverlay(
+    brandTasks
+      .map((task) =>
+        mapTaskToJob(task, scope.projectGids[0], {
+          brandCode: scope.brandCode,
+          statusFieldName: env.statusFieldName,
+          kindFieldName: env.kindFieldName,
+        }),
+      )
+      .filter((job): job is Job => job !== null),
+    competitorUrl,
+  );
+  const brandAssets = brandAssetsFromDrive(scope.drive, driveCatalog);
 
   return listsFromJobs(jobs, "asana", new Date(), toTenantSummary(scope), {
     partial: options?.openOnly,
+    brandAssets,
+    driveBoxUrl: brandAssets.find((asset) => asset.kind === "box")?.url,
+    plansFolderUrl: driveCatalog.plansFolderUrl,
+    plansFolderTitle: driveCatalog.plansFolderTitle,
+    planYears: driveCatalog.planYears,
+    drivePlans: driveCatalog.plans,
   });
 }
 
@@ -162,7 +191,8 @@ function remember(
 }
 
 export async function warmupTenantJobs(scope: TenantScope): Promise<void> {
-  await refreshJobLists(scope).catch((error) => {
+  jobsCache.delete(cacheKey(scope));
+  await refreshJobLists(scope, { skipCache: true }).catch((error) => {
     logAsanaError(error, "tenant warmup failed");
   });
 }

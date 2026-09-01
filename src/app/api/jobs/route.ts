@@ -21,6 +21,7 @@ export async function GET(request: Request) {
         email: user.email,
         projectGids: tenant.asana.projectGids,
         workspaceGid: tenant.asana.workspaceGid,
+        drive: tenant.drive,
       },
     });
 
