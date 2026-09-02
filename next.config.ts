@@ -22,10 +22,30 @@ const nextConfig: NextConfig = {
     "*.ngrok.io",
     "*.trycloudflare.com",
   ],
+  headers: async () => [
+    {
+      source: "/favicon.png",
+      headers: [
+        { key: "Cache-Control", value: "public, max-age=0, must-revalidate" },
+      ],
+    },
+    {
+      source: "/favicon.ico",
+      headers: [
+        { key: "Cache-Control", value: "public, max-age=0, must-revalidate" },
+      ],
+    },
+    {
+      source: "/icons/:path*",
+      headers: [
+        { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+      ],
+    },
+  ],
   rewrites: async () => [
     {
       source: "/favicon.ico",
-      destination: "/favicon.png",
+      destination: "/icons/nera-luma-32.png",
     },
   ],
   images: {
