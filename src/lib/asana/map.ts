@@ -302,12 +302,9 @@ function isGoogleResource(url: string): boolean {
 export function extractResourceUrl(
   htmlNotes?: string,
   attachments?: AsanaAttachment[],
+  kind?: JobKind,
 ): string | undefined {
-  const fromAttachment = attachments?.find((attachment) => {
-    const host = attachment.host?.toLowerCase();
-    const url = `${attachment.view_url ?? ""} ${attachment.download_url ?? ""}`;
-    return host === "gdrive" || isGoogleResource(url);
-  });
+  const fromAttachment = pickGoogleAttachment(attachments, kind);
   if (fromAttachment?.view_url) return toViewerUrl(fromAttachment.view_url);
 
   if (!htmlNotes) return undefined;
@@ -316,10 +313,51 @@ export function extractResourceUrl(
   const matches = decoded.match(/https?:\/\/[^\s"'<>]+/g) ?? [];
   for (const raw of matches) {
     const cleaned = unwrapGoogleRedirect(raw.replace(/[),.;]+$/, ""));
-    if (isGoogleResource(cleaned)) return toViewerUrl(cleaned);
+    if (!isGoogleResource(cleaned)) continue;
+    if (kind === "plan" && /rakip|competitor/i.test(cleaned)) continue;
+    return toViewerUrl(cleaned);
   }
 
   return undefined;
+}
+
+function isGoogleAttachment(attachment: AsanaAttachment): boolean {
+  const host = attachment.host?.toLowerCase();
+  const url = `${attachment.view_url ?? ""} ${attachment.download_url ?? ""}`;
+  return host === "gdrive" || isGoogleResource(url);
+}
+
+function attachmentScore(name: string | undefined, kind?: JobKind): number {
+  const folded = foldLabel(name ?? "");
+  if (folded.includes("rakip analiz") || folded.includes("competitor")) return -100;
+  if (kind === "plan") {
+    if (folded.includes("rapor") || folded.includes("report")) return -50;
+    if (folded.includes("icerik plan") || folded.includes("content plan")) return 4;
+    if (folded.includes("plan") || folded.includes("slides") || folded.includes("sunum")) return 3;
+    return 0;
+  }
+  if (kind === "report") {
+    if (folded.includes("icerik plan")) return -50;
+    if (folded.includes("rapor") || folded.includes("report")) return 4;
+    return 1;
+  }
+  return 1;
+}
+
+function pickGoogleAttachment(
+  attachments: AsanaAttachment[] | undefined,
+  kind?: JobKind,
+): AsanaAttachment | undefined {
+  const matches = (attachments ?? []).filter(isGoogleAttachment);
+  if (!matches.length) return undefined;
+  const ranked = [...matches].sort(
+    (left, right) => attachmentScore(right.name, kind) - attachmentScore(left.name, kind),
+  );
+  const best = ranked[0];
+  const score = attachmentScore(best?.name, kind);
+  if (kind === "plan" && score <= 0) return undefined;
+  if (score < 0) return undefined;
+  return best;
 }
 
 function matchStatus(label: string | undefined): JobStatus | undefined {
@@ -516,7 +554,7 @@ export function mapTaskToJob(
   const dueDate =
     toDateOnly(task.due_on) ?? completedAt ?? toDateOnly(task.created_at) ?? "";
   const month = parseMonthKey(title, dueDate);
-  const resourceUrl = extractResourceUrl(task.html_notes, task.attachments);
+  const resourceUrl = extractResourceUrl(task.html_notes, task.attachments, kind);
 
   return {
     id: task.gid,

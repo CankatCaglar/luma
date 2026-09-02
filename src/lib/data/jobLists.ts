@@ -1,5 +1,5 @@
 import { mapJobsToApprovalItems } from "@/lib/asana/map";
-import { mergeContentPlans, reportsFromJobs } from "@/lib/data/catalog";
+import { mergeContentPlans, mergeMonthlyReports } from "@/lib/data/catalog";
 import type { DrivePlanFile } from "@/lib/drive/plans";
 import { isWithinLastMonths } from "@/lib/period";
 import type {
@@ -9,6 +9,7 @@ import type {
   Job,
   JobLists,
   JobSource,
+  MonthlyReport,
   PlanYear,
   TenantSummary,
 } from "@/types";
@@ -21,7 +22,10 @@ export type JobListExtras = {
   plansFolderTitle?: string;
   planYears?: PlanYear[];
   drivePlans?: DrivePlanFile[];
+  driveReports?: DrivePlanFile[];
+  competitorUrl?: string;
   contentPlans?: ContentPlan[];
+  monthlyReports?: MonthlyReport[];
 };
 
 export type CompactJobLists = {
@@ -36,6 +40,7 @@ export type CompactJobLists = {
   plansFolderTitle?: string;
   planYears?: PlanYear[];
   contentPlans?: ContentPlan[];
+  monthlyReports?: MonthlyReport[];
 };
 
 function isActive(job: Job): boolean {
@@ -81,8 +86,12 @@ export function listsFromJobs(
       .sort((a, b) => (b.completedAt ?? "").localeCompare(a.completedAt ?? "")),
     approvalItems: mapJobsToApprovalItems(jobs),
     metrics: metricsFromJobs(jobs, now),
-    contentPlans: extra?.contentPlans ?? mergeContentPlans(jobs, extra?.drivePlans, now),
-    monthlyReports: reportsFromJobs(jobs, now),
+    contentPlans:
+      extra?.contentPlans ??
+      mergeContentPlans(jobs, extra?.drivePlans, now, extra?.competitorUrl),
+    monthlyReports:
+      extra?.monthlyReports ??
+      mergeMonthlyReports(jobs, extra?.driveReports, now, extra?.competitorUrl),
     brandAssets: extra?.brandAssets,
     driveBoxUrl: extra?.driveBoxUrl,
     plansFolderUrl: extra?.plansFolderUrl,
@@ -106,6 +115,7 @@ export function compactJobLists(data: JobLists): CompactJobLists {
     plansFolderTitle: data.plansFolderTitle,
     planYears: data.planYears,
     contentPlans: data.contentPlans,
+    monthlyReports: data.monthlyReports,
   };
 }
 
@@ -126,6 +136,7 @@ export function expandJobLists(data: CompactJobLists): JobLists | null {
       plansFolderTitle: data.plansFolderTitle,
       planYears: data.planYears,
       contentPlans: data.contentPlans,
+      monthlyReports: data.monthlyReports,
     },
   );
 }

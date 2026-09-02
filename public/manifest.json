@@ -1,7 +1,22 @@
 {
-  "name": "LUMA",
-  "short_name": "LUMA",
-  "description": "LUMA müşteri portalı",
+  "name": "NERA LUMA",
+  "short_name": "NERA LUMA",
+  "description": "NERA LUMA müşteri portalı",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FBF9F5",
+  "theme_color": "#FBF9F5",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "1080x1080",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

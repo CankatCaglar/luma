@@ -109,6 +109,7 @@ async function fetchJobLists(
     logoFiles: [],
     briefFiles: [],
     competitorFiles: [],
+    reports: [],
   }));
   const competitorUrl = scope.drive?.competitorUrl || driveCatalog.competitorUrl;
   const jobs = applyCompetitorOverlay(
@@ -133,6 +134,8 @@ async function fetchJobLists(
     plansFolderTitle: driveCatalog.plansFolderTitle,
     planYears: driveCatalog.planYears,
     drivePlans: driveCatalog.plans,
+    driveReports: driveCatalog.reports,
+    competitorUrl,
   });
 }
 

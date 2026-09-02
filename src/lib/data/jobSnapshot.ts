@@ -43,6 +43,7 @@ export async function readJobSnapshot(tenantId: string): Promise<StoredJobSnapsh
       plansFolderTitle: data.plansFolderTitle,
       planYears: data.planYears,
       contentPlans: data.contentPlans,
+      monthlyReports: data.monthlyReports,
       partial: data.partial,
     };
   } catch {

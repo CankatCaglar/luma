@@ -40,6 +40,7 @@ export type DrivePlansCatalog = {
   logoFiles?: BrandFile[];
   briefFiles?: BrandFile[];
   competitorFiles?: BrandFile[];
+  reports?: DrivePlanFile[];
 };
 
 function yearFromName(name: string | undefined): string | undefined {
@@ -57,10 +58,19 @@ function looksLikeSocialMedia(name: string): boolean {
 }
 
 function looksLikeContentPlanFolder(name: string): boolean {
+  if (looksLikeCompetitor(name) || looksLikeReport(name)) return false;
   const folded = foldLabel(name);
   if (folded.includes("icerik plan") || folded.includes("content plan")) return true;
   if (folded.includes("sosyal medya plan")) return true;
+  if (folded.includes("content calendar") || folded.includes("editorial")) return true;
+  if (folded === "planlar" || folded === "plans") return true;
   return looksLikeSocialMedia(name);
+}
+
+function looksLikeReportsFolder(name: string): boolean {
+  if (looksLikeCompetitor(name) || looksLikeContentPlanFolder(name)) return false;
+  const folded = foldLabel(name);
+  return folded.includes("rapor") || folded.includes("report");
 }
 
 function looksLikeLogo(name: string): boolean {
@@ -147,10 +157,23 @@ function pickNamedAsset(files: DriveFile[], match: (name: string) => boolean): s
   return fileUrl(preferred);
 }
 
+function looksLikeNoiseName(name: string): boolean {
+  return (
+    looksLikeCompetitor(name) ||
+    looksLikeLogo(name) ||
+    looksLikeBrief(name) ||
+    looksLikeIdentity(name)
+  );
+}
+
+function isBareYearFolder(file: DriveFile): boolean {
+  return file.mimeType === FOLDER_MIME && /^20\d{2}$/.test(file.name.trim());
+}
+
 function rankMime(mimeType: string): number {
+  if (mimeType === FOLDER_MIME) return 5;
   if (mimeType === PRESENTATION_MIME) return 4;
   if (mimeType === DOCUMENT_MIME) return 3;
-  if (mimeType === FOLDER_MIME) return 1;
   return 2;
 }
 
@@ -228,11 +251,19 @@ function pickBetter(
 async function plansFromChildren(
   children: DriveFile[],
   fallbackYear?: string,
+  mode: "plan" | "report" = "plan",
 ): Promise<DrivePlanFile[]> {
   const byMonth = new Map<string, { plan: DrivePlanFile; mimeType: string }>();
 
   for (const file of children) {
-    if (looksLikeReport(file.name)) continue;
+    if (looksLikeNoiseName(file.name)) continue;
+    if (mode === "plan" && looksLikeReport(file.name)) continue;
+    if (mode === "report" && looksLikeContentPlanFolder(file.name)) continue;
+    if (mode === "report" && !looksLikeReport(file.name) && file.mimeType !== FOLDER_MIME) {
+      const folded = foldLabel(file.name);
+      if (!parseMonthFromLabel(file.name, fallbackYear)) continue;
+      if (!folded.includes("rapor") && !folded.includes("report")) continue;
+    }
     const month = parseMonthFromLabel(file.name, fallbackYear);
     if (!month) continue;
     const plan: DrivePlanFile = {
@@ -271,11 +302,14 @@ function yearsFromPlans(plans: DrivePlanFile[]): DrivePlanYear[] {
     .map((year) => ({ year, title: year, url: "" }));
 }
 
-async function plansFromFolder(folder: {
-  id: string;
-  name?: string;
-  url?: string;
-}): Promise<{
+async function plansFromFolder(
+  folder: {
+    id: string;
+    name?: string;
+    url?: string;
+  },
+  mode: "plan" | "report" = "plan",
+): Promise<{
   folder: { id: string; name?: string; url?: string };
   years: DrivePlanYear[];
   plans: DrivePlanFile[];
@@ -285,10 +319,13 @@ async function plansFromFolder(folder: {
     (file) => file.mimeType === FOLDER_MIME && yearFromName(file.name),
   );
   const yearFolderIds = new Set(yearFolders.map((file) => file.id));
-  const listed = await plansFromChildren(
-    children.filter((file) => !yearFolderIds.has(file.id)),
-    yearFromName(folder.name),
-  );
+  const listed = yearFolders.length
+    ? []
+    : await plansFromChildren(
+        children.filter((file) => !yearFolderIds.has(file.id)),
+        yearFromName(folder.name),
+        mode,
+      );
 
   const nested = await Promise.all(
     yearFolders.map(async (yearFolder) => {
@@ -296,7 +333,7 @@ async function plansFromFolder(folder: {
       if (!year) return null;
       try {
         const yearKids = await listResolved(yearFolder.id);
-        const plans = await plansFromChildren(yearKids, year);
+        const plans = await plansFromChildren(yearKids, year, mode);
         return {
           year,
           title: year,
@@ -333,6 +370,25 @@ async function plansFromFolder(folder: {
   return { folder, years, plans: allPlans };
 }
 
+async function findNamedFolder(
+  indexed: DriveFile[],
+  match: (name: string) => boolean,
+): Promise<{ id: string; name?: string; url?: string } | null> {
+  const folders = indexed.filter(
+    (file) => file.mimeType === FOLDER_MIME && match(file.name),
+  );
+  if (!folders.length) return null;
+
+  const currentYear = String(new Date().getFullYear());
+  const preferred =
+    folders.find((folder) => yearFromName(folder.name) === currentYear) ??
+    [...folders].sort((left, right) =>
+      (yearFromName(right.name) ?? "").localeCompare(yearFromName(left.name) ?? ""),
+    )[0];
+
+  return { id: preferred.id, name: preferred.name, url: fileUrl(preferred) };
+}
+
 async function findPlansFolder(
   drive: TenantDriveConfig,
   indexed: DriveFile[],
@@ -349,19 +405,50 @@ async function findPlansFolder(
     }
   }
 
-  const folders = indexed.filter(
-    (file) => file.mimeType === FOLDER_MIME && looksLikeContentPlanFolder(file.name),
+  const named = await findNamedFolder(indexed, looksLikeContentPlanFolder);
+  if (named) return named;
+  return null;
+}
+
+async function collectBareYearPlans(
+  indexed: DriveFile[],
+  mode: "plan" | "report" = "plan",
+): Promise<{ years: DrivePlanYear[]; plans: DrivePlanFile[] } | null> {
+  const yearFolders = indexed.filter(isBareYearFolder);
+  if (!yearFolders.length) return null;
+
+  const nested = await Promise.all(
+    yearFolders.map(async (yearFolder) => {
+      const year = yearFromName(yearFolder.name);
+      if (!year) return null;
+      try {
+        const kids = await listResolved(yearFolder.id);
+        const plans = await plansFromChildren(kids, year, mode);
+        if (!plans.length) return null;
+        return {
+          year,
+          title: year,
+          url: fileUrl(yearFolder),
+          plans,
+        };
+      } catch {
+        return null;
+      }
+    }),
   );
-  if (!folders.length) return null;
 
-  const currentYear = String(new Date().getFullYear());
-  const preferred =
-    folders.find((folder) => yearFromName(folder.name) === currentYear) ??
-    [...folders].sort((left, right) =>
-      (yearFromName(right.name) ?? "").localeCompare(yearFromName(left.name) ?? ""),
-    )[0];
+  const yearEntries = nested.filter(
+    (entry): entry is { year: string; title: string; url: string; plans: DrivePlanFile[] } =>
+      Boolean(entry),
+  );
+  if (!yearEntries.length) return null;
 
-  return { id: preferred.id, name: preferred.name, url: fileUrl(preferred) };
+  return {
+    years: yearEntries
+      .map(({ year, title, url }) => ({ year, title, url }))
+      .sort((left, right) => right.year.localeCompare(left.year)),
+    plans: mergePlanLists(...yearEntries.map((entry) => entry.plans)),
+  };
 }
 
 async function filesForMatch(
@@ -438,6 +525,7 @@ export async function loadDrivePlansCatalog(
     logoFiles: [],
     briefFiles: [],
     competitorFiles: [],
+    reports: [],
   };
   if (!drive) return empty;
 
@@ -468,32 +556,52 @@ export async function loadDrivePlansCatalog(
     };
 
     if (!folder) {
-      const fromIndex = await plansFromChildren(
-        indexed.filter((file) => {
-          const folded = foldLabel(file.name);
-          return folded.includes("plan") || looksLikeContentPlanFolder(file.name);
-        }),
-      );
+      const bare = await collectBareYearPlans(indexed, "plan");
+      const fromIndex = bare
+        ? bare.plans
+        : await plansFromChildren(
+            indexed.filter((file) => {
+              if (looksLikeNoiseName(file.name) || looksLikeReport(file.name)) return false;
+              const folded = foldLabel(file.name);
+              return folded.includes("plan") || looksLikeContentPlanFolder(file.name);
+            }),
+            undefined,
+            "plan",
+          );
       const planish = indexed.find(
         (file) => looksLikeContentPlanFolder(file.name) && file.mimeType !== FOLDER_MIME,
       );
       const merged = mergePlanLists(stored, fromIndex);
+      const reportsFolder = await findNamedFolder(indexed, looksLikeReportsFolder);
+      const reports = reportsFolder
+        ? (await plansFromFolder(reportsFolder, "report")).plans
+        : [];
       return {
-        plansFolderUrl: drive.plansFolderUrl || (planish ? fileUrl(planish) : undefined),
-        plansFolderTitle: planish?.name,
-        planYears: yearsFromPlans(merged),
+        plansFolderUrl:
+          drive.plansFolderUrl ||
+          bare?.years[0]?.url ||
+          (planish ? fileUrl(planish) : undefined),
+        plansFolderTitle: bare ? undefined : planish?.name,
+        planYears: bare?.years ?? yearsFromPlans(merged),
         plans: merged,
+        reports,
         ...discovered,
       };
     }
 
-    const listed = await plansFromFolder(folder);
+    const listed = await plansFromFolder(folder, "plan");
     const merged = mergePlanLists(stored, listed.plans);
+    const reportsFolder = await findNamedFolder(indexed, looksLikeReportsFolder);
+    const reports =
+      reportsFolder && reportsFolder.id !== folder.id
+        ? (await plansFromFolder(reportsFolder, "report")).plans
+        : [];
     return {
       plansFolderUrl: listed.folder.url ?? drive.plansFolderUrl,
       plansFolderTitle: listed.folder.name,
       planYears: listed.years.length ? listed.years : yearsFromPlans(merged),
       plans: merged,
+      reports,
       ...discovered,
     };
   } catch (error) {

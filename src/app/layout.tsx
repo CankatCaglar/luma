@@ -12,16 +12,16 @@ const montserrat = Montserrat({
 
 export const metadata: Metadata = {
   title: {
-    default: "LUMA",
-    template: "%s · LUMA",
+    default: "NERA LUMA",
+    template: "%s · NERA LUMA",
   },
-  description: "LUMA müşteri portalı",
-  applicationName: "LUMA",
+  description: "NERA LUMA müşteri portalı",
+  applicationName: "NERA LUMA",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "LUMA",
+    title: "NERA LUMA",
   },
   icons: {
     icon: [{ url: "/favicon.png", type: "image/png" }],
@@ -29,6 +29,7 @@ export const metadata: Metadata = {
   },
   other: {
     "apple-mobile-web-app-capable": "yes",
+    "apple-mobile-web-app-title": "NERA LUMA",
   },
 };
 
