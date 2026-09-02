@@ -155,7 +155,9 @@ export function mergeMonthlyReports(
       isNew: month === currentMonth || primary.status !== "completed",
     } satisfies MonthlyReport;
   });
-  const byMonth = new Map(asanaReports.map((report) => [report.month, report]));
+  const byMonth = new Map<string, MonthlyReport>(
+    asanaReports.map((report) => [report.month, report]),
+  );
 
   for (const driveReport of driveReports ?? []) {
     const existing = byMonth.get(driveReport.month);
@@ -174,7 +176,7 @@ export function mergeMonthlyReports(
       driveUrl: driveReport.url,
       updatedAt: driveReport.modifiedTime,
       isNew: driveReport.month === currentMonth,
-    });
+    } satisfies MonthlyReport);
   }
 
   return [...byMonth.values()].sort((left, right) => right.month.localeCompare(left.month));
