@@ -11,6 +11,7 @@ import type {
   AsanaListResponse,
   AsanaProject,
   AsanaSection,
+  AsanaTag,
   AsanaTask,
   AsanaUser,
   AsanaWorkspace,
@@ -180,6 +181,43 @@ export async function getSections(projectGid: string): Promise<AsanaSection[]> {
   });
 }
 
+export async function getWorkspaceTags(workspaceGid: string): Promise<AsanaTag[]> {
+  return asanaListAll<AsanaTag>(`/workspaces/${workspaceGid}/tags`, {
+    opt_fields: "gid,name,color",
+  });
+}
+
+export async function typeaheadTags(workspaceGid: string, query: string): Promise<AsanaTag[]> {
+  const { data } = await asanaFetch<AsanaListResponse<AsanaTag>>(
+    `/workspaces/${workspaceGid}/typeahead`,
+    {
+      resource_type: "tag",
+      query,
+      count: "10",
+      opt_fields: "gid,name,color",
+    },
+  );
+  return data;
+}
+
+export async function getSectionTasks(sectionGid: string): Promise<Pick<AsanaTask, "gid" | "name">[]> {
+  return asanaListAll<Pick<AsanaTask, "gid" | "name">>(`/sections/${sectionGid}/tasks`, {
+    opt_fields: "gid,name",
+  });
+}
+
+export async function insertTaskAtSectionTop(sectionGid: string, taskGid: string): Promise<void> {
+  const tasks = await getSectionTasks(sectionGid);
+  const first = tasks.find((task) => task.gid !== taskGid);
+  if (!first) return;
+  await asanaPost<AsanaItemResponse<{ gid: string }>>(`/sections/${sectionGid}/addTask`, {
+    data: {
+      task: taskGid,
+      insert_before: first.gid,
+    },
+  });
+}
+
 function completedSinceIso(): string {
   const date = new Date();
   date.setMonth(date.getMonth() - 12);
@@ -327,6 +365,9 @@ export async function createTask(input: {
   projects: string[];
   memberships?: Array<{ project: string; section: string }>;
   assignee?: string | null;
+  dueOn?: string;
+  tags?: string[];
+  customFields?: Record<string, string>;
 }): Promise<{ gid: string; permalink_url?: string }> {
   const data: {
     name: string;
@@ -334,6 +375,9 @@ export async function createTask(input: {
     projects?: string[];
     memberships?: Array<{ project: string; section: string }>;
     assignee?: string | null;
+    due_on?: string;
+    tags?: string[];
+    custom_fields?: Record<string, string>;
   } = {
     name: input.name,
     notes: input.notes,
@@ -341,6 +385,11 @@ export async function createTask(input: {
   };
   if (input.projects.length) data.projects = input.projects;
   if (input.memberships?.length) data.memberships = input.memberships;
+  if (input.dueOn) data.due_on = input.dueOn;
+  if (input.tags?.length) data.tags = input.tags;
+  if (input.customFields && Object.keys(input.customFields).length > 0) {
+    data.custom_fields = input.customFields;
+  }
 
   const payload = await asanaPost<
     AsanaItemResponse<{ gid: string; permalink_url?: string }>

@@ -23,6 +23,7 @@ type CreateTenantBody = {
   brandName: string;
   brandCode: string;
   email: string;
+  contactEmail: string;
   password: string;
   projectGids: string;
   requestProjectGid?: string;
@@ -54,6 +55,7 @@ function parseBody(input: unknown): CreateTenantBody {
   const brandName = body.brandName?.trim() ?? "";
   const brandCode = body.brandCode?.trim().toUpperCase() ?? "";
   const email = body.email?.trim().toLowerCase() ?? "";
+  const contactEmail = body.contactEmail?.trim().toLowerCase() ?? "";
   const projectGids = body.projectGids?.trim() ?? "";
   const password = body.password?.trim() || createTempPassword();
 
@@ -66,6 +68,9 @@ function parseBody(input: unknown): CreateTenantBody {
   if (!email.includes("@")) {
     throw new TenantAccessError("Valid email is required", 400);
   }
+  if (!contactEmail.includes("@")) {
+    throw new TenantAccessError("İletişim e-postası gerekli", 400);
+  }
   if (password.length < 8) {
     throw new TenantAccessError("Password must be at least 8 chars", 400);
   }
@@ -74,6 +79,7 @@ function parseBody(input: unknown): CreateTenantBody {
     brandName,
     brandCode,
     email,
+    contactEmail,
     password,
     projectGids,
     requestProjectGid: body.requestProjectGid?.trim() || undefined,
@@ -202,6 +208,7 @@ function normalizeTenantPayload(
     tenantId,
     brandName: payload.brandName,
     emails: [payload.email],
+    contactEmail: payload.contactEmail,
     asana: {
       brandCode: payload.brandCode,
       projectGids: mapping.projectGids,

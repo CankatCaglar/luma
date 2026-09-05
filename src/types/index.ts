@@ -177,5 +177,9 @@ export type QuickLink = {
   href: string;
 };
 
-export type RequestType = "video" | "design" | "content" | "ads" | "other";
 export type RequestPriority = "standard" | "urgent";
+export type {
+  AsanaPriorityLevel,
+  RequestCategory,
+  RequestSubtype,
+} from "@/lib/requests/catalog";

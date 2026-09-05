@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useId, useMemo, useState, type ReactNode } from "react";
 import {
   browserLocalPersistence,
   browserSessionPersistence,
@@ -24,6 +24,7 @@ import {
   RefreshCcw,
   Search,
   Trash2,
+  X,
 } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { LumaLogo, LumaStar } from "@/components/layout/NeraLogo";
@@ -46,6 +47,7 @@ type Tenant = {
   tenantId: string;
   brandName: string;
   emails: string[];
+  contactEmail?: string;
   asana: {
     brandCode: string;
     projectGids: string[];
@@ -95,6 +97,7 @@ type FormState = {
   brandName: string;
   brandCode: string;
   email: string;
+  contactEmail: string;
   password: string;
   workspaceGid: string;
 } & DriveForm;
@@ -107,6 +110,7 @@ const INITIAL_FORM: FormState = {
   brandName: "",
   brandCode: "",
   email: "",
+  contactEmail: "",
   password: "",
   workspaceGid: "",
   ...EMPTY_DRIVE,
@@ -191,11 +195,13 @@ export default function AdminPage() {
   const [showAdminPassword, setShowAdminPassword] = useState(false);
   const [rememberAdmin, setRememberAdmin] = useState(false);
   const [adminSigningOut, setAdminSigningOut] = useState(false);
+  const [signOutConfirmOpen, setSignOutConfirmOpen] = useState(false);
   const [form, setForm] = useState<FormState>(INITIAL_FORM);
   const [adminReady, setAdminReady] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [tenantToDelete, setTenantToDelete] = useState<Tenant | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [driveDraft, setDriveDraft] = useState<DriveForm>(EMPTY_DRIVE);
   const [savingDriveId, setSavingDriveId] = useState<string | null>(null);
@@ -214,6 +220,7 @@ export default function AdminPage() {
       form.brandName.trim().length >= 2 &&
       form.brandCode.trim().length >= 2 &&
       form.email.includes("@") &&
+      form.contactEmail.includes("@") &&
       Boolean(form.workspaceGid) &&
       (lookup?.projectGids.length ?? 0) > 0 &&
       lookup?.brandCode === form.brandCode.trim().toUpperCase(),
@@ -393,6 +400,7 @@ export default function AdminPage() {
           brandName: form.brandName,
           brandCode: form.brandCode,
           email: form.email,
+          contactEmail: form.contactEmail,
           password: form.password,
           workspaceGid: form.workspaceGid,
           projectGids: lookup.projectGids.join(","),
@@ -433,12 +441,12 @@ export default function AdminPage() {
     }
   }
 
-  async function onDeleteTenant(tenant: Tenant) {
-    const confirmed = window.confirm(
-      `${tenant.brandName} (${tenant.asana.brandCode}) markasını silmek istediğine emin misin? Giriş hesabı da kapanır.`,
-    );
-    if (!confirmed) return;
+  const closeDeleteConfirm = useCallback(() => {
+    if (deletingId) return;
+    setTenantToDelete(null);
+  }, [deletingId]);
 
+  async function onDeleteTenant(tenant: Tenant) {
     setDeletingId(tenant.tenantId);
     setError(null);
     setSuccess(null);
@@ -457,6 +465,7 @@ export default function AdminPage() {
       }
       setTenants((prev) => prev.filter((item) => item.tenantId !== tenant.tenantId));
       setSuccess(`${tenant.brandName} silindi.`);
+      setTenantToDelete(null);
       await loadTenants();
     } catch (error) {
       setError(error instanceof Error ? error.message : "Marka silinemedi");
@@ -553,12 +562,18 @@ export default function AdminPage() {
     }
   }
 
+  const closeSignOutConfirm = useCallback(() => {
+    if (adminSigningOut) return;
+    setSignOutConfirmOpen(false);
+  }, [adminSigningOut]);
+
   async function onSecureSignOut() {
     setAdminSigningOut(true);
     setError(null);
     setSuccess(null);
     try {
       await signOutUser();
+      setSignOutConfirmOpen(false);
       router.replace("/admin");
     } finally {
       setAdminSigningOut(false);
@@ -723,7 +738,7 @@ export default function AdminPage() {
     "Workspace";
 
   return (
-    <div className="mx-auto w-full min-w-0 max-w-6xl space-y-4 px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-[max(1.25rem,env(safe-area-inset-top))] sm:space-y-6 sm:px-6 sm:py-8">
+    <div className="w-full min-w-0 space-y-4 px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-[max(1.25rem,env(safe-area-inset-top))] sm:space-y-6 sm:px-6 sm:py-8 lg:px-8">
       <header className="rounded-3xl bg-white px-4 py-4 shadow-[0_16px_48px_rgba(28,25,23,0.08)] ring-1 ring-luma-border/80 sm:px-6 sm:py-5">
         <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
@@ -751,7 +766,7 @@ export default function AdminPage() {
             </button>
             <button
               type="button"
-              onClick={() => void onSecureSignOut()}
+              onClick={() => setSignOutConfirmOpen(true)}
               disabled={adminSigningOut}
               className="inline-flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl bg-luma px-2.5 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-70 sm:flex-none sm:px-3 sm:py-2"
             >
@@ -768,7 +783,7 @@ export default function AdminPage() {
 
       <DriveStatusBanner status={driveStatus} />
 
-      <div className="grid min-w-0 gap-4 sm:gap-6 lg:grid-cols-[1.1fr_1fr]">
+      <div className="grid min-w-0 gap-4 sm:gap-6 lg:grid-cols-[minmax(22rem,34rem)_minmax(0,1fr)]">
         <section className="min-w-0 rounded-3xl bg-white p-4 shadow-[0_16px_48px_rgba(28,25,23,0.08)] ring-1 ring-luma-border/80 sm:p-5">
           <h2 className="mb-1 text-base font-bold text-foreground">Yeni Marka Tanımla</h2>
           <p className="mb-4 text-sm leading-relaxed text-luma-muted">
@@ -845,9 +860,23 @@ export default function AdminPage() {
               onChange={(event) =>
                 setForm((prev) => ({ ...prev, email: event.target.value }))
               }
-              placeholder="Yetkili e-posta"
+              placeholder="Yetkili e-posta (giriş)"
               className={fieldClassName}
             />
+            <label className="block">
+              <input
+                type="email"
+                value={form.contactEmail}
+                onChange={(event) =>
+                  setForm((prev) => ({ ...prev, contactEmail: event.target.value }))
+                }
+                placeholder="İletişim e-postası"
+                className={fieldClassName}
+              />
+              <span className="mt-1 block text-xs leading-relaxed text-luma-muted">
+                Uygulamadan gönderilecek mailler bu adrese gider. Giriş e-postasından farklı olabilir.
+              </span>
+            </label>
             <input
               type="text"
               value={form.password}
@@ -908,13 +937,14 @@ export default function AdminPage() {
           ) : tenants.length === 0 ? (
             <p className="text-sm text-luma-muted">Henüz tenant kaydı yok.</p>
           ) : (
-            <div className="overflow-hidden rounded-2xl ring-1 ring-luma-border/80">
+            <div className="overflow-x-auto rounded-2xl ring-1 ring-luma-border/80">
               <table className="w-full text-left text-sm">
                 <thead className="bg-luma-soft text-luma-kahve">
                   <tr>
                     <th className="px-3 py-2 font-semibold">Marka</th>
                     <th className="px-3 py-2 font-semibold">Kod</th>
                     <th className="px-3 py-2 font-semibold">Kullanıcı</th>
+                    <th className="px-3 py-2 font-semibold">İletişim</th>
                     <th className="px-2 py-2 text-right font-semibold">
                       <span className="sr-only">İşlemler</span>
                     </th>
@@ -942,6 +972,9 @@ export default function AdminPage() {
                         <td className="min-w-0 px-3 py-2.5 break-all text-luma-muted">
                           {tenant.emails.join(", ")}
                         </td>
+                        <td className="min-w-0 px-3 py-2.5 break-all text-luma-muted">
+                          {tenant.contactEmail || "—"}
+                        </td>
                         <td className="px-2 py-2.5 text-right">
                           <div className="inline-flex items-center gap-1">
                             <button
@@ -954,7 +987,7 @@ export default function AdminPage() {
                             </button>
                             <button
                               type="button"
-                              onClick={() => void onDeleteTenant(tenant)}
+                              onClick={() => setTenantToDelete(tenant)}
                               disabled={deletingId === tenant.tenantId}
                               className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-luma-muted transition-colors hover:bg-red-50 hover:text-luma-red disabled:cursor-not-allowed disabled:opacity-60"
                               aria-label={`${tenant.brandName} markasını sil`}
@@ -970,7 +1003,7 @@ export default function AdminPage() {
                       </tr>
                       {editingId === tenant.tenantId ? (
                         <tr className="border-t border-luma-border bg-luma-soft/60">
-                          <td colSpan={4} className="px-3 py-3">
+                          <td colSpan={5} className="px-3 py-3">
                             <p className="mb-2 text-xs font-semibold text-luma-kahve">
                               {tenant.brandName} Drive bağlantıları
                             </p>
@@ -1005,6 +1038,143 @@ export default function AdminPage() {
             </div>
           )}
         </section>
+      </div>
+      <AdminConfirmDialog
+        open={signOutConfirmOpen}
+        busy={adminSigningOut}
+        title="Emin misiniz?"
+        description="Güvenli çıkış oturumu kapatır. Admin paneline dönmek için tekrar giriş yapmanız gerekir."
+        confirmLabel="Çıkış yap"
+        icon={<LogOut className="h-5 w-5" />}
+        onCancel={closeSignOutConfirm}
+        onConfirm={() => void onSecureSignOut()}
+      />
+      <AdminConfirmDialog
+        open={Boolean(tenantToDelete)}
+        busy={Boolean(deletingId)}
+        title="Markayı silmek istiyor musunuz?"
+        description={
+          tenantToDelete
+            ? `${tenantToDelete.brandName} (${tenantToDelete.asana.brandCode}) kalıcı olarak silinir. Giriş hesabı da kapanır.`
+            : ""
+        }
+        confirmLabel="Markayı sil"
+        tone="danger"
+        icon={<Trash2 className="h-5 w-5" />}
+        onCancel={closeDeleteConfirm}
+        onConfirm={() => {
+          if (tenantToDelete) void onDeleteTenant(tenantToDelete);
+        }}
+      />
+    </div>
+  );
+}
+
+function AdminConfirmDialog({
+  open,
+  busy,
+  title,
+  description,
+  confirmLabel,
+  tone = "primary",
+  icon,
+  onCancel,
+  onConfirm,
+}: {
+  open: boolean;
+  busy: boolean;
+  title: string;
+  description: string;
+  confirmLabel: string;
+  tone?: "primary" | "danger";
+  icon: ReactNode;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  useEffect(() => {
+    if (!open) return;
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape" && !busy) onCancel();
+    }
+
+    document.addEventListener("keydown", onKeyDown);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [open, busy, onCancel]);
+
+  const titleId = useId();
+  const descId = useId();
+  const isDanger = tone === "danger";
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <button
+        type="button"
+        aria-label="Kapat"
+        className="absolute inset-0 bg-[#1c1917]/40 backdrop-blur-[2px]"
+        disabled={busy}
+        onClick={onCancel}
+      />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={descId}
+        className="relative w-full max-w-md rounded-3xl bg-white px-5 py-6 shadow-[0_24px_64px_rgba(28,25,23,0.16)] ring-1 ring-luma-border/80 sm:px-6"
+      >
+        <button
+          type="button"
+          onClick={onCancel}
+          disabled={busy}
+          className="absolute right-3 top-3 inline-flex h-8 w-8 items-center justify-center rounded-xl text-luma-muted transition-colors hover:bg-luma-soft hover:text-foreground disabled:opacity-60"
+          aria-label="Vazgeç"
+        >
+          <X className="h-4 w-4" />
+        </button>
+        <div
+          className={`mx-auto flex h-12 w-12 items-center justify-center rounded-2xl ${
+            isDanger ? "bg-red-50 text-luma-red" : "bg-luma-soft text-luma"
+          }`}
+        >
+          {icon}
+        </div>
+        <h2
+          id={titleId}
+          className="mt-4 text-center text-xl font-bold tracking-tight text-foreground"
+        >
+          {title}
+        </h2>
+        <p id={descId} className="mt-2 text-center text-sm leading-relaxed text-luma-muted">
+          {description}
+        </p>
+        <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={busy}
+            className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl border border-luma-border px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-luma-soft disabled:cursor-not-allowed disabled:opacity-70"
+          >
+            Vazgeç
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={busy}
+            className={`inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition-transform duration-150 ease-out active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-70 ${
+              isDanger ? "bg-luma-red" : "bg-luma"
+            }`}
+          >
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : icon}
+            {confirmLabel}
+          </button>
+        </div>
       </div>
     </div>
   );

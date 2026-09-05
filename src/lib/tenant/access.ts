@@ -18,9 +18,14 @@ export type TenantAccess = {
   tenantId: string;
   brandName: string;
   emails: string[];
+  contactEmail?: string;
   asana: TenantAsanaConfig;
   drive?: TenantDriveConfig;
 };
+
+export function getTenantContactEmail(tenant: TenantAccess): string {
+  return tenant.contactEmail?.trim() || tenant.emails[0] || "";
+}
 
 export type { TenantDriveConfig };
 
@@ -52,6 +57,9 @@ function toTenantAccess(input: unknown): TenantAccess | null {
     .map((gid) => gid.trim())
     .filter(Boolean);
   const emails = (candidate.emails ?? []).map(normalizeEmail).filter(Boolean);
+  const contactEmail = candidate.contactEmail
+    ? normalizeEmail(candidate.contactEmail)
+    : undefined;
   if (!tenantId || !brandName || !brandCode || projectGids.length === 0 || emails.length === 0) {
     return null;
   }
@@ -64,6 +72,7 @@ function toTenantAccess(input: unknown): TenantAccess | null {
     tenantId,
     brandName,
     emails,
+    contactEmail: contactEmail || undefined,
     asana: {
       brandCode,
       projectGids,
@@ -228,6 +237,7 @@ export async function upsertTenant(tenant: TenantAccess): Promise<void> {
     tenantId: tenant.tenantId,
     brandName: tenant.brandName,
     emails: [...new Set(tenant.emails.map(normalizeEmail))],
+    contactEmail: tenant.contactEmail ? normalizeEmail(tenant.contactEmail) : null,
     asana: {
       brandCode: tenant.asana.brandCode.toUpperCase().trim(),
       projectGids: [...new Set(tenant.asana.projectGids.map((gid) => gid.trim()))],
