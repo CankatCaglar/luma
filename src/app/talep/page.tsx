@@ -2,11 +2,17 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Calendar,
   ChevronDown,
   Clock,
+  File,
+  FileArchive,
+  FileImage,
+  FileText,
   Loader2,
   Send,
   Upload,
+  X,
   Zap,
 } from "lucide-react";
 import { useI18n } from "@/components/i18n/I18nProvider";
@@ -19,6 +25,12 @@ import {
   type AsanaPriorityLevel,
   type RequestCategory,
 } from "@/lib/requests/catalog";
+import { formatDueDate, formatFileSize } from "@/lib/format";
+import {
+  REQUEST_FILE_ACCEPT,
+  REQUEST_FILE_MAX_COUNT,
+  validateRequestFile,
+} from "@/lib/requests/files";
 import type { RequestPriority } from "@/types";
 import type { MessageKey } from "@/i18n";
 
@@ -37,8 +49,14 @@ function subtypeKey(id: string): MessageKey {
   return `request.subtypes.${id}` as MessageKey;
 }
 
+let cachedTalepFiles: File[] = [];
+
+function sameFile(left: File, right: File): boolean {
+  return left.name === right.name && left.size === right.size && left.lastModified === right.lastModified;
+}
+
 export default function TalepPage() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const { enabled, user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [category, setCategory] = useState<RequestCategory | "">("");
@@ -49,7 +67,8 @@ export default function TalepPage() {
   const [asanaPriority, setAsanaPriority] = useState<AsanaPriorityLevel>("medium");
   const [urgentReason, setUrgentReason] = useState("");
   const [dueDate, setDueDate] = useState("");
-  const [fileName, setFileName] = useState<string | null>(null);
+  const [files, setFiles] = useState<File[]>(cachedTalepFiles);
+  const [fileError, setFileError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -62,9 +81,36 @@ export default function TalepPage() {
     if (priority === "urgent") setAsanaPriority("high");
   }, [priority]);
 
-  function onFiles(files: FileList | null) {
-    const file = files?.[0];
-    if (file) setFileName(file.name);
+  function commitFiles(next: File[]) {
+    cachedTalepFiles = next;
+    setFiles(next);
+  }
+
+  function addFiles(incoming: FileList | File[] | null) {
+    const picked = incoming ? Array.from(incoming) : [];
+    if (picked.length === 0) return;
+
+    const next = [...cachedTalepFiles];
+    let nextError: string | null = null;
+    for (const file of picked) {
+      if (next.some((item) => sameFile(item, file))) continue;
+      if (next.length >= REQUEST_FILE_MAX_COUNT) {
+        nextError = t("request.fileTooMany");
+        break;
+      }
+      const issue = validateRequestFile(file);
+      if (issue === "size") {
+        nextError = t("request.fileTooLarge", { name: file.name });
+        continue;
+      }
+      next.push(file);
+      if (issue === "type") {
+        nextError = t("request.fileBadType", { name: file.name });
+      }
+    }
+    setFileError(nextError);
+    commitFiles(next);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
   const canSubmit = Boolean(
@@ -84,15 +130,15 @@ export default function TalepPage() {
     setSuccess(null);
     setSubmitting(true);
     try {
-      const headers: HeadersInit = { "Content-Type": "application/json" };
+      const headers: HeadersInit = {};
       if (enabled && user) {
         headers.Authorization = `Bearer ${await user.getIdToken()}`;
       }
 
-      const response = await fetch("/api/requests", {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
+      const form = new FormData();
+      form.append(
+        "payload",
+        JSON.stringify({
           category,
           subtype: needsSubtype ? subtype : undefined,
           subject: title,
@@ -101,8 +147,16 @@ export default function TalepPage() {
           asanaPriority,
           urgentReason: priority === "urgent" ? urgentReason : undefined,
           dueDate: priority === "urgent" ? dueDate : undefined,
-          fileName,
         }),
+      );
+      for (const file of files) {
+        form.append("files", file, file.name);
+      }
+
+      const response = await fetch("/api/requests", {
+        method: "POST",
+        headers,
+        body: form,
       });
 
       const payload = (await response.json().catch(() => null)) as
@@ -121,7 +175,8 @@ export default function TalepPage() {
       setAsanaPriority("medium");
       setUrgentReason("");
       setDueDate("");
-      setFileName(null);
+      commitFiles([]);
+      setFileError(null);
     } catch (error) {
       setError(error instanceof Error ? error.message : "Talep gönderilemedi");
     } finally {
@@ -130,9 +185,9 @@ export default function TalepPage() {
   }
 
   return (
-    <div>
+    <div className="min-w-0">
       <p className="mb-4 text-sm text-luma-kahve">{t("request.subtitle")}</p>
-      <form className="space-y-4" onSubmit={handleSubmit}>
+      <form className="min-w-0 space-y-4" onSubmit={handleSubmit}>
         <RequestSelect
           label={t("request.type")}
           required
@@ -202,16 +257,7 @@ export default function TalepPage() {
         <div>
           <p className="text-sm font-medium text-foreground">{t("request.file")}</p>
           <p className="mt-0.5 text-xs text-luma-muted">{t("request.fileHint")}</p>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".pdf,.jpg,.jpeg,.png,.zip"
-            className="hidden"
-            onChange={(event) => onFiles(event.target.files)}
-          />
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
+          <label
             onDragOver={(event) => {
               event.preventDefault();
               setDragging(true);
@@ -220,19 +266,61 @@ export default function TalepPage() {
             onDrop={(event) => {
               event.preventDefault();
               setDragging(false);
-              onFiles(event.dataTransfer.files);
+              addFiles(event.dataTransfer.files);
             }}
             className={cn(
-              "mt-2 flex w-full select-none flex-col items-center rounded-2xl border-2 border-dashed px-4 py-6 text-center transition-transform duration-150 ease-out active:scale-[0.97]",
+              "relative mt-2 flex w-full cursor-pointer select-none flex-col items-center rounded-2xl border-2 border-dashed px-4 py-6 text-center transition-transform duration-150 ease-out active:scale-[0.97]",
               dragging ? "border-luma bg-luma-soft" : "border-luma/50 bg-luma-soft/70",
             )}
           >
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept={REQUEST_FILE_ACCEPT}
+              className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
+              onChange={(event) => addFiles(event.target.files)}
+              onInput={(event) => addFiles((event.target as HTMLInputElement).files)}
+            />
             <Upload className="h-7 w-7 text-luma" strokeWidth={1.6} />
-            <span className="mt-2 text-sm font-medium text-luma">
-              {fileName ?? t("request.fileDrop")}
-            </span>
+            <span className="mt-2 text-sm font-medium text-luma">{t("request.fileDrop")}</span>
             <span className="mt-1 text-[11px] text-luma-muted">{t("request.fileTypes")}</span>
-          </button>
+          </label>
+          {files.length > 0 ? (
+            <ul className="mt-3 space-y-2">
+              {files.map((file, index) => (
+                <li
+                  key={`${file.name}-${file.size}-${file.lastModified}-${index}`}
+                  className="flex min-w-0 items-center gap-3 rounded-xl bg-white px-3 py-2.5 ring-1 ring-luma-border"
+                >
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-luma-soft text-luma">
+                    <RequestFileIcon name={file.name} type={file.type} />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold text-foreground">
+                      {file.name || "Dosya"}
+                    </span>
+                    <span className="block text-[11px] text-luma-muted">
+                      {formatFileSize(file.size) ?? "—"}
+                    </span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      commitFiles(files.filter((_, itemIndex) => itemIndex !== index))
+                    }
+                    className="inline-flex shrink-0 items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-semibold text-luma-red transition-colors hover:bg-red-50"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                    {t("request.fileRemove")}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {fileError ? (
+            <p className="mt-2 text-xs font-semibold text-luma-red">{fileError}</p>
+          ) : null}
         </div>
 
         <div>
@@ -274,8 +362,8 @@ export default function TalepPage() {
         </div>
 
         {priority === "urgent" ? (
-          <div className="space-y-4 rounded-2xl bg-red-50/70 p-3 ring-1 ring-luma-red/15">
-            <label className="block">
+          <div className="min-w-0 space-y-4 overflow-hidden rounded-2xl bg-red-50/70 p-3 ring-1 ring-luma-red/15">
+            <label className="block min-w-0">
               <span className="text-sm font-medium text-foreground">
                 {t("request.urgentReason")} <span className="text-luma-red">*</span>
               </span>
@@ -286,22 +374,35 @@ export default function TalepPage() {
                 value={urgentReason}
                 onChange={(event) => setUrgentReason(event.target.value)}
                 placeholder={t("request.urgentReasonPlaceholder")}
-                className="mt-1.5 w-full resize-none rounded-xl border border-luma-border bg-white px-3 py-3 text-base outline-none placeholder:text-luma-muted focus:ring-2 focus:ring-luma"
+                className="mt-1.5 w-full min-w-0 resize-none rounded-xl border border-luma-border bg-white px-3 py-3 text-base outline-none placeholder:text-luma-muted focus:ring-2 focus:ring-luma"
               />
             </label>
-            <label className="block">
+            <div className="min-w-0">
               <span className="text-sm font-medium text-foreground">
                 {t("request.dueDate")} <span className="text-luma-red">*</span>
               </span>
-              <input
-                required
-                type="date"
-                min={todayIso()}
-                value={dueDate}
-                onChange={(event) => setDueDate(event.target.value)}
-                className="mt-1.5 w-full rounded-xl border border-luma-border bg-white px-3 py-3 text-base outline-none focus:ring-2 focus:ring-luma"
-              />
-            </label>
+              <label className="relative mt-1.5 block min-w-0 overflow-hidden rounded-xl border border-luma-border bg-white focus-within:ring-2 focus-within:ring-luma">
+                <span
+                  className={cn(
+                    "pointer-events-none flex min-h-12 items-center justify-between gap-3 px-3 py-3 text-base",
+                    dueDate ? "text-foreground" : "text-luma-muted",
+                  )}
+                >
+                  <span className="min-w-0 truncate">
+                    {dueDate ? formatDueDate(dueDate, locale) : t("request.dueDatePlaceholder")}
+                  </span>
+                  <Calendar className="h-4 w-4 shrink-0 text-luma" />
+                </span>
+                <input
+                  required
+                  type="date"
+                  min={todayIso()}
+                  value={dueDate}
+                  onChange={(event) => setDueDate(event.target.value)}
+                  className="absolute inset-0 z-10 h-full w-full min-w-0 cursor-pointer opacity-[0.01]"
+                />
+              </label>
+            </div>
           </div>
         ) : null}
 
@@ -367,6 +468,20 @@ export default function TalepPage() {
       </form>
     </div>
   );
+}
+
+function RequestFileIcon({ name, type }: { name: string; type: string }) {
+  const lower = `${name} ${type}`.toLowerCase();
+  if (lower.includes("pdf") || lower.includes("doc") || lower.includes("ppt") || lower.includes("xls")) {
+    return <FileText className="h-4 w-4" />;
+  }
+  if (lower.includes("image") || /\.(jpe?g|png|webp)$/i.test(name)) {
+    return <FileImage className="h-4 w-4" />;
+  }
+  if (lower.includes("zip")) {
+    return <FileArchive className="h-4 w-4" />;
+  }
+  return <File className="h-4 w-4" />;
 }
 
 function RequestSelect({

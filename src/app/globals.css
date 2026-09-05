@@ -75,6 +75,18 @@ select {
   font-size: 16px;
 }
 
+input[type="date"] {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+input[type="date"]::-webkit-date-and-time-value {
+  text-align: left;
+  min-width: 0;
+}
+
 ::selection {
   background: color-mix(in srgb, var(--luma-purple) 24%, white);
 }

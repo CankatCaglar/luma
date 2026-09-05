@@ -399,3 +399,43 @@ export async function createTask(input: {
 
   return payload.data;
 }
+
+export async function attachFileToTask(input: {
+  taskGid: string;
+  filename: string;
+  contentType?: string;
+  bytes: Uint8Array;
+}): Promise<{ gid: string; name?: string }> {
+  const token = requireAsanaToken();
+  const form = new FormData();
+  form.append("parent", input.taskGid);
+  form.append("resource_subtype", "asana");
+  const copy = new Uint8Array(input.bytes.byteLength);
+  copy.set(input.bytes);
+  form.append(
+    "file",
+    new File([copy], input.filename, {
+      type: input.contentType || "application/octet-stream",
+    }),
+  );
+
+  const response = await fetch(`${ASANA_API_BASE}/attachments`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+    },
+    body: form,
+    cache: "no-store",
+    signal: AbortSignal.timeout(60_000),
+  });
+
+  const payload: unknown = await response.json().catch(() => null);
+  if (!response.ok) {
+    const message = extractAsanaError(payload) ?? `Asana ek yükleme başarısız (${response.status})`;
+    throw new AsanaApiError(message, response.status, payload);
+  }
+
+  const data = (payload as AsanaItemResponse<{ gid: string; name?: string }>).data;
+  return data;
+}

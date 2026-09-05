@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   AsanaApiError,
+  attachFileToTask,
   createTask,
   insertTaskAtSectionTop,
 } from "@/lib/asana/client";
@@ -20,7 +21,13 @@ import {
   TenantAccessError,
   requireTenantAccess,
 } from "@/lib/tenant/requireTenant";
+import {
+  REQUEST_FILE_MAX_COUNT,
+  validateRequestFile,
+} from "@/lib/requests/files";
 import type { RequestPriority } from "@/types";
+
+export const maxDuration = 60;
 
 type CreateRequestBody = {
   category: RequestCategory;
@@ -122,7 +129,7 @@ function buildRequestNotes(input: {
     lines.push(`İstenen teslim tarihi: ${input.dueDate}`);
   }
   if (input.fileName) {
-    lines.push(`Referans dosyası: ${input.fileName}`);
+    lines.push(`Ekler: ${input.fileName}`);
   }
   lines.push("", input.brief);
   return lines.join("\n");
@@ -137,10 +144,71 @@ function buildRequestTaskName(brandCode: string, subject: string): string {
   return title ? `${code} - ${title}` : code;
 }
 
+async function readIncomingFiles(form: FormData): Promise<File[]> {
+  const files = form
+    .getAll("files")
+    .filter((value): value is File => value instanceof File && value.size > 0);
+  if (files.length > REQUEST_FILE_MAX_COUNT) {
+    throw new TenantAccessError(`En fazla ${REQUEST_FILE_MAX_COUNT} dosya eklenebilir`, 400);
+  }
+  for (const file of files) {
+    const issue = validateRequestFile(file);
+    if (issue === "size") {
+      throw new TenantAccessError(`${file.name} 25 MB sınırını aşıyor`, 400);
+    }
+    if (issue === "type" || issue === "empty") {
+      throw new TenantAccessError(`${file.name} desteklenen bir dosya değil`, 400);
+    }
+  }
+  return files;
+}
+
+async function parseRequestInput(request: Request): Promise<{
+  body: CreateRequestBody;
+  files: File[];
+}> {
+  const contentType = request.headers.get("content-type") ?? "";
+  if (contentType.includes("multipart/form-data")) {
+    const form = await request.formData();
+    const raw = form.get("payload");
+    let parsed: unknown = Object.fromEntries(form.entries());
+    if (typeof raw === "string" && raw.trim()) {
+      try {
+        parsed = JSON.parse(raw) as unknown;
+      } catch {
+        throw new TenantAccessError("Geçersiz talep içeriği", 400);
+      }
+    }
+    return {
+      body: parseBody(parsed),
+      files: await readIncomingFiles(form),
+    };
+  }
+  return {
+    body: parseBody(await request.json()),
+    files: [],
+  };
+}
+
+async function uploadRequestAttachments(taskGid: string, files: File[]): Promise<string[]> {
+  const names: string[] = [];
+  for (const file of files) {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const attached = await attachFileToTask({
+      taskGid,
+      filename: file.name,
+      contentType: file.type || undefined,
+      bytes,
+    });
+    names.push(attached.name || file.name);
+  }
+  return names;
+}
+
 export async function POST(request: Request) {
   try {
     const { user, tenant } = await requireTenantAccess(request);
-    const body = parseBody(await request.json());
+    const { body, files } = await parseRequestInput(request);
     const workspaceGid =
       tenant.asana.workspaceGid?.trim() || getAsanaEnv().workspaceGid || "";
     const destination = workspaceGid
@@ -175,7 +243,7 @@ export async function POST(request: Request) {
         requesterEmail: user.email,
         urgentReason: body.urgentReason,
         dueDate: body.dueDate,
-        fileName: body.fileName ?? undefined,
+        fileName: files.map((file) => file.name).join(", ") || body.fileName || undefined,
       }),
       projects: [project],
       memberships: [{ project, section }],
@@ -191,10 +259,27 @@ export async function POST(request: Request) {
       /* task exists even if reorder fails */
     }
 
+    let attachments: string[] = [];
+    if (files.length > 0) {
+      try {
+        attachments = await uploadRequestAttachments(created.gid, files);
+      } catch (error) {
+        const reason =
+          error instanceof AsanaApiError
+            ? error.message
+            : "Dosyalar Asana görevine eklenemedi";
+        throw new TenantAccessError(
+          `Talep açıldı ancak ek yüklenemedi: ${reason}`,
+          502,
+        );
+      }
+    }
+
     return NextResponse.json({
       ok: true,
       taskGid: created.gid,
       permalinkUrl: created.permalink_url ?? null,
+      attachments,
     });
   } catch (error) {
     if (error instanceof TenantAccessError) {

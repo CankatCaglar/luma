@@ -15,6 +15,7 @@ const nextConfig: NextConfig = {
       dynamic: 60,
       static: 180,
     },
+    proxyClientMaxBodySize: "30mb",
   },
   allowedDevOrigins: [
     "*.ngrok-free.app",
