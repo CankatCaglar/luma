@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useSyncExternalStore, type ReactNode } from "react";
+import { useEffect, useRef, useSyncExternalStore, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { Header } from "@/components/layout/Header";
@@ -28,8 +28,14 @@ function useResetInitialScroll() {
     const scrollToTop = () => {
       if (active) window.scrollTo(0, 0);
     };
+    // Geri gitme sırasındaki konum hatırlama davranışını kaybetmemek için
+    // ilk yükleme penceresi kapandığında tarayıcıya kontrolü geri veriyoruz.
     const stop = () => {
+      if (!active) return;
       active = false;
+      if ("scrollRestoration" in window.history) {
+        window.history.scrollRestoration = "auto";
+      }
     };
 
     scrollToTop();
@@ -55,10 +61,36 @@ function useResetInitialScroll() {
   }, []);
 }
 
+type ShellKind = "admin" | "loading" | "auth" | "app";
+
+// Giriş ekranında klavye açıldığında iOS sayfayı kaydırıyor ve bu konum giriş
+// sonrasında ana sayfaya taşınıyor. Ekran tipi her değiştiğinde başa dönüyoruz.
+function useScrollTopOnShellChange(shellKind: ShellKind) {
+  const previousShellKind = useRef<ShellKind | null>(null);
+
+  useEffect(() => {
+    const changed =
+      previousShellKind.current !== null && previousShellKind.current !== shellKind;
+    previousShellKind.current = shellKind;
+    if (!changed) return;
+
+    // Klavye kapanırken iOS kaydırma konumunu geri koyabildiği için birkaç kez deniyoruz.
+    const scrollToTop = () => window.scrollTo(0, 0);
+    scrollToTop();
+    const frame = requestAnimationFrame(scrollToTop);
+    const timer = window.setTimeout(scrollToTop, 150);
+
+    return () => {
+      cancelAnimationFrame(frame);
+      window.clearTimeout(timer);
+    };
+  }, [shellKind]);
+}
+
 function LoadingShell() {
   return (
-    <div className="min-h-screen w-full bg-[#FBF9F5]">
-      <div className="mx-auto flex min-h-screen w-full max-w-md items-center justify-center px-6 text-sm text-luma-muted">
+    <div className="min-h-dvh w-full bg-[#FBF9F5]">
+      <div className="mx-auto flex min-h-dvh w-full max-w-md items-center justify-center px-6 text-sm text-luma-muted">
         Yükleniyor...
       </div>
     </div>
@@ -67,8 +99,8 @@ function LoadingShell() {
 
 function AuthRouteShell({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-screen w-full bg-[#FBF9F5]">
-      <div className="mx-auto flex min-h-screen w-full max-w-md flex-col px-4 pb-10 pt-[max(20px,env(safe-area-inset-top))]">
+    <div className="min-h-dvh w-full bg-[#FBF9F5]">
+      <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-4 pb-10 pt-[max(20px,env(safe-area-inset-top))]">
         {children}
       </div>
     </div>
@@ -141,22 +173,34 @@ function ProtectedShell({ children }: { children: ReactNode }) {
     signOutUser,
   ]);
 
-  if (onAdminRoute) {
+  const shellKind: ShellKind = onAdminRoute
+    ? "admin"
+    : (enabled && loading && !canPaintBrandFromCache) ||
+        (enabled && user && isAdmin && onBrandRoute) ||
+        (enabled && !user && !loading && onBrandRoute)
+      ? "loading"
+      : onLoginRoute
+        ? "auth"
+        : "app";
+
+  useScrollTopOnShellChange(shellKind);
+
+  if (shellKind === "admin") {
     return <AdminShell>{children}</AdminShell>;
   }
 
-  if (enabled && loading && !canPaintBrandFromCache) return <LoadingShell />;
-  if (enabled && user && isAdmin && onBrandRoute) return <LoadingShell />;
-  if (enabled && !user && !loading && onBrandRoute) return <LoadingShell />;
+  if (shellKind === "loading") {
+    return <LoadingShell />;
+  }
 
-  if (onLoginRoute) {
+  if (shellKind === "auth") {
     return <AuthRouteShell>{children}</AuthRouteShell>;
   }
 
   return (
     <JobsProvider key={enabled ? user?.uid ?? lastSession?.uid ?? "public" : "public"}>
-      <div className="min-h-screen w-full bg-[#FBF9F5]">
-        <div className="mx-auto flex min-h-screen w-full max-w-md flex-col">
+      <div className="min-h-dvh w-full bg-[#FBF9F5]">
+        <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col">
           <Header />
           <main className="flex-1 px-4 pb-32 pt-2">{children}</main>
         </div>

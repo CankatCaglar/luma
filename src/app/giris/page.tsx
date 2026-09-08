@@ -124,6 +124,13 @@ export default function GirisPage() {
 
   async function handleEmailLogin(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    // Klavye açıkken iOS sayfayı kaydırıyor; giriş sonrası ana sayfanın kayık
+    // açılmaması için önce odağı bırakıp klavyeyi kapatıyoruz.
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+
     if (!firebaseAuth) return;
 
     setSubmitting(true);
