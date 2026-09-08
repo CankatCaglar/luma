@@ -70,7 +70,7 @@ function FileRow({
 
   return (
     <div className="flex items-center gap-3 px-4 py-3">
-      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-luma-gold-soft text-[11px] font-bold text-luma-kahve">
+      <span className="flex h-12 w-12 shrink-0 items-center justify-center text-xs font-bold text-luma-kahve">
         {fileKindLabel(file)}
       </span>
       <a
@@ -124,7 +124,7 @@ function FolderRow({ url, label }: { url: string; label: string }) {
       className="flex select-none items-center gap-3 px-4 py-3"
     >
       <IconTile tone="gold">
-        <Folder className="h-5 w-5" strokeWidth={1.8} />
+        <Folder className="h-6 w-6" strokeWidth={1.8} />
       </IconTile>
       <span className="min-w-0 flex-1 font-semibold text-foreground">{label}</span>
       <span className="inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-luma">
@@ -149,7 +149,9 @@ function AssetSection({
     <section>
       <div className="mb-2 px-0.5">
         <h2 className="font-semibold text-foreground">{t(asset.nameKey)}</h2>
-        <p className="text-sm leading-relaxed text-luma-muted">{t(asset.descriptionKey)}</p>
+        {asset.descriptionKey && asset.kind !== "competitor" ? (
+          <p className="text-sm leading-relaxed text-luma-muted">{t(asset.descriptionKey)}</p>
+        ) : null}
       </div>
       <div className="divide-y divide-luma-border overflow-hidden rounded-2xl bg-luma-card ring-1 ring-luma-border/80">
         {files.length ? (
@@ -189,7 +191,7 @@ export function BrandCenter({ assets }: { assets: BrandAsset[] }) {
         {competitor ? <AssetSection asset={competitor} action="view" /> : null}
         {box ? <AssetSection asset={box} action="view" /> : null}
       </div>
-      <div className="mt-4 flex items-start gap-3 rounded-2xl bg-luma-soft px-4 py-3.5">
+      <div className="mt-4 flex items-start gap-3 px-0.5 py-1">
         <Info className="mt-0.5 h-4 w-4 shrink-0 text-luma" strokeWidth={2} />
         <p className="text-sm leading-relaxed text-luma">{t("brandCenter.info")}</p>
       </div>

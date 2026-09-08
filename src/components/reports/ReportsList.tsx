@@ -28,7 +28,7 @@ export function ReportsList({ reports }: { reports: MonthlyReport[] }) {
             const body = (
               <>
                 <IconTile tone={index % 2 === 0 ? "purple" : "gold"}>
-                  <BarChart3 className="h-5 w-5" strokeWidth={1.8} />
+                  <BarChart3 className="h-6 w-6" strokeWidth={1.8} />
                 </IconTile>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
@@ -36,7 +36,7 @@ export function ReportsList({ reports }: { reports: MonthlyReport[] }) {
                       {formatMonth(report.month, locale)}
                     </h2>
                     {report.isNew ? (
-                      <span className="rounded-full bg-luma-gold-soft px-2 py-0.5 text-[10px] font-semibold text-luma-kahve">
+                      <span className="text-[10px] font-semibold text-luma-kahve">
                         {t("reports.new")}
                       </span>
                     ) : null}

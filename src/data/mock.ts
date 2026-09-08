@@ -333,7 +333,6 @@ export const brandAssets: BrandAsset[] = [
   {
     id: "asset-competitor",
     nameKey: "brandCenter.competitor",
-    descriptionKey: "brandCenter.competitorDescription",
     kind: "competitor",
     url: "https://drive.google.com/drive/folders/example-competitor",
   },

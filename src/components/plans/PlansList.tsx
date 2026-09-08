@@ -23,13 +23,13 @@ function PlanCard({ plan }: { plan: ContentPlan }) {
   const body = (
     <>
       <IconTile tone="gold">
-        <FileSpreadsheet className="h-5 w-5" strokeWidth={1.8} />
+        <FileSpreadsheet className="h-6 w-6" strokeWidth={1.8} />
       </IconTile>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <h2 className="font-semibold text-foreground">{formatMonth(plan.month, locale)}</h2>
           {plan.isCurrent ? (
-            <span className="rounded-full bg-luma-soft px-2 py-0.5 text-[10px] font-semibold text-luma">
+            <span className="text-[10px] font-semibold text-luma">
               {t("plans.current")}
             </span>
           ) : null}
@@ -141,7 +141,7 @@ export function PlansList({
               className={cardClass}
             >
               <IconTile tone={isArchive ? "gold" : "purple"}>
-                <FolderOpen className="h-5 w-5" strokeWidth={1.8} />
+                <FolderOpen className="h-6 w-6" strokeWidth={1.8} />
               </IconTile>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
@@ -149,7 +149,7 @@ export function PlansList({
                     {t("plans.yearHeading", { year: selectedYear })}
                   </h2>
                   {isArchive ? (
-                    <span className="rounded-full bg-luma-gold-soft px-2 py-0.5 text-[10px] font-semibold text-luma-kahve">
+                    <span className="text-[10px] font-semibold text-luma-kahve">
                       {t("plans.archive")}
                     </span>
                   ) : null}
@@ -166,7 +166,7 @@ export function PlansList({
           ) : folderUrl && !showYearSwitch ? (
             <a href={folderUrl} target="_blank" rel="noopener noreferrer" className={cardClass}>
               <IconTile tone="purple">
-                <FolderOpen className="h-5 w-5" strokeWidth={1.8} />
+                <FolderOpen className="h-6 w-6" strokeWidth={1.8} />
               </IconTile>
               <div className="min-w-0 flex-1">
                 <h2 className="font-semibold text-foreground">

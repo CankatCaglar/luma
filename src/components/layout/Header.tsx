@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ChevronDown, ChevronLeft, LogOut } from "lucide-react";
+import { ChevronDown, ChevronLeft, LogOut, User } from "lucide-react";
 import { currentBrand, currentUser } from "@/data/mock";
 import { useI18n } from "@/components/i18n/I18nProvider";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -132,15 +132,21 @@ function ProfileMenu() {
         className="flex select-none items-center gap-1.5 transition-transform duration-150 ease-out active:scale-[0.97]"
         aria-label={t("header.profileMenu")}
       >
-        <Image
-          src={user?.photoURL ?? currentUser.avatarUrl}
-          alt={user?.displayName ?? currentBrand.name}
-          width={36}
-          height={36}
-          priority
-          unoptimized
-          className="h-9 w-9 rounded-full bg-luma-soft object-cover ring-2 ring-white"
-        />
+        {user?.photoURL ? (
+          <Image
+            src={user.photoURL}
+            alt={user.displayName ?? currentBrand.name}
+            width={36}
+            height={36}
+            priority
+            unoptimized
+            className="h-9 w-9 rounded-full bg-luma-soft object-cover ring-2 ring-white"
+          />
+        ) : (
+          <span className="flex h-9 w-9 items-end justify-center overflow-hidden rounded-full bg-luma-soft text-luma ring-2 ring-white">
+            <User className="-mb-0.5 h-7 w-7" strokeWidth={1.75} />
+          </span>
+        )}
         <ChevronDown
           className={cn(
             "h-4 w-4 text-luma transition-transform duration-150",

@@ -18,7 +18,7 @@ export function StatusBadge({
   }
 
   return (
-    <span className="inline-flex w-fit rounded-full bg-luma-soft px-2.5 py-0.5 text-[11px] font-semibold text-luma">
+    <span className="inline-flex w-fit text-[12px] font-semibold text-luma">
       {label}
     </span>
   );

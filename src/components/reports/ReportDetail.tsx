@@ -1,8 +1,7 @@
 "use client";
 
-import { BarChart3, ExternalLink, Info } from "lucide-react";
+import { BarChart3, ExternalLink, Eye, Info } from "lucide-react";
 import { useI18n } from "@/components/i18n/I18nProvider";
-import { IconTile } from "@/components/ui/IconTile";
 import { formatMonth } from "@/lib/format";
 import type { MonthlyReport } from "@/types";
 
@@ -26,24 +25,21 @@ export function ReportDetail({ report }: { report: MonthlyReport }) {
   return (
     <div className="space-y-4">
       <section className="rounded-2xl bg-luma-card p-4 ring-1 ring-luma-border/80">
-        <div className="flex items-start gap-3">
-          <IconTile tone="purple">
-            <BarChart3 className="h-5 w-5" strokeWidth={1.8} />
-          </IconTile>
-          <div className="min-w-0 flex-1">
-            <h1 className="text-lg font-bold text-foreground">
-              {formatMonth(report.month, locale)}
-            </h1>
-            <p className="mt-0.5 text-sm text-luma-muted">{report.title}</p>
-          </div>
-        </div>
+        <h1 className="flex items-start gap-2 text-lg font-bold leading-7 text-foreground">
+          <BarChart3 className="mt-[5px] size-[1em] shrink-0 text-luma" strokeWidth={2} />
+          <span className="min-w-0">{formatMonth(report.month, locale)}</span>
+        </h1>
+        <p className="mt-0.5 text-sm text-luma-muted">{report.title}</p>
         <p className="mt-4 text-sm leading-relaxed text-luma-muted">
           {t("reports.detailDescription")}
         </p>
       </section>
 
       <section className="rounded-2xl bg-luma-card p-4 ring-1 ring-luma-border/80">
-        <h2 className="text-base font-bold text-foreground">{t("reports.accessTitle")}</h2>
+        <h2 className="flex items-start gap-2 text-base font-bold leading-6 text-foreground">
+          <Eye className="mt-[4px] size-[1em] shrink-0 text-luma" strokeWidth={2} />
+          {t("reports.accessTitle")}
+        </h2>
         <div className="mt-2 divide-y divide-luma-border rounded-xl border border-luma-border">
           <div className="flex items-center justify-between gap-3 px-3 py-2.5">
             <span className="text-sm text-luma-muted">{t("reports.documentType")}</span>
@@ -66,18 +62,16 @@ export function ReportDetail({ report }: { report: MonthlyReport }) {
             rel="noopener noreferrer"
             className="mt-4 inline-flex w-full select-none items-center justify-center gap-2 rounded-xl bg-luma py-3 text-sm font-semibold text-white transition-transform duration-150 ease-out active:scale-[0.97]"
           >
-            <ExternalLink className="h-4 w-4" strokeWidth={1.8} />
+            <ExternalLink className="h-[1em] w-[1em]" strokeWidth={2} />
             {reportActionLabel(link)}
           </a>
         ) : null}
       </section>
 
-      <section className="rounded-2xl bg-luma-soft px-3.5 py-3 text-sm text-luma">
-        <p className="flex items-start gap-2">
-          <Info className="mt-0.5 h-4 w-4 shrink-0" />
-          <span>{t("reports.help")}</span>
-        </p>
-      </section>
+      <p className="flex items-start gap-2 px-0.5 py-1 text-sm leading-5 text-luma">
+        <Info className="mt-[3px] size-3.5 shrink-0" strokeWidth={2} />
+        <span>{t("reports.help")}</span>
+      </p>
     </div>
   );
 }

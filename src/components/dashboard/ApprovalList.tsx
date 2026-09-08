@@ -53,8 +53,8 @@ export function ApprovalList({
             prefetch
             className="flex select-none items-center gap-3 rounded-2xl bg-luma-card p-3 ring-1 ring-luma-border/80 transition-transform duration-150 ease-out active:scale-[0.97]"
           >
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-luma-soft">
-              <FileText className="h-6 w-6 text-luma" />
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center text-luma">
+              <FileText className="h-7 w-7 text-luma" />
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate font-semibold text-foreground">

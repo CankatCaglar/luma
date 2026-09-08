@@ -57,7 +57,6 @@ export function brandAssetsFromDrive(
     assets.push({
       id: "asset-competitor",
       nameKey: "brandCenter.competitor",
-      descriptionKey: "brandCenter.competitorDescription",
       kind: "competitor",
       url: competitorUrl || competitorFiles[0].viewUrl,
       files: competitorFiles,

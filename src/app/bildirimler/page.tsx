@@ -52,7 +52,7 @@ export default function BildirimlerPage() {
                 className="flex select-none items-start gap-3 rounded-2xl bg-luma-card p-3.5 ring-1 ring-luma-border/80 transition-transform duration-150 ease-out active:scale-[0.97]"
               >
                 <IconTile tone={ui.tone} className="mt-0.5">
-                  <Icon className="h-5 w-5" strokeWidth={1.8} />
+                  <Icon className="h-6 w-6" strokeWidth={1.8} />
                 </IconTile>
                 <span className="min-w-0 flex-1">
                   <span className="block font-semibold text-foreground">

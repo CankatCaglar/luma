@@ -56,7 +56,7 @@ export function JobList({
             className="flex select-none items-center gap-3 rounded-2xl bg-luma-card p-3.5 ring-1 ring-luma-border/80 transition-transform duration-150 ease-out active:scale-[0.97]"
           >
             <IconTile className="h-12 w-12">
-              <Icon className="h-5 w-5" strokeWidth={1.8} />
+              <Icon className="h-6 w-6" strokeWidth={1.8} />
             </IconTile>
             <div className="min-w-0 flex-1">
               <p className="truncate font-semibold text-foreground">{job.title}</p>

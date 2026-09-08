@@ -149,12 +149,11 @@ export type BrandAsset = {
     | "brandCenter.logo"
     | "brandCenter.brief"
     | "brandCenter.competitor";
-  descriptionKey:
+  descriptionKey?:
     | "brandCenter.boxDescription"
     | "brandCenter.logoFormats"
     | "brandCenter.logoDescription"
-    | "brandCenter.briefDescription"
-    | "brandCenter.competitorDescription";
+    | "brandCenter.briefDescription";
   kind: BrandAssetKind;
   url: string;
   files?: BrandFile[];
