@@ -12,17 +12,18 @@ const cardClass =
 
 export function ReportsList({ reports }: { reports: MonthlyReport[] }) {
   const { t, locale } = useI18n();
+  const visible = reports.filter((report) => Boolean(report.driveUrl?.trim()));
 
   return (
     <div>
       <p className="mb-4 text-sm text-luma-kahve">{t("reports.subtitle")}</p>
-      {reports.length === 0 ? (
+      {visible.length === 0 ? (
         <p className="rounded-2xl bg-luma-card px-4 py-8 text-center text-sm text-luma-muted ring-1 ring-luma-border/80">
           {t("reports.empty")}
         </p>
       ) : (
         <div className="space-y-3">
-          {reports.map((report, index) => {
+          {visible.map((report, index) => {
             const driveUrl = report.driveUrl?.trim();
             const body = (
               <>

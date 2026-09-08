@@ -13,6 +13,6 @@ export default function ReportDetailPage() {
   const { data } = useJobs();
   if (!data) return <PageSkeleton cards={2} />;
   const report = data.monthlyReports.find((item) => item.id === id);
-  if (!report) return <MissingRecord label={t("reports.missing")} />;
+  if (!report?.driveUrl?.trim()) return <MissingRecord label={t("reports.missing")} />;
   return <ReportDetail report={report} />;
 }

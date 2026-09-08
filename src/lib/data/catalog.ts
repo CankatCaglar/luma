@@ -144,42 +144,24 @@ export function mergeMonthlyReports(
   competitorUrl?: string,
 ): MonthlyReport[] {
   const currentMonth = monthKey(now);
-  const asanaReports = [...groupByMonth(jobs, "report").entries()].map(([month, monthJobs]) => {
-    const primary = pickPrimary(monthJobs);
-    return {
-      id: catalogId("report", month),
-      month,
-      title: primary.title,
-      driveUrl: asanaResourceUrl(monthJobs, competitorUrl) ?? "",
-      updatedAt: primary.completedAt ?? primary.dueDate,
-      isNew: month === currentMonth || primary.status !== "completed",
-    } satisfies MonthlyReport;
-  });
-  const byMonth = new Map<string, MonthlyReport>(
-    asanaReports.map((report) => [report.month, report]),
-  );
+  const asanaByMonth = groupByMonth(jobs, "report");
 
-  for (const driveReport of driveReports ?? []) {
-    const existing = byMonth.get(driveReport.month);
-    if (existing) {
-      byMonth.set(driveReport.month, {
-        ...existing,
-        driveUrl: driveReport.url,
-        title: existing.title || driveReport.title,
-      });
-      continue;
-    }
-    byMonth.set(driveReport.month, {
-      id: catalogId("report", driveReport.month),
-      month: driveReport.month,
-      title: driveReport.title,
-      driveUrl: driveReport.url,
-      updatedAt: driveReport.modifiedTime,
-      isNew: driveReport.month === currentMonth,
-    } satisfies MonthlyReport);
-  }
-
-  return [...byMonth.values()].sort((left, right) => right.month.localeCompare(left.month));
+  return [...(driveReports ?? [])]
+    .filter((driveReport) => Boolean(driveReport.url?.trim()))
+    .map((driveReport) => {
+      const monthJobs = asanaByMonth.get(driveReport.month) ?? [];
+      const primary = monthJobs.length ? pickPrimary(monthJobs) : undefined;
+      const asanaUrl = asanaResourceUrl(monthJobs, competitorUrl);
+      return {
+        id: catalogId("report", driveReport.month),
+        month: driveReport.month,
+        title: primary?.title || driveReport.title,
+        driveUrl: driveReport.url || asanaUrl || "",
+        updatedAt: driveReport.modifiedTime ?? primary?.completedAt ?? primary?.dueDate,
+        isNew: driveReport.month === currentMonth || Boolean(primary && primary.status !== "completed"),
+      } satisfies MonthlyReport;
+    })
+    .sort((left, right) => right.month.localeCompare(left.month));
 }
 
 export function reportsFromJobs(jobs: Job[], now: Date): MonthlyReport[] {

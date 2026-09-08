@@ -10,7 +10,6 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { useI18n } from "@/components/i18n/I18nProvider";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { compactJobLists, expandJobLists } from "@/lib/data/jobLists";
 import { readLastBrandSession } from "@/lib/session/lastBrandSession";
@@ -138,7 +137,6 @@ function jobsStorageKey(uid: string) {
 }
 
 export function JobsProvider({ children }: { children: ReactNode }) {
-  const { t } = useI18n();
   const { enabled, user, loading } = useAuth();
   const persistUid = user?.uid ?? (!loading ? null : readLastBrandSession()?.uid ?? null);
   const storageKey = useMemo(
@@ -270,21 +268,7 @@ export function JobsProvider({ children }: { children: ReactNode }) {
   );
 
   return (
-    <JobsContext.Provider value={value}>
-      {refreshing && data ? (
-        <div
-          className="pointer-events-none fixed inset-x-0 top-0 z-50 flex justify-center"
-          role="status"
-          aria-live="polite"
-          aria-label={t("header.updating")}
-        >
-          <div className="h-0.5 w-full max-w-md overflow-hidden bg-luma-soft">
-            <div className="h-full w-1/3 animate-pulse bg-luma" />
-          </div>
-        </div>
-      ) : null}
-      {children}
-    </JobsContext.Provider>
+    <JobsContext.Provider value={value}>{children}</JobsContext.Provider>
   );
 }
 
