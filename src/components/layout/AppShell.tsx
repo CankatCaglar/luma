@@ -15,6 +15,46 @@ function getServerLastBrandSession() {
   return null;
 }
 
+// Tarayıcı ilk açılışta önceki oturumun kaydırma konumunu geri yükleyebiliyor;
+// içerik yüklenirken birkaç kez başa alarak sayfanın tepeden açılmasını garantiliyoruz.
+function useResetInitialScroll() {
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if ("scrollRestoration" in window.history) {
+      window.history.scrollRestoration = "manual";
+    }
+
+    let active = true;
+    const scrollToTop = () => {
+      if (active) window.scrollTo(0, 0);
+    };
+    const stop = () => {
+      active = false;
+    };
+
+    scrollToTop();
+    const frame = requestAnimationFrame(scrollToTop);
+    const timers = [
+      window.setTimeout(scrollToTop, 80),
+      window.setTimeout(scrollToTop, 300),
+      window.setTimeout(stop, 600),
+    ];
+
+    window.addEventListener("touchstart", stop, { passive: true });
+    window.addEventListener("wheel", stop, { passive: true });
+    window.addEventListener("keydown", stop);
+
+    return () => {
+      stop();
+      cancelAnimationFrame(frame);
+      timers.forEach((timer) => window.clearTimeout(timer));
+      window.removeEventListener("touchstart", stop);
+      window.removeEventListener("wheel", stop);
+      window.removeEventListener("keydown", stop);
+    };
+  }, []);
+}
+
 function LoadingShell() {
   return (
     <div className="min-h-screen w-full bg-[#FBF9F5]">
@@ -127,6 +167,8 @@ function ProtectedShell({ children }: { children: ReactNode }) {
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
+  useResetInitialScroll();
+
   return (
     <AuthProvider>
       <ProtectedShell>{children}</ProtectedShell>
