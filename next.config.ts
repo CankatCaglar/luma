@@ -25,13 +25,13 @@ const nextConfig: NextConfig = {
   ],
   headers: async () => [
     {
-      source: "/favicon.png",
+      source: "/favicon.ico",
       headers: [
         { key: "Cache-Control", value: "public, max-age=0, must-revalidate" },
       ],
     },
     {
-      source: "/favicon.ico",
+      source: "/manifest.json",
       headers: [
         { key: "Cache-Control", value: "public, max-age=0, must-revalidate" },
       ],
@@ -39,7 +39,7 @@ const nextConfig: NextConfig = {
     {
       source: "/icons/:path*",
       headers: [
-        { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+        { key: "Cache-Control", value: "public, max-age=0, must-revalidate" },
       ],
     },
   ],
