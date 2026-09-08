@@ -12,44 +12,50 @@ const montserrat = Montserrat({
 
 export const metadata: Metadata = {
   title: {
-    default: "NERA LUMA",
-    template: "%s · NERA LUMA",
+    default: "Nera Luma",
+    template: "%s · Nera Luma",
   },
-  description: "NERA LUMA müşteri portalı",
-  applicationName: "NERA LUMA",
+  description: "Nera Luma müşteri portalı",
+  applicationName: "Nera Luma",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
-    statusBarStyle: "black-translucent",
-    title: "NERA LUMA",
+    statusBarStyle: "default",
+    title: "Nera Luma",
   },
   icons: {
     icon: [
-      { url: "/icons/nera-luma-32.png", sizes: "32x32", type: "image/png" },
-      { url: "/icons/nera-luma-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/nera-luma-180.png", sizes: "180x180", type: "image/png" },
+      { url: "/icons/nera-luma-512.png", sizes: "512x512", type: "image/png" },
     ],
     apple: [{ url: "/icons/nera-luma-180.png", sizes: "180x180", type: "image/png" }],
   },
   other: {
     "apple-mobile-web-app-capable": "yes",
-    "apple-mobile-web-app-title": "NERA LUMA",
+    "apple-mobile-web-app-title": "Nera Luma",
+    "apple-mobile-web-app-status-bar-style": "default",
   },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
   viewportFit: "cover",
   colorScheme: "light",
-  themeColor: "#FBF9F5",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#FBF9F5" },
+    { media: "(prefers-color-scheme: dark)", color: "#FBF9F5" },
+  ],
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="tr" className={`${montserrat.variable} antialiased`}>
+    <html lang="tr" className={`${montserrat.variable} antialiased bg-[#FBF9F5]`}>
       <head>
-        <link rel="icon" href="/icons/nera-luma-32.png" sizes="32x32" type="image/png" />
-        <link rel="icon" href="/icons/nera-luma-192.png" sizes="192x192" type="image/png" />
+        <link rel="icon" href="/icons/nera-luma-180.png" sizes="180x180" type="image/png" />
+        <link rel="icon" href="/icons/nera-luma-512.png" sizes="512x512" type="image/png" />
         <link rel="apple-touch-icon" href="/icons/nera-luma-180.png" />
         <link
           rel="preload"

@@ -44,7 +44,8 @@ html {
   padding: 0;
   overflow-x: clip;
   overflow-y: auto;
-  background-color: #fbf9f5;
+  background-color: #FBF9F5;
+  color-scheme: light;
   overscroll-behavior-y: none;
   -webkit-text-size-adjust: 100%;
 }
@@ -58,7 +59,7 @@ body {
   padding: 0;
   overflow-x: clip;
   overflow-y: visible;
-  background-color: #fbf9f5;
+  background-color: #FBF9F5;
   overscroll-behavior-y: none;
   color: var(--foreground);
   font-family: var(--font-montserrat), ui-sans-serif, system-ui, sans-serif;

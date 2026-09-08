@@ -46,7 +46,7 @@ const nextConfig: NextConfig = {
   rewrites: async () => [
     {
       source: "/favicon.ico",
-      destination: "/icons/nera-luma-32.png",
+      destination: "/icons/nera-luma-180.png",
     },
   ],
   images: {

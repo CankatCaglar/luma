@@ -198,7 +198,7 @@ export function Header() {
   const canGoBack = typeof window !== "undefined" && window.history.length > 1;
 
   return (
-    <header className="sticky top-0 z-40 flex items-center justify-between bg-[#FBF9F5]/90 px-4 pb-3 pt-[max(12px,env(safe-area-inset-top))] backdrop-blur-md">
+    <header className="sticky top-0 z-40 flex items-center justify-between bg-[#FBF9F5]/90 px-4 pb-3 pt-[max(12px,env(safe-area-inset-top,0px))] backdrop-blur-md">
       {back ? (
         <BackButton
           fallbackHref={back.href}

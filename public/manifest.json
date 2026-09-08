@@ -1,7 +1,7 @@
 {
-  "name": "NERA LUMA",
-  "short_name": "NERA LUMA",
-  "description": "NERA LUMA müşteri portalı",
+  "name": "Nera Luma",
+  "short_name": "Nera Luma",
+  "description": "Nera Luma müşteri portalı",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -10,8 +10,8 @@
   "theme_color": "#FBF9F5",
   "icons": [
     {
-      "src": "/icons/nera-luma-192.png",
-      "sizes": "192x192",
+      "src": "/icons/nera-luma-180.png",
+      "sizes": "180x180",
       "type": "image/png",
       "purpose": "any"
     },
@@ -20,6 +20,12 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
+    },
+    {
+      "src": "/icons/nera-luma-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }
