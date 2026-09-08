@@ -22,7 +22,7 @@ export type RequestSubtype = {
   [Category in RequestCategory]: (typeof REQUEST_SUBTYPES)[Category][number];
 }[RequestCategory];
 
-export const ASANA_PRIORITY_LEVELS = ["high", "medium", "low"] as const;
+export const ASANA_PRIORITY_LEVELS = ["low", "medium", "high"] as const;
 export type AsanaPriorityLevel = (typeof ASANA_PRIORITY_LEVELS)[number];
 
 export const CATEGORY_LABELS: Record<RequestCategory, string> = {
@@ -58,9 +58,9 @@ export const SUBTYPE_LABELS: Record<string, string> = {
 };
 
 export const PRIORITY_LABELS: Record<AsanaPriorityLevel, string> = {
-  high: "High",
-  medium: "Medium",
-  low: "Low",
+  high: "Acil",
+  medium: "Öncelikli",
+  low: "Planlı",
 };
 
 export function isRequestCategory(value: string): value is RequestCategory {

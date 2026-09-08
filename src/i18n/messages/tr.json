@@ -17,19 +17,19 @@
     "greeting": "Merhaba, {brand}",
     "title": "Dashboard",
     "metrics": {
-      "pendingApproval": "Onay Bekleyen",
-      "pendingApprovalFooter": "aksiyon bekliyor",
+      "pendingApproval": "Onay Bekleyen İş",
+      "pendingApprovalFooter": "onayınızı bekliyor",
       "activeJobs": "Aktif İş",
       "activeJobsFooter": "devam ediyor",
       "completedThisMonth": "Bu Ay Tamamlanan",
-      "completedThisMonthFooter": "tamamlandı"
+      "completedThisMonthFooter": "iş tamamlandı"
     },
     "approvals": {
       "title": "Onay ve İncelemenize Hazır",
       "seeAll": "Tümünü Gör",
-      "dueDate": "Son gün: {date}",
-      "badgePending": "Onay Bekliyor",
-      "badgeReview": "İnceleniyor"
+      "dueDate": "Onayınıza teslim edilen tarih: {date}",
+      "badgePending": "Onayınızı Bekliyor",
+      "badgeReview": "Onayınızı Bekliyor"
     },
     "quickAccess": {
       "title": "Hızlı Erişimler",
@@ -48,6 +48,7 @@
     "empty": "Bu listede iş yok",
     "delivery": "Teslim: {date}",
     "dueDate": "Son gün: {date}",
+    "deliveredForApproval": "Onayınıza teslim edilen tarih: {date}",
     "completedDate": "Tarih: {date}",
     "kinds": {
       "plan": "İçerik planı",
@@ -216,7 +217,7 @@
     "briefPlaceholder": "Talebinizi detaylı olarak açıklayın...",
     "briefHint": "En az 3 karakter.",
     "file": "Dosya / Referans",
-    "fileHint": "Brief, görsel veya referans belgelerini ekleyin. Asana görevine gerçek ek olarak yüklenir.",
+    "fileHint": "Brief, görsel veya referans belgelerini ekleyin.",
     "fileDrop": "Dosya yükleyin veya sürükleyip bırakın",
     "fileTypes": "PDF, görsel, Office, ZIP · dosya başı 25 MB · en fazla 5 dosya",
     "fileRemove": "Dosyayı kaldır",
@@ -224,17 +225,12 @@
     "fileTooLarge": "{name} 25 MB sınırını aşıyor.",
     "fileBadType": "{name} desteklenen bir format değil.",
     "priority": "Teslim önceliği",
-    "standard": "Standart",
+    "priorityHint": "Talebinizin önceliğini belirleyin. Planlı işler normal akışta, Öncelikli işler daha yüksek öncelikle, Acil işler ise mümkün olan en kısa sürede değerlendirilir.",
+    "planned": "Planlı",
+    "prioritized": "Öncelikli",
     "urgent": "Acil",
     "urgentReason": "Acil talep nedeni",
-    "urgentReasonPlaceholder": "Neden acil olduğunu kısaca yazın",
-    "dueDate": "İstenen teslim tarihi",
-    "dueDatePlaceholder": "Tarih seçin",
-    "asanaPriority": "Asana önceliği",
-    "asanaPriorityHint": "Seçilen etiket Asana görevinde Priority olarak düşer.",
-    "asanaHigh": "High",
-    "asanaMedium": "Medium",
-    "asanaLow": "Low",
+    "urgentReasonPlaceholder": "Talebin neden acil olduğunu kısaca belirtin.",
     "submit": "Talebi Oluştur",
     "submitBlocked": "Zorunlu alanları doldurun.",
     "categories": {
@@ -269,8 +265,8 @@
     }
   },
   "status": {
-    "pending_approval": "Onay Bekliyor",
-    "review": "İnceleniyor",
+    "pending_approval": "Onayınızı Bekliyor",
+    "review": "Onayınızı Bekliyor",
     "revision": "Revizede",
     "in_progress": "Devam Ediyor",
     "completed": "Tamamlandı",

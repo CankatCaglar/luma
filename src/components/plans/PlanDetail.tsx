@@ -24,6 +24,7 @@ export function PlanDetail({ plan }: { plan: ContentPlan }) {
   const { t, locale } = useI18n();
   const link = plan.slidesUrl;
   const hasLink = Boolean(link);
+  const awaitingApproval = plan.status === "pending_approval" || plan.status === "review";
   const summaryDate = plan.dueDate
     ? formatDueDate(plan.dueDate, locale)
     : formatMonth(plan.month, locale);
@@ -46,10 +47,12 @@ export function PlanDetail({ plan }: { plan: ContentPlan }) {
                 label={t(statusKeys[plan.status])}
               />
             </div>
-            <p className="mt-2 flex items-center gap-1 text-xs text-luma-muted">
-              <Calendar className="h-3.5 w-3.5 text-luma" />
-              {t("dashboard.approvals.dueDate", { date: summaryDate })}
-            </p>
+            {awaitingApproval ? (
+              <p className="mt-2 flex items-start gap-1 text-xs text-luma-muted">
+                <Calendar className="mt-0.5 h-3.5 w-3.5 shrink-0 text-luma" />
+                {t("jobs.deliveredForApproval", { date: summaryDate })}
+              </p>
+            ) : null}
           </div>
         </div>
         <p className="mt-4 text-sm leading-relaxed text-luma-muted">
@@ -65,10 +68,6 @@ export function PlanDetail({ plan }: { plan: ContentPlan }) {
             <span className="text-sm font-semibold text-foreground">
               {hasLink && link ? planSourceLabel(link) : "—"}
             </span>
-          </div>
-          <div className="flex items-center justify-between gap-3 px-3 py-2.5">
-            <span className="text-sm text-luma-muted">{t("plans.lastUpdate")}</span>
-            <span className="text-sm font-semibold text-foreground">{summaryDate}</span>
           </div>
           <div className="flex items-center justify-between gap-3 px-3 py-2.5">
             <span className="text-sm text-luma-muted">{t("plans.sharing")}</span>

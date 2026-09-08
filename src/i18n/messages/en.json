@@ -18,18 +18,18 @@
     "title": "Dashboard",
     "metrics": {
       "pendingApproval": "Pending Approval",
-      "pendingApprovalFooter": "action needed",
+      "pendingApprovalFooter": "waiting for your approval",
       "activeJobs": "Active Work",
       "activeJobsFooter": "in progress",
       "completedThisMonth": "Completed This Month",
-      "completedThisMonthFooter": "completed"
+      "completedThisMonthFooter": "job completed"
     },
     "approvals": {
       "title": "Ready for Your Review",
       "seeAll": "See All",
-      "dueDate": "Due: {date}",
-      "badgePending": "Pending Approval",
-      "badgeReview": "Under Review"
+      "dueDate": "Delivered for your approval: {date}",
+      "badgePending": "Waiting for Your Approval",
+      "badgeReview": "Waiting for Your Approval"
     },
     "quickAccess": {
       "title": "Quick Access",
@@ -48,6 +48,7 @@
     "empty": "No jobs in this list",
     "delivery": "Due: {date}",
     "dueDate": "Due: {date}",
+    "deliveredForApproval": "Delivered for your approval: {date}",
     "completedDate": "Date: {date}",
     "kinds": {
       "plan": "Content plan",
@@ -216,7 +217,7 @@
     "briefPlaceholder": "Describe your request in detail...",
     "briefHint": "At least 3 characters.",
     "file": "File / Reference",
-    "fileHint": "Add briefs, visuals, or reference documents. They are uploaded as real Asana attachments.",
+    "fileHint": "Add briefs, visuals, or reference documents.",
     "fileDrop": "Upload a file or drag and drop",
     "fileTypes": "PDF, images, Office, ZIP · 25 MB per file · up to 5 files",
     "fileRemove": "Remove file",
@@ -224,17 +225,12 @@
     "fileTooLarge": "{name} exceeds the 25 MB limit.",
     "fileBadType": "{name} is not a supported format.",
     "priority": "Delivery priority",
-    "standard": "Standard",
+    "priorityHint": "Choose the priority of your request. Planned work follows the normal flow, Priority work is handled sooner, and Urgent work is reviewed as soon as possible.",
+    "planned": "Planned",
+    "prioritized": "Priority",
     "urgent": "Urgent",
     "urgentReason": "Reason for urgency",
-    "urgentReasonPlaceholder": "Briefly explain why this is urgent",
-    "dueDate": "Requested due date",
-    "dueDatePlaceholder": "Select a date",
-    "asanaPriority": "Asana priority",
-    "asanaPriorityHint": "The selected tag is applied to the Asana task as Priority.",
-    "asanaHigh": "High",
-    "asanaMedium": "Medium",
-    "asanaLow": "Low",
+    "urgentReasonPlaceholder": "Briefly explain why this request is urgent.",
     "submit": "Create Request",
     "submitBlocked": "Fill in the required fields.",
     "categories": {
@@ -269,8 +265,8 @@
     }
   },
   "status": {
-    "pending_approval": "Pending Approval",
-    "review": "Under Review",
+    "pending_approval": "Waiting for Your Approval",
+    "review": "Waiting for Your Approval",
     "revision": "In Revision",
     "in_progress": "In Progress",
     "completed": "Completed",

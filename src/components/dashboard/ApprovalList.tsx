@@ -71,9 +71,9 @@ export function ApprovalList({
                 />
                 <TagList tags={item.tags} />
               </div>
-              <p className="mt-1.5 flex items-center gap-1 text-[11px] text-luma-muted">
-                <Calendar className="h-3 w-3 text-luma" />
-                {t("dashboard.approvals.dueDate", {
+              <p className="mt-1.5 flex items-start gap-1 text-[11px] leading-snug text-luma-muted">
+                <Calendar className="mt-0.5 h-3 w-3 shrink-0 text-luma" />
+                {t("jobs.deliveredForApproval", {
                   date: formatDueDate(item.dueDate, locale),
                 })}
               </p>

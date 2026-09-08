@@ -25,7 +25,6 @@ import {
   REQUEST_FILE_MAX_COUNT,
   validateRequestFile,
 } from "@/lib/requests/files";
-import type { RequestPriority } from "@/types";
 
 export const maxDuration = 60;
 
@@ -34,19 +33,21 @@ type CreateRequestBody = {
   subtype?: string;
   subject: string;
   brief: string;
-  priority: RequestPriority;
   asanaPriority: AsanaPriorityLevel;
   urgentReason?: string;
   dueDate?: string;
   fileName?: string | null;
 };
 
-function isRequestPriority(value: string): value is RequestPriority {
-  return value === "standard" || value === "urgent";
-}
-
-function isIsoDate(value: string): boolean {
-  return /^\d{4}-\d{2}-\d{2}$/.test(value);
+function parsePriorityLevel(body: {
+  priority?: unknown;
+  asanaPriority?: unknown;
+}): AsanaPriorityLevel {
+  const raw = body.asanaPriority ?? body.priority;
+  if (typeof raw === "string" && isAsanaPriorityLevel(raw)) return raw;
+  if (raw === "urgent") return "high";
+  if (raw === "standard") return "low";
+  throw new TenantAccessError("Öncelik seçilmedi", 400);
 }
 
 function parseBody(input: unknown): CreateRequestBody {
@@ -58,12 +59,7 @@ function parseBody(input: unknown): CreateRequestBody {
   if (!category || !isRequestCategory(category)) {
     throw new TenantAccessError("Talep türü seçilmedi", 400);
   }
-  if (!body.priority || !isRequestPriority(body.priority)) {
-    throw new TenantAccessError("Öncelik seçilmedi", 400);
-  }
-  if (!body.asanaPriority || !isAsanaPriorityLevel(body.asanaPriority)) {
-    throw new TenantAccessError("Asana önceliği seçilmedi", 400);
-  }
+  const asanaPriority = parsePriorityLevel(body);
 
   const subtype = body.subtype?.trim() || undefined;
   if (category !== "other" && (!subtype || !isSubtypeOf(category, subtype))) {
@@ -81,20 +77,16 @@ function parseBody(input: unknown): CreateRequestBody {
 
   const urgentReason = body.urgentReason?.trim() || undefined;
   const dueDate = body.dueDate?.trim() || undefined;
-  if (body.priority === "urgent") {
+  if (asanaPriority === "high") {
     if (!urgentReason || urgentReason.length < 3) {
       throw new TenantAccessError("Acil talep nedeni gerekli", 400);
-    }
-    if (!dueDate || !isIsoDate(dueDate)) {
-      throw new TenantAccessError("İstenen teslim tarihi gerekli", 400);
     }
   }
 
   return {
     category,
     subtype: category === "other" ? undefined : subtype,
-    priority: body.priority,
-    asanaPriority: body.asanaPriority,
+    asanaPriority,
     subject,
     brief,
     urgentReason,
@@ -105,7 +97,6 @@ function parseBody(input: unknown): CreateRequestBody {
 
 function buildRequestNotes(input: {
   brief: string;
-  priority: RequestPriority;
   category: RequestCategory;
   subtype?: string;
   asanaPriority: AsanaPriorityLevel;
@@ -118,8 +109,7 @@ function buildRequestNotes(input: {
   const lines = [
     `Marka kodu: ${input.brandCode}`,
     `Talep türü: ${formatRequestType(input.category, input.subtype)}`,
-    `Teslim önceliği: ${input.priority === "urgent" ? "Acil" : "Standart"}`,
-    `Asana önceliği: ${PRIORITY_LABELS[input.asanaPriority]}`,
+    `Teslim önceliği: ${PRIORITY_LABELS[input.asanaPriority]}`,
     `Talep sahibi: ${input.requesterEmail}`,
   ];
   if (input.urgentReason) {
@@ -236,7 +226,6 @@ export async function POST(request: Request) {
       notes: buildRequestNotes({
         brandCode: tenant.asana.brandCode,
         brief: body.brief,
-        priority: body.priority,
         category: body.category,
         subtype: body.subtype,
         asanaPriority: body.asanaPriority,

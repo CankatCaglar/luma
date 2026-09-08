@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Calendar,
   ChevronDown,
   Clock,
   File,
@@ -25,21 +24,22 @@ import {
   type AsanaPriorityLevel,
   type RequestCategory,
 } from "@/lib/requests/catalog";
-import { formatDueDate, formatFileSize } from "@/lib/format";
+import { formatFileSize } from "@/lib/format";
 import {
   REQUEST_FILE_ACCEPT,
   REQUEST_FILE_MAX_COUNT,
   validateRequestFile,
 } from "@/lib/requests/files";
-import type { RequestPriority } from "@/types";
 import type { MessageKey } from "@/i18n";
 
 const BRIEF_MIN = 3;
 const BRIEF_MAX = 1000;
 
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
-}
+const PRIORITY_LABEL_KEYS: Record<AsanaPriorityLevel, MessageKey> = {
+  low: "request.planned",
+  medium: "request.prioritized",
+  high: "request.urgent",
+};
 
 function categoryKey(id: RequestCategory): MessageKey {
   return `request.categories.${id}`;
@@ -56,17 +56,15 @@ function sameFile(left: File, right: File): boolean {
 }
 
 export default function TalepPage() {
-  const { t, locale } = useI18n();
+  const { t } = useI18n();
   const { enabled, user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [category, setCategory] = useState<RequestCategory | "">("");
   const [subtype, setSubtype] = useState("");
   const [title, setTitle] = useState("");
   const [brief, setBrief] = useState("");
-  const [priority, setPriority] = useState<RequestPriority>("standard");
-  const [asanaPriority, setAsanaPriority] = useState<AsanaPriorityLevel>("medium");
+  const [priority, setPriority] = useState<AsanaPriorityLevel>("low");
   const [urgentReason, setUrgentReason] = useState("");
-  const [dueDate, setDueDate] = useState("");
   const [files, setFiles] = useState<File[]>(cachedTalepFiles);
   const [fileError, setFileError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -76,10 +74,7 @@ export default function TalepPage() {
 
   const subtypeOptions = category ? subtypesFor(category) : [];
   const needsSubtype = subtypeOptions.length > 0;
-
-  useEffect(() => {
-    if (priority === "urgent") setAsanaPriority("high");
-  }, [priority]);
+  const isUrgent = priority === "high";
 
   function commitFiles(next: File[]) {
     cachedTalepFiles = next;
@@ -118,9 +113,8 @@ export default function TalepPage() {
       (!needsSubtype || subtype) &&
       title.trim().length >= 3 &&
       brief.trim().length >= BRIEF_MIN &&
-      asanaPriority &&
-      (priority === "standard" ||
-        (urgentReason.trim().length >= 3 && dueDate)),
+      priority &&
+      (!isUrgent || urgentReason.trim().length >= 3),
   );
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -144,9 +138,8 @@ export default function TalepPage() {
           subject: title,
           brief,
           priority,
-          asanaPriority,
-          urgentReason: priority === "urgent" ? urgentReason : undefined,
-          dueDate: priority === "urgent" ? dueDate : undefined,
+          asanaPriority: priority,
+          urgentReason: isUrgent ? urgentReason : undefined,
         }),
       );
       for (const file of files) {
@@ -171,10 +164,8 @@ export default function TalepPage() {
       setBrief("");
       setCategory("");
       setSubtype("");
-      setPriority("standard");
-      setAsanaPriority("medium");
+      setPriority("low");
       setUrgentReason("");
-      setDueDate("");
       commitFiles([]);
       setFileError(null);
     } catch (error) {
@@ -327,118 +318,54 @@ export default function TalepPage() {
           <p className="text-sm font-medium text-foreground">
             {t("request.priority")} <span className="text-luma-red">*</span>
           </p>
-          <div className="mt-2 grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setPriority("standard");
-                setUrgentReason("");
-                setDueDate("");
-              }}
-              className={cn(
-                "flex select-none items-center justify-center gap-2 rounded-xl border py-3 text-sm font-semibold transition-transform duration-150 ease-out active:scale-[0.97]",
-                priority === "standard"
-                  ? "border-luma-gold bg-luma-gold-soft text-luma-kahve"
-                  : "border-luma-border bg-white text-luma-muted",
-              )}
-            >
-              <Clock className="h-4 w-4" />
-              {t("request.standard")}
-            </button>
-            <button
-              type="button"
-              onClick={() => setPriority("urgent")}
-              className={cn(
-                "flex select-none items-center justify-center gap-2 rounded-xl border py-3 text-sm font-semibold transition-transform duration-150 ease-out active:scale-[0.97]",
-                priority === "urgent"
-                  ? "border-luma-red bg-red-50 text-luma-red"
-                  : "border-luma-border bg-white text-luma-muted",
-              )}
-            >
-              <Zap className="h-4 w-4 text-luma-red" />
-              {t("request.urgent")}
-            </button>
-          </div>
-        </div>
-
-        {priority === "urgent" ? (
-          <div className="min-w-0 space-y-4 overflow-hidden rounded-2xl bg-red-50/70 p-3 ring-1 ring-luma-red/15">
-            <label className="block min-w-0">
-              <span className="text-sm font-medium text-foreground">
-                {t("request.urgentReason")} <span className="text-luma-red">*</span>
-              </span>
-              <textarea
-                required
-                maxLength={240}
-                rows={3}
-                value={urgentReason}
-                onChange={(event) => setUrgentReason(event.target.value)}
-                placeholder={t("request.urgentReasonPlaceholder")}
-                className="mt-1.5 w-full min-w-0 resize-none rounded-xl border border-luma-border bg-white px-3 py-3 text-base outline-none placeholder:text-luma-muted focus:ring-2 focus:ring-luma"
-              />
-            </label>
-            <div className="min-w-0">
-              <span className="text-sm font-medium text-foreground">
-                {t("request.dueDate")} <span className="text-luma-red">*</span>
-              </span>
-              <label className="relative mt-1.5 block min-w-0 overflow-hidden rounded-xl border border-luma-border bg-white focus-within:ring-2 focus-within:ring-luma">
-                <span
-                  className={cn(
-                    "pointer-events-none flex min-h-12 items-center justify-between gap-3 px-3 py-3 text-base",
-                    dueDate ? "text-foreground" : "text-luma-muted",
-                  )}
-                >
-                  <span className="min-w-0 truncate">
-                    {dueDate ? formatDueDate(dueDate, locale) : t("request.dueDatePlaceholder")}
-                  </span>
-                  <Calendar className="h-4 w-4 shrink-0 text-luma" />
-                </span>
-                <input
-                  required
-                  type="date"
-                  min={todayIso()}
-                  value={dueDate}
-                  onChange={(event) => setDueDate(event.target.value)}
-                  className="absolute inset-0 z-10 h-full w-full min-w-0 cursor-pointer opacity-[0.01]"
-                />
-              </label>
-            </div>
-          </div>
-        ) : null}
-
-        <div>
-          <p className="text-sm font-medium text-foreground">
-            {t("request.asanaPriority")} <span className="text-luma-red">*</span>
-          </p>
-          <p className="mt-0.5 text-xs text-luma-muted">{t("request.asanaPriorityHint")}</p>
+          <p className="mt-0.5 text-xs text-luma-muted">{t("request.priorityHint")}</p>
           <div className="mt-2 grid grid-cols-3 gap-2">
             {ASANA_PRIORITY_LEVELS.map((level) => (
               <button
                 key={level}
                 type="button"
-                onClick={() => setAsanaPriority(level)}
+                onClick={() => {
+                  setPriority(level);
+                  if (level !== "high") setUrgentReason("");
+                }}
                 className={cn(
-                  "flex select-none items-center justify-center rounded-xl border py-3 text-sm font-semibold transition-transform duration-150 ease-out active:scale-[0.97]",
-                  asanaPriority === level
+                  "flex select-none items-center justify-center gap-1 rounded-xl border px-1 py-3 text-[13px] font-semibold leading-tight transition-transform duration-150 ease-out active:scale-[0.97]",
+                  priority === level
                     ? level === "high"
                       ? "border-[#f06a6a] bg-[#f06a6a]/12 text-[#c4473a]"
                       : level === "medium"
                         ? "border-[#f1bd6c] bg-[#f1bd6c]/18 text-[#945d3c]"
-                        : "border-[#f8df72] bg-[#f8df72]/30 text-[#8a6d1b]"
+                        : "border-luma-gold bg-luma-gold-soft text-luma-kahve"
                     : "border-luma-border bg-white text-luma-muted",
                 )}
               >
-                {t(
-                  level === "high"
-                    ? "request.asanaHigh"
-                    : level === "medium"
-                      ? "request.asanaMedium"
-                      : "request.asanaLow",
-                )}
+                {level === "high" ? (
+                  <Zap className="h-3.5 w-3.5" />
+                ) : level === "low" ? (
+                  <Clock className="h-3.5 w-3.5" />
+                ) : null}
+                {t(PRIORITY_LABEL_KEYS[level])}
               </button>
             ))}
           </div>
         </div>
+
+        {isUrgent ? (
+          <label className="block min-w-0 overflow-hidden rounded-2xl bg-red-50/70 p-3 ring-1 ring-luma-red/15">
+            <span className="text-sm font-medium text-foreground">
+              {t("request.urgentReason")} <span className="text-luma-red">*</span>
+            </span>
+            <textarea
+              required
+              maxLength={240}
+              rows={3}
+              value={urgentReason}
+              onChange={(event) => setUrgentReason(event.target.value)}
+              placeholder={t("request.urgentReasonPlaceholder")}
+              className="mt-1.5 w-full min-w-0 resize-none rounded-xl border border-luma-border bg-white px-3 py-3 text-base outline-none placeholder:text-luma-muted focus:ring-2 focus:ring-luma"
+            />
+          </label>
+        ) : null}
 
         <button
           type="submit"

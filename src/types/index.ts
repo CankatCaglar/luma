@@ -177,9 +177,9 @@ export type QuickLink = {
   href: string;
 };
 
-export type RequestPriority = "standard" | "urgent";
 export type {
   AsanaPriorityLevel,
   RequestCategory,
   RequestSubtype,
 } from "@/lib/requests/catalog";
+export type RequestPriority = import("@/lib/requests/catalog").AsanaPriorityLevel;

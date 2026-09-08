@@ -66,7 +66,7 @@ export function MetricCards({
               <Icon className="h-4 w-4" strokeWidth={2.2} />
             </div>
             <p
-              className={`mt-2 w-full whitespace-nowrap text-[9px] font-semibold leading-none tracking-tight ${card.labelClass}`}
+              className={`mt-2 min-h-[1.4rem] w-full text-[9px] font-semibold leading-tight tracking-tight ${card.labelClass}`}
             >
               {card.label}
             </p>
@@ -77,7 +77,7 @@ export function MetricCards({
                 card.value
               )}
             </p>
-            <p className="mt-0.5 whitespace-nowrap text-[10px] leading-tight text-luma-muted">
+            <p className="mt-0.5 min-h-6 text-[10px] leading-tight text-luma-muted">
               {card.footer}
             </p>
           </Link>

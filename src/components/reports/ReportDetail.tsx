@@ -3,7 +3,7 @@
 import { BarChart3, ExternalLink, Info } from "lucide-react";
 import { useI18n } from "@/components/i18n/I18nProvider";
 import { IconTile } from "@/components/ui/IconTile";
-import { formatDueDate, formatMonth } from "@/lib/format";
+import { formatMonth } from "@/lib/format";
 import type { MonthlyReport } from "@/types";
 
 function reportSourceLabel(url: string) {
@@ -22,9 +22,6 @@ export function ReportDetail({ report }: { report: MonthlyReport }) {
   const { t, locale } = useI18n();
   const link = report.driveUrl || undefined;
   const hasLink = Boolean(link);
-  const summaryDate = report.updatedAt
-    ? formatDueDate(report.updatedAt, locale)
-    : formatMonth(report.month, locale);
 
   return (
     <div className="space-y-4">
@@ -53,10 +50,6 @@ export function ReportDetail({ report }: { report: MonthlyReport }) {
             <span className="text-sm font-semibold text-foreground">
               {hasLink && link ? reportSourceLabel(link) : t("reports.kind")}
             </span>
-          </div>
-          <div className="flex items-center justify-between gap-3 px-3 py-2.5">
-            <span className="text-sm text-luma-muted">{t("reports.lastUpdate")}</span>
-            <span className="text-sm font-semibold text-foreground">{summaryDate}</span>
           </div>
           <div className="flex items-center justify-between gap-3 px-3 py-2.5">
             <span className="text-sm text-luma-muted">{t("reports.sharing")}</span>

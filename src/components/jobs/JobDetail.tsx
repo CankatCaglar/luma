@@ -30,6 +30,14 @@ export function JobDetail({ job }: { job: Job }) {
   const Icon = jobIcons[job.kind];
   const openUrl = job.resourceUrl;
   const hasOpenUrl = Boolean(openUrl);
+  const awaitingApproval = job.status === "pending_approval" || job.status === "review";
+  const dateLabel = awaitingApproval
+    ? t("jobs.deliveredForApproval", { date: formatDueDate(job.dueDate, locale) })
+    : job.status === "completed"
+      ? t("jobs.completedDate", {
+          date: formatDueDate(job.completedAt ?? job.dueDate, locale),
+        })
+      : t("jobs.delivery", { date: formatDueDate(job.dueDate, locale) });
 
   return (
     <div className="space-y-4">
@@ -44,9 +52,9 @@ export function JobDetail({ job }: { job: Job }) {
               <StatusBadge status={job.status} label={t(statusKeys[job.status])} />
               <TagList tags={job.tags} />
             </div>
-            <p className="mt-2 flex items-center gap-1 text-xs text-luma-muted">
-              <Calendar className="h-3.5 w-3.5 text-luma" />
-              {t("jobs.dueDate", { date: formatDueDate(job.dueDate, locale) })}
+            <p className="mt-2 flex items-start gap-1 text-xs text-luma-muted">
+              <Calendar className="mt-0.5 h-3.5 w-3.5 shrink-0 text-luma" />
+              {dateLabel}
             </p>
           </div>
         </div>
@@ -62,12 +70,6 @@ export function JobDetail({ job }: { job: Job }) {
             <span className="text-sm text-luma-muted">{t("jobs.detail.documentType")}</span>
             <span className="text-sm font-semibold text-foreground">
               {t(jobKindKeys[job.kind])}
-            </span>
-          </div>
-          <div className="flex items-center justify-between gap-3 px-3 py-2.5">
-            <span className="text-sm text-luma-muted">{t("jobs.detail.lastUpdate")}</span>
-            <span className="text-sm font-semibold text-foreground">
-              {formatDueDate(job.completedAt ?? job.dueDate, locale)}
             </span>
           </div>
           <div className="flex items-center justify-between gap-3 px-3 py-2.5">

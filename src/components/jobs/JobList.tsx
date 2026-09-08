@@ -16,7 +16,7 @@ type DateKind = "delivery" | "due" | "completed";
 
 const dateKeys: Record<DateKind, MessageKey> = {
   delivery: "jobs.delivery",
-  due: "jobs.dueDate",
+  due: "jobs.deliveredForApproval",
   completed: "jobs.completedDate",
 };
 
@@ -64,8 +64,8 @@ export function JobList({
                 <StatusBadge status={job.status} label={t(statusKeys[job.status])} />
                 <TagList tags={job.tags} />
               </div>
-              <p className="mt-1.5 flex items-center gap-1 text-[11px] text-luma-muted">
-                <Calendar className="h-3 w-3 text-luma" />
+              <p className="mt-1.5 flex items-start gap-1 text-[11px] leading-snug text-luma-muted">
+                <Calendar className="mt-0.5 h-3 w-3 shrink-0 text-luma" />
                 {t(dateKeys[dateKind], {
                   date: formatDueDate(dateValue, locale),
                 })}
