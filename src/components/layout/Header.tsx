@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ChevronDown, ChevronLeft, LogOut, User } from "lucide-react";
+import { displayPortalUsername } from "@/lib/auth/portalLogin";
 import { currentBrand, currentUser } from "@/data/mock";
 import { useI18n } from "@/components/i18n/I18nProvider";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -170,7 +171,7 @@ function ProfileMenu() {
           >
             {user?.email ? (
               <p className="truncate px-3.5 pb-1 pt-2 text-xs text-luma-muted">
-                {user.email}
+                {displayPortalUsername(user.email)}
               </p>
             ) : null}
             <button

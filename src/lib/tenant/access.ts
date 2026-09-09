@@ -1,4 +1,9 @@
 import { FieldValue } from "firebase-admin/firestore";
+import {
+  displayPortalUsername,
+  isPortalLoginEmail,
+  normalizePortalUsername,
+} from "@/lib/auth/portalLogin";
 import { getAdminDb } from "@/lib/firebase/admin";
 import {
   serializeDrive,
@@ -19,12 +24,21 @@ export type TenantAccess = {
   brandName: string;
   emails: string[];
   contactEmail?: string;
+  portalUsername?: string;
+  portalPassword?: string;
   asana: TenantAsanaConfig;
   drive?: TenantDriveConfig;
 };
 
 export function getTenantContactEmail(tenant: TenantAccess): string {
-  return tenant.contactEmail?.trim() || tenant.emails[0] || "";
+  const contact = tenant.contactEmail?.trim();
+  if (contact) return contact;
+  const loginEmail = tenant.emails[0] ?? "";
+  return loginEmail && !isPortalLoginEmail(loginEmail) ? loginEmail : "";
+}
+
+export function getPortalUsername(tenant: TenantAccess): string {
+  return displayPortalUsername(tenant.emails[0] ?? "", tenant.portalUsername);
 }
 
 export type { TenantDriveConfig };
@@ -60,6 +74,13 @@ function toTenantAccess(input: unknown): TenantAccess | null {
   const contactEmail = candidate.contactEmail
     ? normalizeEmail(candidate.contactEmail)
     : undefined;
+  const portalPassword =
+    typeof candidate.portalPassword === "string" ? candidate.portalPassword.trim() : "";
+  const portalUsername = normalizePortalUsername(
+    typeof candidate.portalUsername === "string"
+      ? candidate.portalUsername
+      : displayPortalUsername(emails[0] ?? ""),
+  );
   if (!tenantId || !brandName || !brandCode || projectGids.length === 0 || emails.length === 0) {
     return null;
   }
@@ -73,6 +94,8 @@ function toTenantAccess(input: unknown): TenantAccess | null {
     brandName,
     emails,
     contactEmail: contactEmail || undefined,
+    portalUsername: portalUsername || undefined,
+    portalPassword: portalPassword || undefined,
     asana: {
       brandCode,
       projectGids,
@@ -194,6 +217,17 @@ export async function getTenantById(tenantId: string): Promise<TenantAccess | nu
   }
 }
 
+export async function getTenantByPortalUsername(
+  username: string,
+): Promise<TenantAccess | null> {
+  const normalized = normalizePortalUsername(username);
+  if (!normalized) return null;
+  const matches = (await listTenantDirectory()).filter(
+    (tenant) => getPortalUsername(tenant) === normalized,
+  );
+  return matches.length === 1 ? matches[0] : null;
+}
+
 export async function getTenantByBrandCode(brandCode: string): Promise<TenantAccess | null> {
   const normalized = brandCode.trim().toUpperCase();
   if (!normalized) return null;
@@ -238,6 +272,9 @@ export async function upsertTenant(tenant: TenantAccess): Promise<void> {
     brandName: tenant.brandName,
     emails: [...new Set(tenant.emails.map(normalizeEmail))],
     contactEmail: tenant.contactEmail ? normalizeEmail(tenant.contactEmail) : null,
+    portalUsername: tenant.portalUsername
+      ? normalizePortalUsername(tenant.portalUsername)
+      : null,
     asana: {
       brandCode: tenant.asana.brandCode.toUpperCase().trim(),
       projectGids: [...new Set(tenant.asana.projectGids.map((gid) => gid.trim()))],
@@ -249,6 +286,9 @@ export async function upsertTenant(tenant: TenantAccess): Promise<void> {
     updatedAt: FieldValue.serverTimestamp(),
     createdAt: FieldValue.serverTimestamp(),
   };
+  if (tenant.portalPassword) {
+    payload.portalPassword = tenant.portalPassword;
+  }
   if (tenant.drive !== undefined) {
     payload.drive = serializeDrive(tenant.drive);
   }
@@ -276,6 +316,28 @@ export async function updateTenantContactEmail(
   return {
     ...existing,
     contactEmail: contactEmail ? normalizeEmail(contactEmail) : undefined,
+  };
+}
+
+export async function updateTenantPortalPassword(
+  tenantId: string,
+  portalPassword: string,
+): Promise<TenantAccess | null> {
+  const existing = await getTenantById(tenantId);
+  if (!existing) return null;
+
+  const db = getAdminDb();
+  await db.collection(defaultCollectionName()).doc(existing.tenantId).set(
+    {
+      portalPassword,
+      updatedAt: FieldValue.serverTimestamp(),
+    },
+    { merge: true },
+  );
+
+  return {
+    ...existing,
+    portalPassword,
   };
 }
 

@@ -1,15 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import {
-  sendPasswordResetEmail,
-  signInWithEmailAndPassword,
-} from "firebase/auth";
-import { Eye, EyeOff, KeyRound, Loader2, Mail } from "lucide-react";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { Eye, EyeOff, KeyRound, Loader2, User } from "lucide-react";
 import { LumaLogo } from "@/components/layout/NeraLogo";
 import { firebaseAuth, firebaseEnabled } from "@/lib/firebase/client";
-
-type Mode = "login" | "reset";
 
 function firebaseErrorCode(error: unknown): string {
   return error && typeof error === "object" && "code" in error
@@ -21,7 +16,7 @@ function hasCode(error: unknown, code: string): boolean {
   return firebaseErrorCode(error).toLowerCase().includes(code.toLowerCase());
 }
 
-function authErrorMessage(error: unknown, mode: Mode) {
+function authErrorMessage(error: unknown) {
   const code = firebaseErrorCode(error);
   if (
     hasCode(error, "api-key-not-valid") ||
@@ -33,19 +28,17 @@ function authErrorMessage(error: unknown, mode: Mode) {
     case "auth/invalid-credential":
     case "auth/user-not-found":
     case "auth/wrong-password":
-      return "E-posta veya şifre hatalı.";
+      return "Kullanıcı adı veya şifre hatalı.";
     case "auth/email-already-in-use":
-      return "Bu e-posta zaten kullanımda.";
+      return "Bu kullanıcı adı zaten kullanımda.";
     case "auth/weak-password":
       return "Şifre en az 6 karakter olmalıdır.";
     case "auth/invalid-email":
-      return "E-posta formatı geçerli değil.";
+      return "Kullanıcı adı geçerli değil.";
     case "auth/missing-password":
       return "Lütfen şifrenizi girin.";
     case "auth/operation-not-allowed":
-      return mode === "login"
-        ? "Firebase tarafında Email/Password girişi henüz aktif değil."
-        : "Bu işlem Firebase tarafında henüz aktif değil.";
+      return "Firebase tarafında Email/Password girişi henüz aktif değil.";
     case "auth/configuration-not-found":
       return "Firebase kimlik doğrulama ayarları tamamlanmamış görünüyor.";
     case "auth/app-not-authorized":
@@ -90,7 +83,7 @@ function authErrorHint(error: unknown) {
     case "auth/invalid-credential":
     case "auth/user-not-found":
     case "auth/wrong-password":
-      return "Marka kullanıcısı admin panelden kaydedilmiş olmalı. Mail ve şifreyi kontrol edin.";
+      return "Marka kullanıcısı admin panelden kaydedilmiş olmalı. Kullanıcı adı ve şifreyi kontrol edin.";
     case "auth/operation-not-allowed":
       return "Firebase Console > Authentication > Sign-in method bölümünde Email/Password sağlayıcısını açın.";
     case "auth/configuration-not-found":
@@ -108,19 +101,14 @@ function authErrorHint(error: unknown) {
 }
 
 export default function GirisPage() {
-  const [mode, setMode] = useState<Mode>("login");
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [errorHint, setErrorHint] = useState<string | null>(null);
-  const [info, setInfo] = useState<string | null>(null);
 
-  const title = useMemo(() => {
-    if (mode === "reset") return "Şifre Sıfırla";
-    return "Giriş Yap";
-  }, [mode]);
+  const title = useMemo(() => "Giriş Yap", []);
 
   async function handleEmailLogin(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -136,20 +124,19 @@ export default function GirisPage() {
     setSubmitting(true);
     setError(null);
     setErrorHint(null);
-    setInfo(null);
 
     try {
-      if (mode === "reset") {
-        await sendPasswordResetEmail(firebaseAuth, email, {
-          url: `${window.location.origin}/giris`,
-        });
-        setInfo("Şifre sıfırlama bağlantısı e-posta adresinize gönderildi.");
-        return;
-      }
-
+      const identifier = username.trim();
+      const resolved = await fetch("/api/auth/portal-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: identifier }),
+      });
+      const payload = (await resolved.json().catch(() => null)) as { email?: string } | null;
+      const email = payload?.email?.trim() || identifier;
       await signInWithEmailAndPassword(firebaseAuth, email, password);
     } catch (error) {
-      setError(authErrorMessage(error, mode));
+      setError(authErrorMessage(error));
       setErrorHint(authErrorHint(error));
       if (!isExpectedAuthError(error)) {
         console.error("[auth] email auth failed", firebaseErrorCode(error), error);
@@ -168,7 +155,7 @@ export default function GirisPage() {
       <section className="rounded-3xl bg-white p-5 shadow-[0_16px_48px_rgba(28,25,23,0.08)] ring-1 ring-luma-border/80">
         <h1 className="text-3xl font-bold tracking-tight text-foreground">{title}</h1>
         <p className="mt-2 text-sm leading-relaxed text-luma-muted">
-          Size verilen e-posta ve şifre ile güvenli şekilde giriş yapabilirsiniz.
+          Size verilen kullanıcı adı ve şifre ile güvenli şekilde giriş yapabilirsiniz.
         </p>
 
         {!firebaseEnabled ? (
@@ -182,54 +169,52 @@ export default function GirisPage() {
           <form className="space-y-3" onSubmit={handleEmailLogin}>
             <label className="block">
               <span className="mb-1 block text-sm font-medium text-foreground">
-                E-posta
+                Kullanıcı adı
               </span>
               <span className="relative block">
-                <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-luma-muted" />
+                <User className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-luma-muted" />
                 <input
                   required
-                  type="email"
-                  autoComplete="email"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  placeholder="ornek@marka.com"
+                  type="text"
+                  autoComplete="username"
+                  value={username}
+                  onChange={(event) => setUsername(event.target.value)}
+                  placeholder="kullaniciadi"
                   className="w-full rounded-xl border border-luma-border bg-white py-3 pl-9 pr-3 text-base text-foreground outline-none placeholder:text-luma-muted focus:ring-2 focus:ring-luma"
                 />
               </span>
             </label>
 
-            {mode !== "reset" ? (
-              <label className="block">
-                <span className="mb-1 block text-sm font-medium text-foreground">
-                  Şifre
-                </span>
-                <span className="relative block">
-                  <KeyRound className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-luma-muted" />
-                  <input
-                    required
-                    minLength={6}
-                    type={showPassword ? "text" : "password"}
-                    autoComplete="current-password"
-                    value={password}
-                    onChange={(event) => setPassword(event.target.value)}
-                    placeholder="Şifrenizi girin"
-                    className="w-full rounded-xl border border-luma-border bg-white py-3 pl-9 pr-10 text-base text-foreground outline-none placeholder:text-luma-muted focus:ring-2 focus:ring-luma"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((value) => !value)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-luma transition-transform duration-150 ease-out active:scale-[0.95]"
-                    aria-label={showPassword ? "Şifreyi gizle" : "Şifreyi göster"}
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
-                  </button>
-                </span>
-              </label>
-            ) : null}
+            <label className="block">
+              <span className="mb-1 block text-sm font-medium text-foreground">
+                Şifre
+              </span>
+              <span className="relative block">
+                <KeyRound className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-luma-muted" />
+                <input
+                  required
+                  minLength={6}
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  placeholder="Şifrenizi girin"
+                  className="w-full rounded-xl border border-luma-border bg-white py-3 pl-9 pr-10 text-base text-foreground outline-none placeholder:text-luma-muted focus:ring-2 focus:ring-luma"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((value) => !value)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-luma transition-transform duration-150 ease-out active:scale-[0.95]"
+                  aria-label={showPassword ? "Şifreyi gizle" : "Şifreyi göster"}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </span>
+            </label>
 
             {error ? (
               <div className="rounded-xl bg-red-50 px-3 py-2 text-sm font-medium text-luma-red">
@@ -238,52 +223,15 @@ export default function GirisPage() {
               </div>
             ) : null}
 
-            {info ? (
-              <p className="rounded-xl bg-luma-soft px-3 py-2 text-sm font-medium text-luma">
-                {info}
-              </p>
-            ) : null}
-
             <button
               type="submit"
               disabled={submitting || !firebaseEnabled}
               className="flex w-full select-none items-center justify-center gap-2 rounded-xl bg-luma py-3 text-sm font-semibold text-white transition-transform duration-150 ease-out active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              {mode === "reset" ? "Şifre sıfırlama maili gönder" : "Giriş yap"}
+              Giriş yap
             </button>
           </form>
-        </div>
-
-        <div className="mt-4 flex flex-wrap gap-3 text-sm font-medium text-luma">
-          {mode !== "login" ? (
-            <button
-              type="button"
-              onClick={() => {
-                setMode("login");
-                setError(null);
-                setErrorHint(null);
-                setInfo(null);
-              }}
-              className="select-none underline underline-offset-4"
-            >
-              Giriş ekranına dön
-            </button>
-          ) : null}
-          {mode !== "reset" ? (
-            <button
-              type="button"
-              onClick={() => {
-                setMode("reset");
-                setError(null);
-                setErrorHint(null);
-                setInfo(null);
-              }}
-              className="select-none underline underline-offset-4"
-            >
-              Şifremi unuttum
-            </button>
-          ) : null}
         </div>
       </section>
     </div>

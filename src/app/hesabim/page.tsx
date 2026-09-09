@@ -6,9 +6,10 @@ import {
   ChevronRight,
   Languages,
   LogOut,
-  Mail,
   Store,
+  User,
 } from "lucide-react";
+import { displayPortalUsername } from "@/lib/auth/portalLogin";
 import { currentBrand, currentUser } from "@/data/mock";
 import { useI18n } from "@/components/i18n/I18nProvider";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -28,7 +29,7 @@ function Row({
   trailing,
   chevron = false,
 }: {
-  icon: typeof Mail;
+  icon: typeof User;
   tone?: "purple" | "gold" | "red";
   title: string;
   titleClass?: string;
@@ -65,7 +66,7 @@ export default function HesabimPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const email = user?.email ?? currentUser.email;
+  const username = displayPortalUsername(user?.email ?? currentUser.email);
   const brandName = data?.tenant.brandName ?? currentBrand.name;
 
   const languages: { id: Locale; label: string }[] =
@@ -88,7 +89,7 @@ export default function HesabimPage() {
       </p>
       <div className="space-y-2.5">
         <section className="overflow-hidden rounded-2xl bg-luma-card ring-1 ring-luma-border/80">
-          <Row icon={Mail} title={t("account.email")} subtitle={email} />
+          <Row icon={User} title={t("account.username")} subtitle={username} />
         </section>
         <section className="overflow-hidden rounded-2xl bg-luma-card ring-1 ring-luma-border/80">
           <Row

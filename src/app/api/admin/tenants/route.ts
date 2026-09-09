@@ -7,13 +7,21 @@ import {
   driveConfigFromFields,
   type DriveUrlFields,
 } from "@/lib/drive/parse";
+import {
+  isValidPortalUsername,
+  normalizePortalUsername,
+  portalEmailFromUsername,
+} from "@/lib/auth/portalLogin";
 import { getAdminAuth } from "@/lib/firebase/admin";
 import {
   deleteTenant,
+  getPortalUsername,
+  getTenantById,
   listTenantDirectory,
   slugTenantId,
   updateTenantContactEmail,
   updateTenantDrive,
+  updateTenantPortalPassword,
   upsertTenant,
   type TenantAccess,
 } from "@/lib/tenant/access";
@@ -23,6 +31,7 @@ import { TenantAccessError } from "@/lib/tenant/requireTenant";
 type CreateTenantBody = {
   brandName: string;
   brandCode: string;
+  username: string;
   email: string;
   contactEmail?: string;
   password: string;
@@ -61,10 +70,23 @@ function parseBody(input: unknown): CreateTenantBody {
   if (!input || typeof input !== "object") {
     throw new TenantAccessError("Invalid payload", 400);
   }
-  const body = input as Partial<CreateTenantBody>;
+  const body = input as Partial<CreateTenantBody> & { username?: string };
   const brandName = body.brandName?.trim() ?? "";
   const brandCode = body.brandCode?.trim().toUpperCase() ?? "";
-  const email = body.email?.trim().toLowerCase() ?? "";
+  const rawUsername = body.username?.trim() || "";
+  const legacyEmail = body.email?.trim().toLowerCase() ?? "";
+  const username = rawUsername
+    ? normalizePortalUsername(rawUsername)
+    : legacyEmail.includes("@")
+      ? normalizePortalUsername(legacyEmail.split("@")[0] ?? "")
+      : normalizePortalUsername(legacyEmail);
+  const email = rawUsername
+    ? portalEmailFromUsername(username)
+    : legacyEmail.includes("@")
+      ? legacyEmail
+      : username
+        ? portalEmailFromUsername(username)
+        : "";
   const contactEmail = parseOptionalContactEmail(body.contactEmail);
   const projectGids = body.projectGids?.trim() ?? "";
   const password = body.password?.trim() || createTempPassword();
@@ -75,8 +97,14 @@ function parseBody(input: unknown): CreateTenantBody {
   if (brandCode.length < 2) {
     throw new TenantAccessError("Brand code is required", 400);
   }
+  if (!isValidPortalUsername(username)) {
+    throw new TenantAccessError(
+      "Kullanıcı adı 2-32 karakter olmalı; harf, rakam, nokta, _ ve - kullanılabilir.",
+      400,
+    );
+  }
   if (!email.includes("@")) {
-    throw new TenantAccessError("Valid email is required", 400);
+    throw new TenantAccessError("Giriş e-postası oluşturulamadı", 400);
   }
   if (password.length < 8) {
     throw new TenantAccessError("Password must be at least 8 chars", 400);
@@ -85,6 +113,7 @@ function parseBody(input: unknown): CreateTenantBody {
   return {
     brandName,
     brandCode,
+    username,
     email,
     contactEmail,
     password,
@@ -216,6 +245,8 @@ function normalizeTenantPayload(
     brandName: payload.brandName,
     emails: [payload.email],
     contactEmail: payload.contactEmail,
+    portalUsername: payload.username,
+    portalPassword: payload.password,
     asana: {
       brandCode: payload.brandCode,
       projectGids: mapping.projectGids,
@@ -249,9 +280,14 @@ export async function POST(request: Request) {
     const directory = await listTenantDirectory();
     if (directory.some((tenant) => tenant.emails.includes(body.email))) {
       throw new TenantAccessError(
-        "Bu e-posta zaten kayıtlı bir markaya ait.",
+        "Bu kullanıcı adı / giriş e-postası zaten kayıtlı bir markaya ait.",
         409,
       );
+    }
+    if (
+      directory.some((tenant) => getPortalUsername(tenant) === body.username)
+    ) {
+      throw new TenantAccessError("Bu kullanıcı adı zaten kullanılıyor.", 409);
     }
     if (directory.some((tenant) => tenant.asana.brandCode === body.brandCode)) {
       throw new TenantAccessError(
@@ -264,7 +300,7 @@ export async function POST(request: Request) {
     try {
       await auth.getUserByEmail(body.email);
       throw new TenantAccessError(
-        "Bu e-posta zaten bir kullanıcıya kayıtlı.",
+        "Bu kullanıcı adı zaten bir giriş hesabına kayıtlı.",
         409,
       );
     } catch (error) {
@@ -327,6 +363,7 @@ export async function PATCH(request: Request) {
     const body = (await request.json()) as {
       tenantId?: string;
       contactEmail?: string;
+      password?: string;
       rootUrl?: string;
       logoUrl?: string;
       briefUrl?: string;
@@ -341,7 +378,8 @@ export async function PATCH(request: Request) {
 
     const updatingDrive = "rootUrl" in body;
     const updatingContact = "contactEmail" in body;
-    if (!updatingDrive && !updatingContact) {
+    const updatingPassword = "password" in body;
+    if (!updatingDrive && !updatingContact && !updatingPassword) {
       throw new TenantAccessError("Güncellenecek alan yok", 400);
     }
 
@@ -356,21 +394,48 @@ export async function PATCH(request: Request) {
         parseOptionalContactEmail(body.contactEmail),
       );
     }
+    if (updatingPassword) {
+      const password = body.password?.trim() ?? "";
+      if (password.length < 8) {
+        throw new TenantAccessError("Şifre en az 8 karakter olmalı", 400);
+      }
+      const current = tenant ?? (await getTenantById(tenantId));
+      if (!current) {
+        throw new TenantAccessError("Marka bulunamadı", 404);
+      }
+      const email = current.emails[0];
+      if (!email) {
+        throw new TenantAccessError("Bu markanın giriş e-postası yok", 400);
+      }
+      await upsertBrandUser({
+        tenantId: current.tenantId,
+        email,
+        password,
+        brandName: current.brandName,
+        brandCode: current.asana.brandCode,
+      });
+      tenant = (await updateTenantPortalPassword(tenantId, password)) ?? {
+        ...current,
+        portalPassword: password,
+      };
+    }
     if (!tenant) {
       throw new TenantAccessError("Marka bulunamadı", 404);
     }
 
-    after(() =>
-      warmupTenantJobs({
-        tenantId: tenant.tenantId,
-        brandName: tenant.brandName,
-        brandCode: tenant.asana.brandCode,
-        email: tenant.emails[0] ?? "",
-        projectGids: tenant.asana.projectGids,
-        workspaceGid: tenant.asana.workspaceGid,
-        drive: tenant.drive,
-      }),
-    );
+    if (updatingDrive || updatingContact) {
+      after(() =>
+        warmupTenantJobs({
+          tenantId: tenant.tenantId,
+          brandName: tenant.brandName,
+          brandCode: tenant.asana.brandCode,
+          email: tenant.emails[0] ?? "",
+          projectGids: tenant.asana.projectGids,
+          workspaceGid: tenant.asana.workspaceGid,
+          drive: tenant.drive,
+        }),
+      );
+    }
 
     const driveCheck = await driveAccessCheck(tenant);
     return NextResponse.json({ ok: true, tenant, driveCheck });

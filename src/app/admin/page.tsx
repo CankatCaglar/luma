@@ -28,6 +28,10 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { LumaLogo, LumaStar } from "@/components/layout/NeraLogo";
+import {
+  isValidPortalUsername,
+  portalEmailFromUsername,
+} from "@/lib/auth/portalLogin";
 import { firebaseAuth, firebaseEnabled } from "@/lib/firebase/client";
 
 type DriveStatus = {
@@ -48,6 +52,8 @@ type Tenant = {
   brandName: string;
   emails: string[];
   contactEmail?: string;
+  portalUsername?: string;
+  portalPassword?: string;
   asana: {
     brandCode: string;
     projectGids: string[];
@@ -96,7 +102,7 @@ type LookupResponse = {
 type FormState = {
   brandName: string;
   brandCode: string;
-  email: string;
+  username: string;
   contactEmail: string;
   password: string;
   workspaceGid: string;
@@ -109,7 +115,7 @@ const EMPTY_DRIVE: DriveForm = {
 const INITIAL_FORM: FormState = {
   brandName: "",
   brandCode: "",
-  email: "",
+  username: "",
   contactEmail: "",
   password: "",
   workspaceGid: "",
@@ -203,9 +209,12 @@ export default function AdminPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [tenantToDelete, setTenantToDelete] = useState<Tenant | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editingKind, setEditingKind] = useState<"drive" | "contact" | null>(null);
+  const [editingKind, setEditingKind] = useState<"drive" | "contact" | "password" | null>(null);
   const [driveDraft, setDriveDraft] = useState<DriveForm>(EMPTY_DRIVE);
   const [contactDraft, setContactDraft] = useState("");
+  const [passwordDraft, setPasswordDraft] = useState("");
+  const [showPasswordDraft, setShowPasswordDraft] = useState(false);
+  const [revealedPasswordIds, setRevealedPasswordIds] = useState<string[]>([]);
   const [savingDriveId, setSavingDriveId] = useState<string | null>(null);
   const [driveStatus, setDriveStatus] = useState<DriveStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -221,7 +230,7 @@ export default function AdminPage() {
     () =>
       form.brandName.trim().length >= 2 &&
       form.brandCode.trim().length >= 2 &&
-      form.email.includes("@") &&
+      isValidPortalUsername(form.username) &&
       (!form.contactEmail.trim() || form.contactEmail.includes("@")) &&
       Boolean(form.workspaceGid) &&
       (lookup?.projectGids.length ?? 0) > 0 &&
@@ -376,10 +385,16 @@ export default function AdminPage() {
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!canSubmit || !lookup) return;
-    const email = form.email.trim().toLowerCase();
+    const username = form.username.trim().toLowerCase();
     const brandCode = form.brandCode.trim().toUpperCase();
-    if (tenants.some((tenant) => tenant.emails.some((item) => item.toLowerCase() === email))) {
-      setError("Bu e-posta zaten kayıtlı bir markaya ait.");
+    if (
+      tenants.some((tenant) => {
+        const existing = (tenant.portalUsername ?? tenant.emails[0]?.split("@")[0] ?? "")
+          .toLowerCase();
+        return existing === username;
+      })
+    ) {
+      setError("Bu kullanıcı adı zaten kayıtlı bir markaya ait.");
       setSuccess(null);
       return;
     }
@@ -401,7 +416,7 @@ export default function AdminPage() {
         body: JSON.stringify({
           brandName: form.brandName,
           brandCode: form.brandCode,
-          email: form.email,
+          username: form.username,
           contactEmail: form.contactEmail,
           password: form.password,
           workspaceGid: form.workspaceGid,
@@ -428,7 +443,7 @@ export default function AdminPage() {
       const created = payload?.user?.created ? "oluşturuldu" : "güncellendi";
       const driveNote = formatDriveCheck(payload?.driveCheck ?? null);
       setSuccess(
-        `${payload?.tenant?.brandName ?? "Marka"} kaydedildi. Kullanıcı ${created}: ${payload?.user?.email}${driveNote ? ` · ${driveNote}` : ""}`,
+        `${payload?.tenant?.brandName ?? "Marka"} kaydedildi. Kullanıcı ${created}: ${username}${payload?.user?.email ? ` · Firebase: ${payload.user.email}` : ""}${driveNote ? ` · ${driveNote}` : ""}`,
       );
       setForm((prev) => ({
         ...INITIAL_FORM,
@@ -491,6 +506,77 @@ export default function AdminPage() {
     setContactDraft(tenant.contactEmail ?? "");
     setError(null);
     setSuccess(null);
+  }
+
+  function onEditPassword(tenant: Tenant) {
+    if (editingId === tenant.tenantId && editingKind === "password") {
+      closeEditor();
+      return;
+    }
+    setEditingId(tenant.tenantId);
+    setEditingKind("password");
+    setPasswordDraft(tenant.portalPassword ?? "");
+    setShowPasswordDraft(false);
+    setError(null);
+    setSuccess(null);
+  }
+
+  function togglePasswordReveal(tenantId: string) {
+    setRevealedPasswordIds((prev) =>
+      prev.includes(tenantId) ? prev.filter((id) => id !== tenantId) : [...prev, tenantId],
+    );
+  }
+
+  async function copyPortalPassword(password: string) {
+    try {
+      await navigator.clipboard.writeText(password);
+      setSuccess("Şifre kopyalandı");
+      setError(null);
+    } catch {
+      setError("Şifre kopyalanamadı");
+    }
+  }
+
+  async function onSavePassword(tenant: Tenant) {
+    const password = passwordDraft.trim();
+    if (password.length < 8) {
+      setError("Şifre en az 8 karakter olmalı.");
+      return;
+    }
+    setSavingDriveId(tenant.tenantId);
+    setError(null);
+    setSuccess(null);
+    try {
+      const headers = await authHeaders();
+      headers["Content-Type"] = "application/json";
+      const response = await fetch("/api/admin/tenants", {
+        method: "PATCH",
+        headers: headers as HeadersInit,
+        body: JSON.stringify({
+          tenantId: tenant.tenantId,
+          password,
+        }),
+      });
+      const payload = (await response.json().catch(() => null)) as {
+        error?: string;
+        tenant?: Tenant;
+      } | null;
+      if (!response.ok) {
+        throw new Error(payload?.error ?? "Şifre kaydedilemedi");
+      }
+      if (payload?.tenant) {
+        setTenants((prev) =>
+          prev.map((item) => (item.tenantId === tenant.tenantId ? payload.tenant! : item)),
+        );
+      }
+      setSuccess(`${tenant.brandName} giriş şifresi güncellendi`);
+      closeEditor();
+      await loadTenants();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Şifre kaydedilemedi");
+    } finally {
+      setSavingDriveId(null);
+    }
   }
 
   function onEditDrive(tenant: Tenant) {
@@ -919,15 +1005,31 @@ export default function AdminPage() {
               placeholder="Marka adı"
               className={fieldClassName}
             />
-            <input
-              type="email"
-              value={form.email}
-              onChange={(event) =>
-                setForm((prev) => ({ ...prev, email: event.target.value }))
-              }
-              placeholder="Yetkili e-posta (giriş)"
-              className={fieldClassName}
-            />
+            <label className="block">
+              <input
+                type="text"
+                autoComplete="off"
+                value={form.username}
+                onChange={(event) =>
+                  setForm((prev) => ({ ...prev, username: event.target.value }))
+                }
+                placeholder="Kullanıcı adı (giriş)"
+                className={fieldClassName}
+              />
+              {isValidPortalUsername(form.username) ? (
+                <span className="mt-1 block text-xs leading-relaxed text-luma-muted">
+                  Firebase giriş e-postası:{" "}
+                  <span className="font-semibold text-foreground">
+                    {portalEmailFromUsername(form.username)}
+                  </span>
+                </span>
+              ) : (
+                <span className="mt-1 block text-xs leading-relaxed text-luma-muted">
+                  Müşteriye bu kullanıcı adı ve şifreyi verirsiniz. Arkada Firebase için
+                  otomatik bir e-posta üretilir.
+                </span>
+              )}
+            </label>
             <label className="block">
               <input
                 type="email"
@@ -1007,9 +1109,11 @@ export default function AdminPage() {
                 <thead className="bg-luma-soft text-luma-kahve">
                   <tr>
                     <th className="px-3 py-2 font-semibold">Marka</th>
-                    <th className="px-3 py-2 font-semibold">Kod</th>
-                    <th className="px-3 py-2 font-semibold">Kullanıcı</th>
-                    <th className="px-3 py-2 font-semibold">İletişim</th>
+                    <th className="px-3 py-2 text-center font-semibold">Kod</th>
+                    <th className="px-3 py-2 text-center font-semibold">Kullanıcı adı</th>
+                    <th className="px-3 py-2 text-center font-semibold">Firebase e-posta</th>
+                    <th className="px-3 py-2 text-center font-semibold">Şifre</th>
+                    <th className="px-3 py-2 text-center font-semibold">İletişim</th>
                     <th className="px-2 py-2 text-right font-semibold">
                       <span className="sr-only">İşlemler</span>
                     </th>
@@ -1031,13 +1135,53 @@ export default function AdminPage() {
                             </span>
                           )}
                         </td>
-                        <td className="px-3 py-2.5 font-semibold text-luma">
+                        <td className="px-3 py-2.5 text-center font-semibold text-luma">
                           {tenant.asana.brandCode}
                         </td>
-                        <td className="min-w-0 px-3 py-2.5 break-all text-luma-muted">
+                        <td className="min-w-0 px-3 py-2.5 text-center font-medium break-all text-foreground">
+                          {tenant.portalUsername || tenant.emails[0]?.split("@")[0] || "—"}
+                        </td>
+                        <td className="min-w-0 px-3 py-2.5 text-center break-all text-luma-muted">
                           {tenant.emails.join(", ")}
                         </td>
-                        <td className="min-w-0 px-3 py-2.5 break-all text-luma-muted">
+                        <td className="min-w-0 px-3 py-2.5 text-center text-luma-muted">
+                          {tenant.portalPassword ? (
+                            <div className="inline-flex items-center justify-center gap-1">
+                              <span className="max-w-36 truncate font-medium text-foreground">
+                                {revealedPasswordIds.includes(tenant.tenantId)
+                                  ? tenant.portalPassword
+                                  : "••••••••"}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => togglePasswordReveal(tenant.tenantId)}
+                                className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-luma-muted hover:bg-luma-soft hover:text-luma"
+                                aria-label={
+                                  revealedPasswordIds.includes(tenant.tenantId)
+                                    ? `${tenant.brandName} şifresini gizle`
+                                    : `${tenant.brandName} şifresini göster`
+                                }
+                              >
+                                {revealedPasswordIds.includes(tenant.tenantId) ? (
+                                  <EyeOff className="h-3.5 w-3.5" />
+                                ) : (
+                                  <Eye className="h-3.5 w-3.5" />
+                                )}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => void copyPortalPassword(tenant.portalPassword!)}
+                                className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-luma-muted hover:bg-luma-soft hover:text-luma"
+                                aria-label={`${tenant.brandName} şifresini kopyala`}
+                              >
+                                <Copy className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          ) : (
+                            <span>Kayıtlı değil</span>
+                          )}
+                        </td>
+                        <td className="min-w-0 px-3 py-2.5 text-center break-all text-luma-muted">
                           {tenant.contactEmail || "—"}
                         </td>
                         <td className="px-2 py-2.5 text-right">
@@ -1049,6 +1193,14 @@ export default function AdminPage() {
                               aria-label={`${tenant.brandName} iletişim e-postası`}
                             >
                               <Mail className="h-4 w-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => onEditPassword(tenant)}
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-luma-muted transition-colors hover:bg-luma-soft hover:text-luma"
+                              aria-label={`${tenant.brandName} giriş şifresi`}
+                            >
+                              <LockKeyhole className="h-4 w-4" />
                             </button>
                             <button
                               type="button"
@@ -1076,7 +1228,7 @@ export default function AdminPage() {
                       </tr>
                       {editingId === tenant.tenantId && editingKind === "contact" ? (
                         <tr className="border-t border-luma-border bg-luma-soft/60">
-                          <td colSpan={5} className="px-3 py-3">
+                          <td colSpan={7} className="px-3 py-3">
                             <p className="mb-2 text-xs font-semibold text-luma-kahve">
                               {tenant.brandName} iletişim e-postası
                             </p>
@@ -1115,9 +1267,66 @@ export default function AdminPage() {
                           </td>
                         </tr>
                       ) : null}
+                      {editingId === tenant.tenantId && editingKind === "password" ? (
+                        <tr className="border-t border-luma-border bg-luma-soft/60">
+                          <td colSpan={7} className="px-3 py-3">
+                            <p className="mb-2 text-xs font-semibold text-luma-kahve">
+                              {tenant.brandName} giriş şifresi
+                            </p>
+                            <label className="block">
+                              <span className="relative block">
+                                <input
+                                  type={showPasswordDraft ? "text" : "password"}
+                                  value={passwordDraft}
+                                  onChange={(event) => setPasswordDraft(event.target.value)}
+                                  placeholder="Yeni şifre (en az 8 karakter)"
+                                  className={`${fieldClassName} pr-11`}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => setShowPasswordDraft((prev) => !prev)}
+                                  className="absolute right-2 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-luma-muted hover:text-luma"
+                                  aria-label={showPasswordDraft ? "Şifreyi gizle" : "Şifreyi göster"}
+                                >
+                                  {showPasswordDraft ? (
+                                    <EyeOff className="h-4 w-4" />
+                                  ) : (
+                                    <Eye className="h-4 w-4" />
+                                  )}
+                                </button>
+                              </span>
+                              <span className="mt-1 block text-xs leading-relaxed text-luma-muted">
+                                {tenant.portalPassword
+                                  ? "Yeni şifre hem listeye hem marka girişine yazılır."
+                                  : "Bu marka için kayıtlı şifre yok. Yeni şifre belirleyince hem listeye hem girişe işlenir."}
+                              </span>
+                            </label>
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                onClick={() => void onSavePassword(tenant)}
+                                disabled={savingDriveId === tenant.tenantId}
+                                className="inline-flex items-center justify-center gap-2 rounded-xl bg-luma px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                              >
+                                {savingDriveId === tenant.tenantId ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : null}
+                                Kaydet
+                              </button>
+                              <button
+                                type="button"
+                                onClick={closeEditor}
+                                className="rounded-xl px-4 py-2 text-sm font-semibold text-luma-muted"
+                              >
+                                Vazgeç
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ) : null}
                       {editingId === tenant.tenantId && editingKind === "drive" ? (
                         <tr className="border-t border-luma-border bg-luma-soft/60">
-                          <td colSpan={5} className="px-3 py-3">
+                          <td colSpan={7} className="px-3 py-3">
                             <p className="mb-2 text-xs font-semibold text-luma-kahve">
                               {tenant.brandName} Drive bağlantıları
                             </p>
