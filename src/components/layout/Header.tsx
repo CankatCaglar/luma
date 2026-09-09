@@ -3,7 +3,14 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import { ChevronDown, ChevronLeft, LogOut, User } from "lucide-react";
 import { displayPortalUsername } from "@/lib/auth/portalLogin";
 import { currentBrand, currentUser } from "@/data/mock";
@@ -18,6 +25,32 @@ type BackRoute = {
   titleKey: MessageKey;
   href: string;
 };
+
+const HeaderCountContext = createContext<{
+  count: number | null;
+  setCount: (count: number | null) => void;
+} | null>(null);
+
+export function HeaderCountProvider({ children }: { children: ReactNode }) {
+  const [count, setCount] = useState<number | null>(null);
+  const value = useMemo(() => ({ count, setCount }), [count]);
+  return <HeaderCountContext.Provider value={value}>{children}</HeaderCountContext.Provider>;
+}
+
+export function useHeaderCount(count: number) {
+  const context = useContext(HeaderCountContext);
+  useEffect(() => {
+    if (!context) return;
+    context.setCount(count);
+    return () => context.setCount(null);
+  }, [context, count]);
+}
+
+const COUNTED_TITLE_KEYS: MessageKey[] = [
+  "jobs.active.title",
+  "jobs.pending.title",
+  "jobs.completed.title",
+];
 
 const backRoutes: BackRoute[] = [
   {
@@ -201,8 +234,17 @@ function ProfileMenu() {
 export function Header() {
   const { t } = useI18n();
   const pathname = usePathname();
+  const headerCount = useContext(HeaderCountContext)?.count;
   const back = backRoutes.find((route) => route.match(pathname));
   const canGoBack = typeof window !== "undefined" && window.history.length > 1;
+  const title =
+    back &&
+    headerCount != null &&
+    COUNTED_TITLE_KEYS.includes(back.titleKey)
+      ? `${t(back.titleKey)} (${headerCount})`
+      : back
+        ? t(back.titleKey)
+        : null;
 
   return (
     <header className="sticky top-0 z-40 flex items-center justify-between bg-[#FBF9F5]/90 px-4 pb-3 pt-[max(12px,env(safe-area-inset-top,0px))] backdrop-blur-md">
@@ -222,9 +264,9 @@ export function Header() {
         </Link>
       )}
 
-      {back ? (
-        <h1 className="absolute left-1/2 max-w-[60%] -translate-x-1/2 truncate text-center text-[15px] font-bold text-foreground">
-          {t(back.titleKey)}
+      {title ? (
+        <h1 className="absolute left-1/2 max-w-[68%] -translate-x-1/2 truncate text-center text-[15px] font-bold text-foreground">
+          {title}
         </h1>
       ) : null}
 

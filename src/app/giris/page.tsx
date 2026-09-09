@@ -169,7 +169,7 @@ export default function GirisPage() {
           <form className="space-y-3" onSubmit={handleEmailLogin}>
             <label className="block">
               <span className="mb-1 block text-sm font-medium text-foreground">
-                Kullanıcı adı
+                Kullanıcı Adı
               </span>
               <span className="relative block">
                 <User className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-luma-muted" />
@@ -179,7 +179,7 @@ export default function GirisPage() {
                   autoComplete="username"
                   value={username}
                   onChange={(event) => setUsername(event.target.value)}
-                  placeholder="kullaniciadi"
+                  placeholder="Kullanıcı Adı"
                   className="w-full rounded-xl border border-luma-border bg-white py-3 pl-9 pr-3 text-base text-foreground outline-none placeholder:text-luma-muted focus:ring-2 focus:ring-luma"
                 />
               </span>
@@ -198,7 +198,7 @@ export default function GirisPage() {
                   autoComplete="current-password"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
-                  placeholder="Şifrenizi girin"
+                  placeholder="Şifrenizi Girin"
                   className="w-full rounded-xl border border-luma-border bg-white py-3 pl-9 pr-10 text-base text-foreground outline-none placeholder:text-luma-muted focus:ring-2 focus:ring-luma"
                 />
                 <button

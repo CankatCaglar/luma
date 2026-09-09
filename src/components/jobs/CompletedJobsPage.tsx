@@ -5,6 +5,7 @@ import { ChevronDown, FileDown } from "lucide-react";
 import { JobList } from "@/components/jobs/JobList";
 import { jobKindKeys } from "@/components/jobs/jobMeta";
 import { useI18n } from "@/components/i18n/I18nProvider";
+import { useHeaderCount } from "@/components/layout/Header";
 import {
   buildCompletedCsv,
   buildCompletedTxt,
@@ -59,6 +60,7 @@ export function CompletedJobsPage({
       ),
     [jobs, months, now],
   );
+  useHeaderCount(visible.length);
 
   const subtitle =
     months === 1

@@ -2,6 +2,7 @@
 
 import { JobList } from "@/components/jobs/JobList";
 import { useI18n } from "@/components/i18n/I18nProvider";
+import { useHeaderCount } from "@/components/layout/Header";
 import type { Job } from "@/types";
 import type { MessageKey } from "@/i18n";
 
@@ -17,6 +18,7 @@ export function JobListScreen({
   dateKind: DateKind;
 }) {
   const { t } = useI18n();
+  useHeaderCount(jobs.length);
 
   return (
     <div>
