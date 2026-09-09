@@ -12,6 +12,7 @@ import {
   deleteTenant,
   listTenantDirectory,
   slugTenantId,
+  updateTenantContactEmail,
   updateTenantDrive,
   upsertTenant,
   type TenantAccess,
@@ -23,7 +24,7 @@ type CreateTenantBody = {
   brandName: string;
   brandCode: string;
   email: string;
-  contactEmail: string;
+  contactEmail?: string;
   password: string;
   projectGids: string;
   requestProjectGid?: string;
@@ -47,6 +48,15 @@ function createTempPassword(): string {
   return `Luma!${random}9`;
 }
 
+function parseOptionalContactEmail(value: string | undefined): string | undefined {
+  const contactEmail = value?.trim().toLowerCase() ?? "";
+  if (!contactEmail) return undefined;
+  if (!contactEmail.includes("@")) {
+    throw new TenantAccessError("Geçerli bir iletişim e-postası girin", 400);
+  }
+  return contactEmail;
+}
+
 function parseBody(input: unknown): CreateTenantBody {
   if (!input || typeof input !== "object") {
     throw new TenantAccessError("Invalid payload", 400);
@@ -55,7 +65,7 @@ function parseBody(input: unknown): CreateTenantBody {
   const brandName = body.brandName?.trim() ?? "";
   const brandCode = body.brandCode?.trim().toUpperCase() ?? "";
   const email = body.email?.trim().toLowerCase() ?? "";
-  const contactEmail = body.contactEmail?.trim().toLowerCase() ?? "";
+  const contactEmail = parseOptionalContactEmail(body.contactEmail);
   const projectGids = body.projectGids?.trim() ?? "";
   const password = body.password?.trim() || createTempPassword();
 
@@ -67,9 +77,6 @@ function parseBody(input: unknown): CreateTenantBody {
   }
   if (!email.includes("@")) {
     throw new TenantAccessError("Valid email is required", 400);
-  }
-  if (!contactEmail.includes("@")) {
-    throw new TenantAccessError("İletişim e-postası gerekli", 400);
   }
   if (password.length < 8) {
     throw new TenantAccessError("Password must be at least 8 chars", 400);
@@ -319,6 +326,7 @@ export async function PATCH(request: Request) {
     await requireAdminAccess(request);
     const body = (await request.json()) as {
       tenantId?: string;
+      contactEmail?: string;
       rootUrl?: string;
       logoUrl?: string;
       briefUrl?: string;
@@ -331,8 +339,23 @@ export async function PATCH(request: Request) {
       throw new TenantAccessError("Marka seçilmedi", 400);
     }
 
-    const drive = driveConfigFromFields(driveFieldsFromBody(body));
-    const tenant = await updateTenantDrive(tenantId, drive);
+    const updatingDrive = "rootUrl" in body;
+    const updatingContact = "contactEmail" in body;
+    if (!updatingDrive && !updatingContact) {
+      throw new TenantAccessError("Güncellenecek alan yok", 400);
+    }
+
+    let tenant = null as Awaited<ReturnType<typeof updateTenantDrive>>;
+    if (updatingDrive) {
+      const drive = driveConfigFromFields(driveFieldsFromBody(body));
+      tenant = await updateTenantDrive(tenantId, drive);
+    }
+    if (updatingContact) {
+      tenant = await updateTenantContactEmail(
+        tenantId,
+        parseOptionalContactEmail(body.contactEmail),
+      );
+    }
     if (!tenant) {
       throw new TenantAccessError("Marka bulunamadı", 404);
     }

@@ -257,6 +257,28 @@ export async function upsertTenant(tenant: TenantAccess): Promise<void> {
   });
 }
 
+export async function updateTenantContactEmail(
+  tenantId: string,
+  contactEmail: string | undefined,
+): Promise<TenantAccess | null> {
+  const existing = await getTenantById(tenantId);
+  if (!existing) return null;
+
+  const db = getAdminDb();
+  await db.collection(defaultCollectionName()).doc(existing.tenantId).set(
+    {
+      contactEmail: contactEmail ? normalizeEmail(contactEmail) : null,
+      updatedAt: FieldValue.serverTimestamp(),
+    },
+    { merge: true },
+  );
+
+  return {
+    ...existing,
+    contactEmail: contactEmail ? normalizeEmail(contactEmail) : undefined,
+  };
+}
+
 export async function updateTenantDrive(
   tenantId: string,
   drive: TenantDriveConfig | undefined,

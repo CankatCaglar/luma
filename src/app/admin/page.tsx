@@ -203,7 +203,9 @@ export default function AdminPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [tenantToDelete, setTenantToDelete] = useState<Tenant | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingKind, setEditingKind] = useState<"drive" | "contact" | null>(null);
   const [driveDraft, setDriveDraft] = useState<DriveForm>(EMPTY_DRIVE);
+  const [contactDraft, setContactDraft] = useState("");
   const [savingDriveId, setSavingDriveId] = useState<string | null>(null);
   const [driveStatus, setDriveStatus] = useState<DriveStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -220,7 +222,7 @@ export default function AdminPage() {
       form.brandName.trim().length >= 2 &&
       form.brandCode.trim().length >= 2 &&
       form.email.includes("@") &&
-      form.contactEmail.includes("@") &&
+      (!form.contactEmail.trim() || form.contactEmail.includes("@")) &&
       Boolean(form.workspaceGid) &&
       (lookup?.projectGids.length ?? 0) > 0 &&
       lookup?.brandCode === form.brandCode.trim().toUpperCase(),
@@ -474,8 +476,30 @@ export default function AdminPage() {
     }
   }
 
+  function closeEditor() {
+    setEditingId(null);
+    setEditingKind(null);
+  }
+
+  function onEditContact(tenant: Tenant) {
+    if (editingId === tenant.tenantId && editingKind === "contact") {
+      closeEditor();
+      return;
+    }
+    setEditingId(tenant.tenantId);
+    setEditingKind("contact");
+    setContactDraft(tenant.contactEmail ?? "");
+    setError(null);
+    setSuccess(null);
+  }
+
   function onEditDrive(tenant: Tenant) {
-    setEditingId((current) => (current === tenant.tenantId ? null : tenant.tenantId));
+    if (editingId === tenant.tenantId && editingKind === "drive") {
+      closeEditor();
+      return;
+    }
+    setEditingId(tenant.tenantId);
+    setEditingKind("drive");
     setDriveDraft(driveFormFromTenant(tenant));
     setError(null);
     setSuccess(null);
@@ -516,10 +540,51 @@ export default function AdminPage() {
       setSuccess(
         `${tenant.brandName} Drive bilgileri kaydedildi${driveNote ? ` · ${driveNote}` : ""}`,
       );
-      setEditingId(null);
+      closeEditor();
       await loadTenants();
     } catch (error) {
       setError(error instanceof Error ? error.message : "Drive bilgisi kaydedilemedi");
+    } finally {
+      setSavingDriveId(null);
+    }
+  }
+
+  async function onSaveContact(tenant: Tenant) {
+    if (contactDraft.trim() && !contactDraft.includes("@")) {
+      setError("Geçerli bir iletişim e-postası girin.");
+      return;
+    }
+    setSavingDriveId(tenant.tenantId);
+    setError(null);
+    setSuccess(null);
+    try {
+      const headers = await authHeaders();
+      headers["Content-Type"] = "application/json";
+      const response = await fetch("/api/admin/tenants", {
+        method: "PATCH",
+        headers: headers as HeadersInit,
+        body: JSON.stringify({
+          tenantId: tenant.tenantId,
+          contactEmail: contactDraft,
+        }),
+      });
+      const payload = (await response.json().catch(() => null)) as {
+        error?: string;
+        tenant?: Tenant;
+      } | null;
+      if (!response.ok) {
+        throw new Error(payload?.error ?? "İletişim e-postası kaydedilemedi");
+      }
+      if (payload?.tenant) {
+        setTenants((prev) =>
+          prev.map((item) => (item.tenantId === tenant.tenantId ? payload.tenant! : item)),
+        );
+      }
+      setSuccess(`${tenant.brandName} iletişim e-postası kaydedildi`);
+      closeEditor();
+      await loadTenants();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "İletişim e-postası kaydedilemedi");
     } finally {
       setSavingDriveId(null);
     }
@@ -870,11 +935,11 @@ export default function AdminPage() {
                 onChange={(event) =>
                   setForm((prev) => ({ ...prev, contactEmail: event.target.value }))
                 }
-                placeholder="İletişim e-postası"
+                placeholder="İletişim e-postası (opsiyonel)"
                 className={fieldClassName}
               />
               <span className="mt-1 block text-xs leading-relaxed text-luma-muted">
-                Uygulamadan gönderilecek mailler bu adrese gider. Giriş e-postasından farklı olabilir.
+                Zorunlu değil. Uygulamadan gönderilecek mailler bu adrese gider; sonradan da eklenebilir.
               </span>
             </label>
             <input
@@ -979,6 +1044,14 @@ export default function AdminPage() {
                           <div className="inline-flex items-center gap-1">
                             <button
                               type="button"
+                              onClick={() => onEditContact(tenant)}
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-luma-muted transition-colors hover:bg-luma-soft hover:text-luma"
+                              aria-label={`${tenant.brandName} iletişim e-postası`}
+                            >
+                              <Mail className="h-4 w-4" />
+                            </button>
+                            <button
+                              type="button"
                               onClick={() => onEditDrive(tenant)}
                               className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-luma-muted transition-colors hover:bg-luma-soft hover:text-luma"
                               aria-label={`${tenant.brandName} Drive düzenle`}
@@ -1001,7 +1074,48 @@ export default function AdminPage() {
                           </div>
                         </td>
                       </tr>
-                      {editingId === tenant.tenantId ? (
+                      {editingId === tenant.tenantId && editingKind === "contact" ? (
+                        <tr className="border-t border-luma-border bg-luma-soft/60">
+                          <td colSpan={5} className="px-3 py-3">
+                            <p className="mb-2 text-xs font-semibold text-luma-kahve">
+                              {tenant.brandName} iletişim e-postası
+                            </p>
+                            <label className="block">
+                              <input
+                                type="email"
+                                value={contactDraft}
+                                onChange={(event) => setContactDraft(event.target.value)}
+                                placeholder="İletişim e-postası (opsiyonel)"
+                                className={fieldClassName}
+                              />
+                              <span className="mt-1 block text-xs leading-relaxed text-luma-muted">
+                                Boş bırakılabilir. İstediğiniz maili sonra da bağlayabilirsiniz.
+                              </span>
+                            </label>
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                onClick={() => void onSaveContact(tenant)}
+                                disabled={savingDriveId === tenant.tenantId}
+                                className="inline-flex items-center justify-center gap-2 rounded-xl bg-luma px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                              >
+                                {savingDriveId === tenant.tenantId ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : null}
+                                Kaydet
+                              </button>
+                              <button
+                                type="button"
+                                onClick={closeEditor}
+                                className="rounded-xl px-4 py-2 text-sm font-semibold text-luma-muted"
+                              >
+                                Vazgeç
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ) : null}
+                      {editingId === tenant.tenantId && editingKind === "drive" ? (
                         <tr className="border-t border-luma-border bg-luma-soft/60">
                           <td colSpan={5} className="px-3 py-3">
                             <p className="mb-2 text-xs font-semibold text-luma-kahve">
@@ -1022,7 +1136,7 @@ export default function AdminPage() {
                               </button>
                               <button
                                 type="button"
-                                onClick={() => setEditingId(null)}
+                                onClick={closeEditor}
                                 className="rounded-xl px-4 py-2 text-sm font-semibold text-luma-muted"
                               >
                                 Vazgeç
