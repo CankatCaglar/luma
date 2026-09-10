@@ -2,13 +2,19 @@
 
 import Link from "next/link";
 import { BarChart3, Calendar, Folder, Plus } from "lucide-react";
-import { quickLinks } from "@/data/mock";
 import { useI18n } from "@/components/i18n/I18nProvider";
 import { useJobs } from "@/components/jobs/JobsProvider";
 import { hasDriveReports } from "@/lib/data/reports";
 import { cn } from "@/lib/cn";
 import type { MessageKey } from "@/i18n";
-import type { QuickLinkId } from "@/types";
+import type { QuickLink, QuickLinkId } from "@/types";
+
+const quickLinks: QuickLink[] = [
+  { id: "request", href: "/talep" },
+  { id: "plans", href: "/planlar" },
+  { id: "reports", href: "/raporlar" },
+  { id: "brand", href: "/marka" },
+];
 
 const meta: Record<
   QuickLinkId,

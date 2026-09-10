@@ -11,18 +11,6 @@ import {
   snapshotToJobLists,
   writeJobSnapshot,
 } from "@/lib/data/jobSnapshot";
-import {
-  activeJobs as mockActiveJobs,
-  brandAssets as mockBrandAssets,
-  completedJobs as mockCompletedJobs,
-  contentPlans as mockContentPlans,
-  dashboardMetrics as mockDashboardMetrics,
-  jobs as mockJobs,
-  mockTenant,
-  monthlyReports as mockMonthlyReports,
-  pendingJobs as mockPendingJobs,
-} from "@/data/mock";
-import { REFERENCE_NOW } from "@/lib/period";
 import type { Job, JobLists, TenantSummary } from "@/types";
 
 export type TenantScope = {
@@ -39,23 +27,6 @@ export type JobListsLoad = {
   data: JobLists;
   revalidate: (() => Promise<void>) | null;
 };
-
-function mockJobLists(tenant: TenantSummary): JobLists {
-  return {
-    tenant,
-    source: "mock",
-    jobs: mockJobs,
-    activeJobs: mockActiveJobs,
-    pendingJobs: mockPendingJobs,
-    completedJobs: mockCompletedJobs,
-    approvalItems: mapJobsToApprovalItems(mockJobs),
-    metrics: mockDashboardMetrics,
-    contentPlans: mockContentPlans,
-    monthlyReports: mockMonthlyReports,
-    brandAssets: mockBrandAssets,
-    referenceNowIso: REFERENCE_NOW.toISOString(),
-  };
-}
 
 const JOBS_FRESH_MS = 30_000;
 const OPEN_TASKS_SINCE = "now";
@@ -172,18 +143,6 @@ function refreshJobLists(
   return request;
 }
 
-function devFallback(scope: TenantScope): JobLists {
-  const tenant = toTenantSummary(scope);
-  const applied =
-    tenant.brandCode === mockTenant.brandCode
-      ? tenant
-      : {
-          ...mockTenant,
-          ...tenant,
-        };
-  return mockJobLists(applied);
-}
-
 function remember(
   scope: TenantScope,
   data: JobLists,
@@ -258,9 +217,6 @@ export async function getJobLists(input: {
       return { data: fromSnapshot, revalidate: null };
     }
     logAsanaError(error, "tenant fetch failed");
-    if (process.env.NODE_ENV === "development") {
-      return { data: devFallback(input.scope), revalidate: null };
-    }
     throw error;
   }
 }

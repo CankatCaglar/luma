@@ -10,7 +10,6 @@ import {
   User,
 } from "lucide-react";
 import { displayPortalUsername } from "@/lib/auth/portalLogin";
-import { currentBrand, currentUser } from "@/data/mock";
 import { useI18n } from "@/components/i18n/I18nProvider";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useJobs } from "@/components/jobs/JobsProvider";
@@ -68,8 +67,8 @@ export default function HesabimPage() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const username = displayPortalUsername(user?.email ?? currentUser.email);
-  const brandName = data?.tenant.brandName ?? currentBrand.name;
+  const username = displayPortalUsername(user?.email ?? "");
+  const brandName = data?.tenant.brandName ?? "";
 
   const languages: { id: Locale; label: string }[] =
     locale === "tr"

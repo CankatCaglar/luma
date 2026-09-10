@@ -46,8 +46,8 @@ export function JobList({
       {jobs.map((job) => {
         const Icon = jobIcons[job.kind];
         const dateValue =
-          dateKind === "completed" && job.completedAt
-            ? job.completedAt
+          dateKind === "completed"
+            ? (job.completedAt ?? job.dueDate)
             : job.dueDate;
 
         const body = (

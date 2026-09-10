@@ -1,3 +1,4 @@
+import { isApprovalStatus } from "@/lib/asana/delivery";
 import { mapJobsToApprovalItems } from "@/lib/asana/map";
 import { mergeContentPlans, mergeMonthlyReports } from "@/lib/data/catalog";
 import type { DrivePlanFile } from "@/lib/drive/plans";
@@ -48,7 +49,7 @@ function isActive(job: Job): boolean {
 }
 
 function isPending(job: Job): boolean {
-  return job.status === "pending_approval" || job.status === "review";
+  return isApprovalStatus(job.status);
 }
 
 function isCompleted(job: Job): boolean {

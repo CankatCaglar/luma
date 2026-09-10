@@ -81,6 +81,7 @@ export type ApprovalItem = {
   kind: JobKind;
   status: Extract<JobStatus, "pending_approval" | "review">;
   dueDate: string;
+  deliveredAt?: string;
   href: string;
   tags?: JobTag[];
 };
@@ -91,6 +92,7 @@ export type Job = {
   status: JobStatus;
   kind: JobKind;
   dueDate: string;
+  deliveredAt?: string;
   completedAt?: string;
   href: string;
   resourceUrl?: string;
@@ -109,6 +111,7 @@ export type ContentPlan = {
   title: string;
   slidesUrl?: string;
   dueDate?: string;
+  deliveredAt?: string;
   status: JobStatus;
   isCurrent?: boolean;
 };

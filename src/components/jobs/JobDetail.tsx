@@ -31,7 +31,9 @@ export function JobDetail({ job }: { job: Job }) {
   const hasOpenUrl = Boolean(openUrl);
   const awaitingApproval = job.status === "pending_approval" || job.status === "review";
   const dateLabel = awaitingApproval
-    ? t("jobs.deliveredForApproval", { date: formatDueDate(job.dueDate, locale) })
+    ? t("jobs.deliveredForApproval", {
+        date: formatDueDate(job.dueDate, locale),
+      })
     : job.status === "completed"
       ? t("jobs.completedDate", {
           date: formatDueDate(job.completedAt ?? job.dueDate, locale),
@@ -96,7 +98,9 @@ export function JobDetail({ job }: { job: Job }) {
 
       <p className="flex items-start gap-2 px-0.5 py-1 text-sm leading-5 text-luma">
         <Info className="mt-[3px] size-3.5 shrink-0" strokeWidth={2} />
-        <span>{t("jobs.detail.help")}</span>
+        <span>
+          {t(awaitingApproval ? "jobs.detail.helpPending" : "jobs.detail.help")}
+        </span>
       </p>
     </div>
   );

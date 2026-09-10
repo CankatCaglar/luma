@@ -1,11 +1,9 @@
 import type { PeriodMonths } from "@/types";
 
-export const REFERENCE_NOW = new Date("2026-08-25T12:00:00");
-
 export function isWithinLastMonths(
   isoDate: string,
   months: PeriodMonths,
-  now: Date = REFERENCE_NOW,
+  now: Date = new Date(),
 ): boolean {
   const date = new Date(`${isoDate}T00:00:00`);
   const start = new Date(now);

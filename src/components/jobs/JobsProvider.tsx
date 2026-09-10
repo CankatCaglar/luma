@@ -133,7 +133,7 @@ function omitHiddenJobs(data: JobLists): JobLists {
 }
 
 function jobsStorageKey(uid: string) {
-  return `luma-jobs-v4:${uid}`;
+  return `luma-jobs-v5:${uid}`;
 }
 
 export function JobsProvider({ children }: { children: ReactNode }) {

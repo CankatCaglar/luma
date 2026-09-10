@@ -13,7 +13,6 @@ import {
 } from "react";
 import { ChevronDown, ChevronLeft, LogOut, User } from "lucide-react";
 import { displayPortalUsername } from "@/lib/auth/portalLogin";
-import { currentBrand, currentUser } from "@/data/mock";
 import { useI18n } from "@/components/i18n/I18nProvider";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { LumaLogo } from "@/components/layout/NeraLogo";
@@ -171,7 +170,7 @@ function ProfileMenu() {
         {user?.photoURL ? (
           <Image
             src={user.photoURL}
-            alt={user.displayName ?? currentBrand.name}
+            alt={user.displayName ?? t("brand.appName")}
             width={36}
             height={36}
             priority

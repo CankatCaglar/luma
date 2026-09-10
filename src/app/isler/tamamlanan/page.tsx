@@ -3,7 +3,6 @@
 import { CompletedJobsPage } from "@/components/jobs/CompletedJobsPage";
 import { PageSkeleton } from "@/components/ui/PageSkeleton";
 import { useJobs } from "@/components/jobs/JobsProvider";
-import { currentBrand } from "@/data/mock";
 
 export default function TamamlananIslerRoute() {
   const { data, status } = useJobs();
@@ -11,7 +10,7 @@ export default function TamamlananIslerRoute() {
   return (
     <CompletedJobsPage
       jobs={data.completedJobs}
-      brand={currentBrand}
+      brand={{ id: data.tenant.tenantId, name: data.tenant.brandName }}
       referenceNowIso={data.referenceNowIso}
     />
   );

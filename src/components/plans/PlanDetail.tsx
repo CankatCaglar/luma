@@ -24,8 +24,9 @@ export function PlanDetail({ plan }: { plan: ContentPlan }) {
   const link = plan.slidesUrl;
   const hasLink = Boolean(link);
   const awaitingApproval = plan.status === "pending_approval" || plan.status === "review";
-  const summaryDate = plan.dueDate
-    ? formatDueDate(plan.dueDate, locale)
+  const handoffDate = plan.dueDate;
+  const summaryDate = handoffDate
+    ? formatDueDate(handoffDate, locale)
     : formatMonth(plan.month, locale);
 
   return (
@@ -84,7 +85,9 @@ export function PlanDetail({ plan }: { plan: ContentPlan }) {
 
       <p className="flex items-start gap-2 px-0.5 py-1 text-sm leading-5 text-luma">
         <Info className="mt-[3px] size-3.5 shrink-0" strokeWidth={2} />
-        <span>{t("plans.help")}</span>
+        <span>
+          {t(awaitingApproval ? "jobs.detail.helpPending" : "plans.help")}
+        </span>
       </p>
     </div>
   );

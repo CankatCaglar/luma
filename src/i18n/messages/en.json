@@ -18,7 +18,7 @@
     "title": "Dashboard",
     "metrics": {
       "pendingApproval": "Pending Approval",
-      "pendingApprovalFooter": "waiting for your approval",
+      "pendingApprovalFooter": "job waiting for your approval",
       "activeJobs": "Active Work",
       "activeJobsFooter": "in progress",
       "completedThisMonth": "Completed This Month",
@@ -97,7 +97,8 @@
       "accessViewOnly": "View only",
       "accessPending": "Link is being prepared",
       "missing": "This job was not found.",
-      "help": "If the resource link is missing, you can ask the team to refresh sharing access or create a support request."
+      "help": "If the resource link is missing, you can ask the team to refresh sharing access or create a support request.",
+      "helpPending": "If a file link is missing on jobs waiting for approval, you can ask the team for an update or create a support request from the home page."
     }
   },
   "plans": {

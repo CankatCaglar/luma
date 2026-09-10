@@ -87,6 +87,7 @@ export function plansFromJobs(jobs: Job[], now: Date): ContentPlan[] {
         title: primary.title,
         slidesUrl: asanaResourceUrl(monthJobs, undefined),
         dueDate: primary.dueDate,
+        deliveredAt: primary.deliveredAt,
         status: primary.status,
         isCurrent: false,
       } satisfies ContentPlan;

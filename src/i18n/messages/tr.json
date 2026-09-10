@@ -18,7 +18,7 @@
     "title": "Ana Sayfa",
     "metrics": {
       "pendingApproval": "Onay Bekleyen İş",
-      "pendingApprovalFooter": "onayınızı bekliyor",
+      "pendingApprovalFooter": "iş onayınızı bekliyor",
       "activeJobs": "Aktif İş",
       "activeJobsFooter": "devam ediyor",
       "completedThisMonth": "Bu Ay Tamamlanan",
@@ -97,7 +97,8 @@
       "accessViewOnly": "Sadece görüntüleme",
       "accessPending": "Bağlantı hazırlanıyor",
       "missing": "Bu iş bulunamadı.",
-      "help": "Dosya bağlantısı görünmüyorsa ekipten paylaşım güncellemesi isteyebilir veya destek talebi oluşturabilirsiniz."
+      "help": "Dosya bağlantısı görünmüyorsa ekipten paylaşım güncellemesi isteyebilir veya destek talebi oluşturabilirsiniz.",
+      "helpPending": "Eğer onay bekleyen işlerde dosya bağlantısı görünmüyorsa ekipten güncelleme isteyebilir veya ana sayfadan destek talebi oluşturabilirsiniz."
     }
   },
   "plans": {

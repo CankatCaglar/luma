@@ -360,7 +360,7 @@ function pickGoogleAttachment(
   return best;
 }
 
-function matchStatus(label: string | undefined): JobStatus | undefined {
+export function matchStatus(label: string | undefined): JobStatus | undefined {
   if (!label) return undefined;
   const folded = foldLabel(label);
   const exact = STATUS_ALIASES[folded];
@@ -581,6 +581,7 @@ export function mapJobsToApprovalItems(jobs: Job[]): ApprovalItem[] {
       kind: job.kind,
       status: job.status,
       dueDate: job.dueDate,
+      deliveredAt: job.deliveredAt,
       href: job.href,
       tags: job.tags,
     }));
