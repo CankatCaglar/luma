@@ -10,7 +10,6 @@ import {
   readLastBrandSession,
   subscribeLastBrandSession,
 } from "@/lib/session/lastBrandSession";
-import { bindAppHaptics } from "@/lib/haptic";
 
 function getServerLastBrandSession() {
   return null;
@@ -213,13 +212,8 @@ function ProtectedShell({ children }: { children: ReactNode }) {
   );
 }
 
-function useAppHaptics() {
-  useEffect(() => bindAppHaptics(), []);
-}
-
 export function AppShell({ children }: { children: ReactNode }) {
   useResetInitialScroll();
-  useAppHaptics();
 
   return (
     <AuthProvider>
