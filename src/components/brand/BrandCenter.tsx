@@ -169,9 +169,9 @@ export function BrandCenter({ assets }: { assets: BrandAsset[] }) {
   const logo = assets.find((asset) => asset.kind === "logo");
   const brief = assets.find((asset) => asset.kind === "brief");
   const competitor = assets.find((asset) => asset.kind === "competitor");
-  const box = assets.find((asset) => asset.kind === "box");
+  const visible = [logo, brief, competitor].filter(Boolean);
 
-  if (!assets.length) {
+  if (!visible.length) {
     return (
       <div>
         <p className="mb-4 text-sm text-luma-kahve">{t("brandCenter.subtitle")}</p>
@@ -189,7 +189,6 @@ export function BrandCenter({ assets }: { assets: BrandAsset[] }) {
         {logo ? <AssetSection asset={logo} action="download" /> : null}
         {brief ? <AssetSection asset={brief} action="view" /> : null}
         {competitor ? <AssetSection asset={competitor} action="view" /> : null}
-        {box ? <AssetSection asset={box} action="view" /> : null}
       </div>
       <div className="mt-4 flex items-start gap-3 px-0.5 py-1">
         <Info className="mt-0.5 h-4 w-4 shrink-0 text-luma" strokeWidth={2} />

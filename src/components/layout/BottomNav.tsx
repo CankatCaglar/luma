@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Bell, Home, User } from "lucide-react";
-import { unreadNotificationCount } from "@/data/mock";
 import { useI18n } from "@/components/i18n/I18nProvider";
 import { cn } from "@/lib/cn";
 
@@ -19,7 +18,6 @@ const items = [
     key: "nav.notifications" as const,
     icon: Bell,
     match: (path: string) => path.startsWith("/bildirimler"),
-    badge: unreadNotificationCount > 0,
   },
   {
     href: "/hesabim",

@@ -170,7 +170,8 @@
   "notifications": {
     "title": "Bildirimler",
     "subtitle": "Tüm önemli güncellemeler ve aksiyonlarınız burada görüntülenir.",
-    "empty": "Yeni bildiriminiz yok"
+    "empty": "Yeni bildiriminiz yok",
+    "comingSoon": "Bu alan yakında kullanıma açılacak. Bildirimler üzerinde çalışıyoruz."
   },
   "account": {
     "title": "Hesabım",

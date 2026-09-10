@@ -170,7 +170,8 @@
   "notifications": {
     "title": "Notifications",
     "subtitle": "All important updates and actions appear here.",
-    "empty": "No new notifications"
+    "empty": "No new notifications",
+    "comingSoon": "This section will be available soon. We are working on notifications."
   },
   "account": {
     "title": "My Account",
