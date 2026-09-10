@@ -176,8 +176,8 @@
     "title": "Hesabım",
     "userInfo": "Hesap ve Kullanıcı Bilgileri",
     "name": "Ad Soyad",
-    "email": "Kullanıcı adı",
-    "username": "Kullanıcı adı",
+    "email": "Kullanıcı Adı",
+    "username": "Kullanıcı Adı",
     "phone": "Telefon",
     "accountBrand": "Hesap ve Marka",
     "activeBrand": "Aktif Marka",
@@ -199,7 +199,10 @@
     "language": "Dil",
     "turkish": "Türkçe",
     "english": "İngilizce",
-    "logout": "Çıkış Yap"
+    "logout": "Çıkış Yap",
+    "logoutConfirmTitle": "Emin misiniz?",
+    "logoutConfirmDescription": "Oturumunuz kapanır. Portala dönmek için tekrar giriş yapmanız gerekir.",
+    "cancel": "Vazgeç"
   },
   "admin": {
     "title": "Admin Paneli"

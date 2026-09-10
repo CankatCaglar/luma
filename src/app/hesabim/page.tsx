@@ -16,6 +16,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { useJobs } from "@/components/jobs/JobsProvider";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { IconTile } from "@/components/ui/IconTile";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { cn } from "@/lib/cn";
 import type { Locale } from "@/i18n";
 
@@ -64,6 +65,7 @@ export default function HesabimPage() {
   const { user, signOutUser } = useAuth();
   const { data } = useJobs();
   const [busy, setBusy] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const username = displayPortalUsername(user?.email ?? currentUser.email);
@@ -152,28 +154,41 @@ export default function HesabimPage() {
         <button
           type="button"
           disabled={busy}
-          onClick={async () => {
-            setBusy(true);
-            setError(null);
-            try {
-              await signOutUser();
-            } catch {
-              setError(t("account.authNotReady"));
-            } finally {
-              setBusy(false);
-            }
-          }}
+          onClick={() => setConfirmOpen(true)}
           className="w-full select-none text-left transition-transform duration-150 ease-out active:scale-[0.97]"
         >
           <Row
             icon={LogOut}
             tone="red"
-            title={busy ? "Çıkış yapılıyor..." : t("account.logout")}
+            title={t("account.logout")}
             titleClass="text-luma-red"
             trailing={<span />}
           />
         </button>
       </section>
+      <ConfirmDialog
+        open={confirmOpen}
+        busy={busy}
+        tone="danger"
+        title={t("account.logoutConfirmTitle")}
+        description={t("account.logoutConfirmDescription")}
+        confirmLabel={t("account.logout")}
+        cancelLabel={t("account.cancel")}
+        onCancel={() => {
+          if (!busy) setConfirmOpen(false);
+        }}
+        onConfirm={async () => {
+          setBusy(true);
+          setError(null);
+          try {
+            await signOutUser();
+          } catch {
+            setError(t("account.authNotReady"));
+            setBusy(false);
+            setConfirmOpen(false);
+          }
+        }}
+      />
     </div>
   );
 }

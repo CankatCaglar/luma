@@ -12,6 +12,7 @@ export default function AktifIslerPage() {
       jobs={data.activeJobs}
       subtitleKey="jobs.active.subtitle"
       dateKind="delivery"
+      interactive={false}
     />
   );
 }

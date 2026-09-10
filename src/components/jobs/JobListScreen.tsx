@@ -12,10 +12,12 @@ export function JobListScreen({
   jobs,
   subtitleKey,
   dateKind,
+  interactive = true,
 }: {
   jobs: Job[];
   subtitleKey: MessageKey;
   dateKind: DateKind;
+  interactive?: boolean;
 }) {
   const { t } = useI18n();
   useHeaderCount(jobs.length);
@@ -23,7 +25,12 @@ export function JobListScreen({
   return (
     <div>
       <p className="mb-4 text-sm text-luma-kahve">{t(subtitleKey)}</p>
-      <JobList jobs={jobs} emptyLabel={t("jobs.empty")} dateKind={dateKind} />
+      <JobList
+        jobs={jobs}
+        emptyLabel={t("jobs.empty")}
+        dateKind={dateKind}
+        interactive={interactive}
+      />
     </div>
   );
 }

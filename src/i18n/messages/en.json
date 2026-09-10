@@ -199,7 +199,10 @@
     "language": "Language",
     "turkish": "Turkish",
     "english": "English",
-    "logout": "Log out"
+    "logout": "Log out",
+    "logoutConfirmTitle": "Are you sure?",
+    "logoutConfirmDescription": "Your session will end. You will need to sign in again to return to the portal.",
+    "cancel": "Cancel"
   },
   "admin": {
     "title": "Admin Panel"

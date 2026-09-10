@@ -9,9 +9,12 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { formatMonth } from "@/lib/format";
 import { statusKeys } from "@/components/jobs/jobMeta";
 import type { ContentPlan, PlanYear } from "@/types";
+import { canViewDeliverable } from "@/lib/workAccess";
 
 const cardClass =
-  "flex select-none items-center gap-3 rounded-2xl bg-luma-card p-4 ring-1 ring-luma-border/80 transition-transform duration-150 ease-out active:scale-[0.99]";
+  "flex items-center gap-3 rounded-2xl bg-luma-card p-4 ring-1 ring-luma-border/80";
+const cardInteractiveClass =
+  `${cardClass} select-none transition-transform duration-150 ease-out active:scale-[0.99]`;
 
 function yearOf(month: string): string {
   return month.slice(0, 4);
@@ -19,7 +22,8 @@ function yearOf(month: string): string {
 
 function PlanCard({ plan }: { plan: ContentPlan }) {
   const { t, locale } = useI18n();
-  const driveUrl = plan.slidesUrl?.trim();
+  const viewable = canViewDeliverable(plan.status);
+  const driveUrl = viewable ? plan.slidesUrl?.trim() : undefined;
   const body = (
     <>
       <IconTile tone="gold">
@@ -38,23 +42,29 @@ function PlanCard({ plan }: { plan: ContentPlan }) {
           <StatusBadge status={plan.status} label={t(statusKeys[plan.status])} />
         </div>
       </div>
-      <span className="inline-flex shrink-0 select-none items-center gap-0.5 text-sm font-semibold text-luma">
-        {driveUrl ? t("plans.view") : t("plans.linkPending")}
-        {driveUrl ? <ExternalLink className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-      </span>
+      {viewable ? (
+        <span className="inline-flex shrink-0 select-none items-center gap-0.5 text-sm font-semibold text-luma">
+          {driveUrl ? t("plans.view") : t("plans.linkPending")}
+          {driveUrl ? <ExternalLink className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+        </span>
+      ) : null}
     </>
   );
 
+  if (!viewable) {
+    return <div className={cardClass}>{body}</div>;
+  }
+
   if (driveUrl) {
     return (
-      <a href={driveUrl} target="_blank" rel="noopener noreferrer" className={cardClass}>
+      <a href={driveUrl} target="_blank" rel="noopener noreferrer" className={cardInteractiveClass}>
         {body}
       </a>
     );
   }
 
   return (
-    <Link href={`/planlar/${plan.id}`} prefetch className={cardClass}>
+    <Link href={`/planlar/${plan.id}`} prefetch className={cardInteractiveClass}>
       {body}
     </Link>
   );
@@ -107,7 +117,7 @@ export function PlansList({
       ) : (
         <div className="space-y-4">
           {showYearSwitch ? (
-            <div className="flex gap-2 overflow-x-auto pb-1">
+            <div className="-mx-0.5 flex items-center gap-2 overflow-x-auto px-0.5 py-1">
               {years.map((year) => {
                 const active = year === selectedYear;
                 return (
@@ -115,10 +125,10 @@ export function PlansList({
                     key={year}
                     type="button"
                     onClick={() => setSelectedYear(year)}
-                    className={`shrink-0 rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors ${
+                    className={`shrink-0 rounded-full px-3.5 py-1.5 text-sm font-semibold leading-none transition-colors ${
                       active
                         ? "bg-luma text-white"
-                        : "bg-luma-card text-luma-kahve ring-1 ring-luma-border/80"
+                        : "bg-luma-card text-luma-kahve ring-1 ring-inset ring-luma-border/80"
                     }`}
                   >
                     {year}
@@ -133,14 +143,14 @@ export function PlansList({
             </div>
           ) : null}
 
-          {selectedFolderUrl ? (
+          {selectedFolderUrl && isArchive ? (
             <a
               href={selectedFolderUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className={cardClass}
+              className={cardInteractiveClass}
             >
-              <IconTile tone={isArchive ? "gold" : "purple"}>
+              <IconTile tone="gold">
                 <FolderOpen className="h-6 w-6" strokeWidth={1.8} />
               </IconTile>
               <div className="min-w-0 flex-1">
@@ -148,23 +158,31 @@ export function PlansList({
                   <h2 className="font-semibold text-foreground">
                     {t("plans.yearHeading", { year: selectedYear })}
                   </h2>
-                  {isArchive ? (
-                    <span className="text-[10px] font-semibold text-luma-kahve">
-                      {t("plans.archive")}
-                    </span>
-                  ) : null}
+                  <span className="text-[10px] font-semibold text-luma-kahve">
+                    {t("plans.archive")}
+                  </span>
                 </div>
-                <p className="mt-0.5 text-sm text-luma-muted">
-                  {isArchive ? t("plans.archiveSub") : t("plans.yearFolderSub")}
-                </p>
+                <p className="mt-0.5 text-sm text-luma-muted">{t("plans.archiveSub")}</p>
               </div>
               <span className="inline-flex shrink-0 select-none items-center gap-0.5 text-sm font-semibold text-luma">
                 {t("plans.view")}
                 <ExternalLink className="h-4 w-4" />
               </span>
             </a>
-          ) : folderUrl && !showYearSwitch ? (
-            <a href={folderUrl} target="_blank" rel="noopener noreferrer" className={cardClass}>
+          ) : selectedFolderUrl ? (
+            <div className={cardClass}>
+              <IconTile tone="purple">
+                <FolderOpen className="h-6 w-6" strokeWidth={1.8} />
+              </IconTile>
+              <div className="min-w-0 flex-1">
+                <h2 className="font-semibold text-foreground">
+                  {t("plans.yearHeading", { year: selectedYear })}
+                </h2>
+                <p className="mt-0.5 text-sm text-luma-muted">{t("plans.yearFolderSub")}</p>
+              </div>
+            </div>
+          ) : folderUrl && !showYearSwitch && isArchive ? (
+            <a href={folderUrl} target="_blank" rel="noopener noreferrer" className={cardInteractiveClass}>
               <IconTile tone="purple">
                 <FolderOpen className="h-6 w-6" strokeWidth={1.8} />
               </IconTile>
@@ -179,6 +197,18 @@ export function PlansList({
                 <ExternalLink className="h-4 w-4" />
               </span>
             </a>
+          ) : folderUrl && !showYearSwitch ? (
+            <div className={cardClass}>
+              <IconTile tone="purple">
+                <FolderOpen className="h-6 w-6" strokeWidth={1.8} />
+              </IconTile>
+              <div className="min-w-0 flex-1">
+                <h2 className="font-semibold text-foreground">
+                  {folderTitle || t("plans.yearFolder")}
+                </h2>
+                <p className="mt-0.5 text-sm text-luma-muted">{t("plans.yearFolderSub")}</p>
+              </div>
+            </div>
           ) : null}
 
           {selectedPlans.length ? (

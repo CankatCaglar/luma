@@ -17,6 +17,7 @@ import { currentBrand, currentUser } from "@/data/mock";
 import { useI18n } from "@/components/i18n/I18nProvider";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { LumaLogo } from "@/components/layout/NeraLogo";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { cn } from "@/lib/cn";
 import type { MessageKey } from "@/i18n";
 
@@ -143,6 +144,7 @@ function ProfileMenu() {
   const { t } = useI18n();
   const { user, signOutUser } = useAuth();
   const [open, setOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => {
@@ -210,23 +212,40 @@ function ProfileMenu() {
             <button
               type="button"
               role="menuitem"
-              onClick={async () => {
-                setLoggingOut(true);
-                try {
-                  await signOutUser();
-                } finally {
-                  setLoggingOut(false);
-                  setOpen(false);
-                }
+              onClick={() => {
+                setOpen(false);
+                setConfirmOpen(true);
               }}
               className="flex w-full select-none items-center gap-2.5 px-3.5 py-2.5 text-left text-sm font-semibold text-luma-red transition-colors hover:bg-red-50"
             >
               <LogOut className="h-4 w-4" strokeWidth={1.9} />
-              {loggingOut ? "Çıkış yapılıyor..." : t("account.logout")}
+              {t("account.logout")}
             </button>
           </div>
         </>
       ) : null}
+      <ConfirmDialog
+        open={confirmOpen}
+        busy={loggingOut}
+        tone="danger"
+        title={t("account.logoutConfirmTitle")}
+        description={t("account.logoutConfirmDescription")}
+        confirmLabel={t("account.logout")}
+        cancelLabel={t("account.cancel")}
+        onCancel={() => {
+          if (!loggingOut) setConfirmOpen(false);
+        }}
+        onConfirm={async () => {
+          setLoggingOut(true);
+          try {
+            await signOutUser();
+          } finally {
+            setLoggingOut(false);
+            setConfirmOpen(false);
+            setOpen(false);
+          }
+        }}
+      />
     </div>
   );
 }

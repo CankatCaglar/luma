@@ -24,10 +24,12 @@ export function JobList({
   jobs,
   emptyLabel,
   dateKind = "delivery",
+  interactive = true,
 }: {
   jobs: Job[];
   emptyLabel: string;
   dateKind?: DateKind;
+  interactive?: boolean;
 }) {
   const { t, locale } = useI18n();
 
@@ -48,13 +50,8 @@ export function JobList({
             ? job.completedAt
             : job.dueDate;
 
-        return (
-          <Link
-            key={job.id}
-            href={resolveJobHref(job)}
-            prefetch
-            className="flex select-none items-center gap-3 rounded-2xl bg-luma-card p-3.5 ring-1 ring-luma-border/80 transition-transform duration-150 ease-out active:scale-[0.97]"
-          >
+        const body = (
+          <>
             <IconTile className="h-12 w-12">
               <Icon className="h-6 w-6" strokeWidth={1.8} />
             </IconTile>
@@ -71,7 +68,30 @@ export function JobList({
                 })}
               </p>
             </div>
-            <ChevronRight className="h-4 w-4 shrink-0 text-luma" />
+            {interactive ? (
+              <ChevronRight className="h-4 w-4 shrink-0 text-luma" />
+            ) : null}
+          </>
+        );
+        const cardClassName =
+          "flex items-center gap-3 rounded-2xl bg-luma-card p-3.5 ring-1 ring-luma-border/80";
+
+        if (!interactive) {
+          return (
+            <div key={job.id} className={cardClassName}>
+              {body}
+            </div>
+          );
+        }
+
+        return (
+          <Link
+            key={job.id}
+            href={resolveJobHref(job)}
+            prefetch
+            className={`${cardClassName} select-none transition-transform duration-150 ease-out active:scale-[0.97]`}
+          >
+            {body}
           </Link>
         );
       })}
