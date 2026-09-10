@@ -39,6 +39,25 @@
   -ms-overflow-style: none;
 }
 
+[data-haptic-overlay],
+[data-haptic-overlay]:checked,
+[data-haptic-overlay]:focus,
+[data-haptic-overlay]:focus-visible,
+[data-haptic-overlay]:active,
+[data-haptic-overlay]:hover {
+  outline: none !important;
+  box-shadow: none !important;
+  border: 0 !important;
+  -webkit-tap-highlight-color: transparent;
+  accent-color: transparent;
+}
+
+a:focus:not(:focus-visible),
+button:focus:not(:focus-visible),
+[role="button"]:focus:not(:focus-visible) {
+  outline: none;
+}
+
 *::-webkit-scrollbar {
   width: 0;
   height: 0;

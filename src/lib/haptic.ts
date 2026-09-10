@@ -118,6 +118,10 @@ function attachIosOverlay(host: HTMLElement) {
     "-webkit-appearance:switch",
     "appearance:auto",
     "opacity:0",
+    "outline:none",
+    "box-shadow:none",
+    "-webkit-tap-highlight-color:transparent",
+    "accent-color:transparent",
     "cursor:inherit",
     "pointer-events:auto",
     "touch-action:pan-y",
@@ -125,7 +129,7 @@ function attachIosOverlay(host: HTMLElement) {
 
   const onOverlayClick = (event: Event) => {
     event.stopPropagation();
-    host.focus({ preventScroll: true });
+    overlay.blur();
     host.click();
   };
 
