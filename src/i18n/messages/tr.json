@@ -15,7 +15,7 @@
   },
   "dashboard": {
     "greeting": "Merhaba, {brand}",
-    "title": "Dashboard",
+    "title": "Ana Sayfa",
     "metrics": {
       "pendingApproval": "Onay Bekleyen İş",
       "pendingApprovalFooter": "onayınızı bekliyor",
@@ -34,13 +34,13 @@
     "quickAccess": {
       "title": "Hızlı Erişimler",
       "newRequest": "Yeni Talep",
-      "newRequestSub": "Talep oluştur",
+      "newRequestSub": "Talep Oluşturun",
       "plans": "İçerik Planları",
-      "plansSub": "Planlara ulaş",
+      "plansSub": "Planlara Ulaşın",
       "reports": "Raporlar",
-      "reportsSub": "Raporlara eriş",
+      "reportsSub": "Raporlara Erişin",
       "brandCenter": "Marka Merkezi",
-      "brandCenterSub": "Dosyalarınıza ulaş"
+      "brandCenterSub": "Dosyalarınıza Ulaşın"
     }
   },
   "jobs": {

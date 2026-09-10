@@ -34,13 +34,13 @@
     "quickAccess": {
       "title": "Quick Access",
       "newRequest": "New Request",
-      "newRequestSub": "Create request",
+      "newRequestSub": "Create Request",
       "plans": "Content Plans",
-      "plansSub": "Open plans",
+      "plansSub": "Open Plans",
       "reports": "Reports",
-      "reportsSub": "Open reports",
+      "reportsSub": "Open Reports",
       "brandCenter": "Brand Center",
-      "brandCenterSub": "Open files"
+      "brandCenterSub": "Open Files"
     }
   },
   "jobs": {

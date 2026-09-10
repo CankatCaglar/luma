@@ -23,9 +23,8 @@ export function MetricCards({
       value: metrics?.pendingApproval ?? 0,
       footer: t("dashboard.metrics.pendingApprovalFooter"),
       icon: CircleCheck,
-      wrap: "bg-gradient-to-b from-[#f4f2fc] to-luma-soft",
-      iconWrap: "bg-white text-luma",
-      labelClass: "text-luma",
+      iconClass: "text-luma",
+      valueClass: "text-luma",
     },
     {
       href: "/isler/aktif",
@@ -33,9 +32,8 @@ export function MetricCards({
       value: metrics?.activeJobs ?? 0,
       footer: t("dashboard.metrics.activeJobsFooter"),
       icon: Briefcase,
-      wrap: "bg-gradient-to-b from-[#fcf6ee] to-luma-gold-soft",
-      iconWrap: "bg-white text-luma-kahve",
-      labelClass: "text-luma-kahve",
+      iconClass: "text-luma-kahve",
+      valueClass: "text-luma-kahve",
     },
     {
       href: "/isler/tamamlanan",
@@ -43,9 +41,8 @@ export function MetricCards({
       value: metrics?.completedThisMonth ?? 0,
       footer: t("dashboard.metrics.completedThisMonthFooter"),
       icon: CheckCircle2,
-      wrap: "bg-gradient-to-b from-[#f1faf5] to-luma-green-soft",
-      iconWrap: "bg-white text-luma-green",
-      labelClass: "text-luma-green",
+      iconClass: "text-luma-green",
+      valueClass: "text-luma-green",
       pending: pendingCompleted,
     },
   ];
@@ -58,19 +55,15 @@ export function MetricCards({
           <Link
             key={card.label}
             href={card.href}
-            className={`flex flex-col items-center rounded-2xl px-1.5 py-3 text-center ${card.wrap}`}
+            className="flex flex-col items-center rounded-2xl bg-luma-card px-1.5 py-3 text-center ring-1 ring-luma-border/80"
           >
-            <div
-              className={`flex h-8 w-8 items-center justify-center rounded-full ${card.iconWrap}`}
-            >
-              <Icon className="h-4 w-4" strokeWidth={2.2} />
-            </div>
-            <p
-              className={`mt-2 min-h-[1.4rem] w-full text-[9px] font-semibold leading-tight tracking-tight ${card.labelClass}`}
-            >
+            <Icon className={`h-6 w-6 ${card.iconClass}`} strokeWidth={2.2} />
+            <p className="mt-2 min-h-[1.4rem] w-full text-[9px] font-semibold leading-tight tracking-tight text-foreground">
               {card.label}
             </p>
-            <p className="mt-1.5 text-2xl font-bold tracking-tight text-foreground">
+            <p
+              className={`mt-1.5 text-2xl font-bold tracking-tight ${card.valueClass}`}
+            >
               {loading || ("pending" in card && card.pending) ? (
                 <span className="inline-block h-7 w-8 animate-pulse rounded-md bg-luma-border/80" />
               ) : (
