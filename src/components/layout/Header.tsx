@@ -198,6 +198,7 @@ function ProfileMenu() {
             tabIndex={-1}
             aria-label={t("header.closeMenu")}
             className="fixed inset-0 z-40 cursor-default bg-transparent"
+            data-haptic-off
             onClick={() => setOpen(false)}
           />
           <div

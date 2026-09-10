@@ -45,6 +45,10 @@
 [data-haptic-overlay]:focus-visible,
 [data-haptic-overlay]:active,
 [data-haptic-overlay]:hover {
+  position: absolute !important;
+  inset: 0 !important;
+  display: block !important;
+  overflow: hidden !important;
   outline: none !important;
   box-shadow: none !important;
   border: 0 !important;

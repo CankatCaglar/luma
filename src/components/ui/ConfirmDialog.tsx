@@ -56,6 +56,7 @@ export function ConfirmDialog({
         aria-label={cancelLabel}
         className="absolute inset-0 bg-[#1c1917]/40 backdrop-blur-[2px]"
         disabled={busy}
+        data-haptic-off
         onClick={onCancel}
       />
       <div

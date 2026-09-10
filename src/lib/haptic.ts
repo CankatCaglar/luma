@@ -75,18 +75,31 @@ function kindFromElement(element: Element): HapticKind | null {
   return "selection";
 }
 
-function raiseNestedInteractives(host: HTMLElement) {
-  for (const nested of host.querySelectorAll<HTMLElement>(INTERACTIVE_SELECTOR)) {
-    if (nested === host || nested.hasAttribute(OVERLAY_ATTR)) continue;
-    const style = getComputedStyle(nested);
-    if (style.position === "static") nested.style.position = "relative";
-    const z = Number.parseInt(style.zIndex, 10);
-    if (!Number.isFinite(z) || z < 2) nested.style.zIndex = "2";
+function isFullScreenHitTarget(el: HTMLElement) {
+  const style = getComputedStyle(el);
+  if (style.position !== "fixed" && style.position !== "absolute") return false;
+  const rect = el.getBoundingClientRect();
+  return rect.width >= window.innerWidth * 0.85 && rect.height >= window.innerHeight * 0.45;
+}
+
+function isScrollSafeHost(el: HTMLElement) {
+  if (el.closest("nav")) return true;
+  if (isFullScreenHitTarget(el)) return false;
+
+  const rect = el.getBoundingClientRect();
+  if (rect.width === 0 && rect.height === 0) {
+    return el.tagName === "BUTTON" || Boolean(el.closest("nav, header"));
   }
+
+  // Large cards/list rows must stay free so the page can scroll.
+  if (rect.height > 72) return false;
+  if (rect.width > 220 && rect.height > 56) return false;
+  return true;
 }
 
 function attachIosOverlay(host: HTMLElement) {
   if (host.querySelector(`:scope > [${OVERLAY_ATTR}]`)) return () => {};
+  if (!isScrollSafeHost(host)) return () => {};
 
   const position = getComputedStyle(host).position;
   if (
@@ -98,12 +111,23 @@ function attachIosOverlay(host: HTMLElement) {
     host.style.position = "relative";
   }
 
-  raiseNestedInteractives(host);
+  const layer = document.createElement("span");
+  layer.setAttribute(OVERLAY_ATTR, "");
+  layer.setAttribute("aria-hidden", "true");
+  layer.style.cssText = [
+    "position:absolute",
+    "inset:0",
+    "z-index:1",
+    "display:block",
+    "overflow:hidden",
+    "pointer-events:auto",
+    "touch-action:manipulation",
+    "-webkit-tap-highlight-color:transparent",
+  ].join(";");
 
   const overlay = document.createElement("input");
   overlay.type = "checkbox";
   overlay.setAttribute("switch", "");
-  overlay.setAttribute(OVERLAY_ATTR, "");
   overlay.setAttribute("aria-hidden", "true");
   overlay.tabIndex = -1;
   overlay.style.cssText = [
@@ -114,7 +138,6 @@ function attachIosOverlay(host: HTMLElement) {
     "margin:0",
     "padding:0",
     "border:0",
-    "z-index:1",
     "-webkit-appearance:switch",
     "appearance:auto",
     "opacity:0",
@@ -122,9 +145,8 @@ function attachIosOverlay(host: HTMLElement) {
     "box-shadow:none",
     "-webkit-tap-highlight-color:transparent",
     "accent-color:transparent",
-    "cursor:inherit",
     "pointer-events:auto",
-    "touch-action:pan-y",
+    "touch-action:manipulation",
   ].join(";");
 
   const onOverlayClick = (event: Event) => {
@@ -134,11 +156,12 @@ function attachIosOverlay(host: HTMLElement) {
   };
 
   overlay.addEventListener("click", onOverlayClick);
-  host.appendChild(overlay);
+  layer.appendChild(overlay);
+  host.appendChild(layer);
 
   return () => {
     overlay.removeEventListener("click", onOverlayClick);
-    overlay.remove();
+    layer.remove();
   };
 }
 
@@ -149,7 +172,10 @@ function bindIosOverlays() {
     if (detachers.has(el)) return;
     if (el.hasAttribute(OVERLAY_ATTR)) return;
     if (el.closest(TEXT_FIELD_SELECTOR)) return;
+    if (el.closest(`[${OVERLAY_ATTR}]`)) return;
     if (kindFromElement(el) === null) return;
+    if (isFullScreenHitTarget(el)) return;
+    if (!isScrollSafeHost(el)) return;
     detachers.set(el, attachIosOverlay(el));
   };
 
