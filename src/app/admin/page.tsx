@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import {
   browserLocalPersistence,
   browserSessionPersistence,
@@ -1199,11 +1200,11 @@ export default function AdminPage() {
               </button>
             </div>
 
-            <label className="block">
-              <span className="mb-1 flex items-center gap-1.5 text-sm font-medium text-foreground">
-                Marka kodu
+            <div className="block">
+              <div className="mb-1 flex items-center gap-1.5">
+                <label className="text-sm font-medium text-foreground">Marka kodu</label>
                 <FieldHint text="Marka kodunu yaz, ilgili işler ve eşleşme otomatik gelsin." />
-              </span>
+              </div>
               <span className="relative block">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-luma-muted" />
                 <input
@@ -1223,7 +1224,7 @@ export default function AdminPage() {
                   <Check className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-luma-green" />
                 ) : null}
               </span>
-            </label>
+            </div>
 
             <LookupPreview
               brandCode={form.brandCode}
@@ -1243,11 +1244,11 @@ export default function AdminPage() {
                 className={fieldClassName}
               />
             </label>
-            <label className="block">
-              <span className="mb-1 flex items-center gap-1.5 text-sm font-medium text-foreground">
-                Kullanıcı adı (giriş)
+            <div className="block">
+              <div className="mb-1 flex items-center gap-1.5">
+                <label className="text-sm font-medium text-foreground">Kullanıcı adı (giriş)</label>
                 <FieldHint text="Müşteriye bu kullanıcı adı ve şifreyi verirsiniz. Arkada Firebase için otomatik bir e-posta üretilir." />
-              </span>
+              </div>
               <input
                 type="text"
                 autoComplete="off"
@@ -1266,12 +1267,12 @@ export default function AdminPage() {
                   </span>
                 </span>
               ) : null}
-            </label>
-            <label className="block">
-              <span className="mb-1 flex items-center gap-1.5 text-sm font-medium text-foreground">
-                İletişim e-postası
+            </div>
+            <div className="block">
+              <div className="mb-1 flex items-center gap-1.5">
+                <label className="text-sm font-medium text-foreground">İletişim e-postası</label>
                 <FieldHint text="Zorunlu değil. Uygulamadan gönderilecek mailler bu adrese gider; sonradan da eklenebilir." />
-              </span>
+              </div>
               <input
                 type="email"
                 value={form.contactEmail}
@@ -1281,12 +1282,12 @@ export default function AdminPage() {
                 placeholder="İletişim e-postası (opsiyonel)"
                 className={fieldClassName}
               />
-            </label>
-            <label className="block">
-              <span className="mb-1 flex items-center gap-1.5 text-sm font-medium text-foreground">
-                Şifre
+            </div>
+            <div className="block">
+              <div className="mb-1 flex items-center gap-1.5">
+                <label className="text-sm font-medium text-foreground">Şifre</label>
                 <FieldHint text="Boş bırakılırsa otomatik üretilir." />
-              </span>
+              </div>
               <input
                 type="text"
                 value={form.password}
@@ -1296,7 +1297,7 @@ export default function AdminPage() {
                 placeholder="Şifre"
                 className={fieldClassName}
               />
-            </label>
+            </div>
             <DriveFields
               value={form}
               onChange={(next) => setForm((prev) => ({ ...prev, ...next }))}
@@ -2213,23 +2214,84 @@ function DriveFields({
   );
 }
 
-function FieldHint({ text }: { text: string }) {
+function FieldHint({ text, size = "sm" }: { text: string; size?: "sm" | "md" }) {
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const tooltipRef = useRef<HTMLSpanElement>(null);
+  const [open, setOpen] = useState(false);
+  const [coords, setCoords] = useState<{ top: number; left: number; width: number } | null>(null);
+
+  const updatePosition = useCallback(() => {
+    const button = buttonRef.current;
+    const tooltip = tooltipRef.current;
+    if (!button || !tooltip) return;
+
+    const rect = button.getBoundingClientRect();
+    const width = Math.min(240, window.innerWidth - 16);
+    const gap = 8;
+    const height = tooltip.offsetHeight;
+    const left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
+    const showAbove =
+      rect.bottom + gap + height > window.innerHeight - 8 && rect.top - gap - height >= 8;
+    const next = {
+      width,
+      left,
+      top: showAbove ? rect.top - height - gap : rect.bottom + gap,
+    };
+    setCoords((prev) =>
+      prev && prev.top === next.top && prev.left === next.left && prev.width === next.width
+        ? prev
+        : next
+    );
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!open) {
+      setCoords(null);
+      return;
+    }
+    updatePosition();
+    window.addEventListener("scroll", updatePosition, true);
+    window.addEventListener("resize", updatePosition);
+    return () => {
+      window.removeEventListener("scroll", updatePosition, true);
+      window.removeEventListener("resize", updatePosition);
+    };
+  }, [open, text, updatePosition]);
+
   return (
-    <span className="relative inline-flex shrink-0">
+    <>
       <button
+        ref={buttonRef}
         type="button"
-        className="peer inline-flex h-4 w-4 items-center justify-center rounded-full text-luma-muted/70 transition-colors hover:text-luma"
+        tabIndex={-1}
+        onMouseDown={(event) => event.preventDefault()}
+        onMouseEnter={() => setOpen(true)}
+        onMouseLeave={() => setOpen(false)}
+        className={`inline-flex shrink-0 items-center justify-center rounded-full text-luma-muted/70 transition-colors hover:text-luma ${
+          size === "md" ? "h-7 w-7" : "h-4 w-4"
+        }`}
         aria-label="Bilgi"
       >
         <Info className="h-3.5 w-3.5" />
       </button>
-      <span
-        role="tooltip"
-        className="pointer-events-none absolute left-0 top-[calc(100%+6px)] z-50 w-60 rounded-xl bg-[#1c1917] px-3 py-2 text-left text-[11px] font-normal normal-case leading-relaxed tracking-normal text-white opacity-0 shadow-[0_12px_32px_rgba(28,25,23,0.24)] transition-opacity peer-hover:opacity-100 peer-focus-visible:opacity-100"
-      >
-        {text}
-      </span>
-    </span>
+      {open
+        ? createPortal(
+            <span
+              ref={tooltipRef}
+              role="tooltip"
+              style={
+                coords
+                  ? { top: coords.top, left: coords.left, width: coords.width }
+                  : { visibility: "hidden", top: 0, left: 0 }
+              }
+              className="pointer-events-none fixed z-[80] w-60 rounded-xl bg-[#1c1917] px-3 py-2 text-left text-[11px] font-normal normal-case leading-relaxed tracking-normal text-white shadow-[0_12px_32px_rgba(28,25,23,0.24)]"
+            >
+              {text}
+            </span>,
+            document.body
+          )
+        : null}
+    </>
   );
 }
 
@@ -2288,25 +2350,7 @@ function SidebarDriveShare({
         >
           {copied ? <Check className="h-3.5 w-3.5 text-luma-green" /> : <Copy className="h-3.5 w-3.5" />}
         </button>
-        <div className="relative shrink-0">
-          <button
-            type="button"
-            className="peer inline-flex h-7 w-7 items-center justify-center rounded-full text-luma-muted/70 transition-colors hover:text-luma"
-            aria-label="Drive paylaşım bilgisi"
-          >
-            <Info className="h-3.5 w-3.5" />
-          </button>
-          <div
-            role="tooltip"
-            className={`pointer-events-none absolute z-50 w-56 rounded-xl bg-[#1c1917] px-3 py-2 text-[11px] leading-relaxed text-white opacity-0 shadow-[0_12px_32px_rgba(28,25,23,0.24)] transition-opacity peer-hover:opacity-100 peer-focus-visible:opacity-100 ${
-              collapsed
-                ? "bottom-full left-0 mb-2 lg:bottom-auto lg:left-full lg:top-1/2 lg:mb-0 lg:ml-2 lg:-translate-y-1/2"
-                : "bottom-full left-0 mb-2"
-            }`}
-          >
-            {hint}
-          </div>
-        </div>
+        <FieldHint text={hint} size="md" />
       </div>
     </div>
   );
