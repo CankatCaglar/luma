@@ -22,6 +22,7 @@ export async function GET(request: Request) {
         projectGids: tenant.asana.projectGids,
         workspaceGid: tenant.asana.workspaceGid,
         drive: tenant.drive,
+        reportsEnabled: tenant.reportsEnabled,
       },
     });
 

@@ -49,6 +49,7 @@ export type TenantSummary = {
   brandName: string;
   brandCode: string;
   email: string;
+  reportsEnabled?: boolean;
 };
 
 export type DashboardMetrics = {
@@ -136,6 +137,7 @@ export type JobLists = {
   metrics: DashboardMetrics;
   contentPlans: ContentPlan[];
   monthlyReports: MonthlyReport[];
+  reportsEnabled?: boolean;
   brandAssets?: BrandAsset[];
   driveBoxUrl?: string;
   plansFolderUrl?: string;

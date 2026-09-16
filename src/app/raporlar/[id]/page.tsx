@@ -12,6 +12,7 @@ export default function ReportDetailPage() {
   const { t } = useI18n();
   const { data } = useJobs();
   if (!data) return <PageSkeleton cards={2} />;
+  if (!data.reportsEnabled) return <MissingRecord label={t("reports.missing")} />;
   const report = data.monthlyReports.find((item) => item.id === id);
   if (!report?.driveUrl?.trim()) return <MissingRecord label={t("reports.missing")} />;
   return <ReportDetail report={report} />;

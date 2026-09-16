@@ -44,6 +44,7 @@ export async function readJobSnapshot(tenantId: string): Promise<StoredJobSnapsh
       planYears: data.planYears,
       contentPlans: data.contentPlans,
       monthlyReports: data.monthlyReports,
+      reportsEnabled: data.reportsEnabled === true,
       partial: data.partial,
     };
   } catch {

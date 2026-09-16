@@ -4,7 +4,7 @@ import Link from "next/link";
 import { BarChart3, Calendar, Folder, Plus } from "lucide-react";
 import { useI18n } from "@/components/i18n/I18nProvider";
 import { useJobs } from "@/components/jobs/JobsProvider";
-import { hasDriveReports } from "@/lib/data/reports";
+import { brandReportsEnabled } from "@/lib/data/reports";
 import { cn } from "@/lib/cn";
 import type { MessageKey } from "@/i18n";
 import type { QuickLink, QuickLinkId } from "@/types";
@@ -54,7 +54,7 @@ const meta: Record<
 export function QuickAccess() {
   const { t } = useI18n();
   const { data } = useJobs();
-  const links = hasDriveReports(data?.monthlyReports)
+  const links = brandReportsEnabled(data)
     ? quickLinks
     : quickLinks.filter((link) => link.id !== "reports");
 

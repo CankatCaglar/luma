@@ -1,5 +1,5 @@
-import type { MonthlyReport } from "@/types";
-
-export function hasDriveReports(reports: MonthlyReport[] | undefined): boolean {
-  return Boolean(reports?.some((report) => Boolean(report.driveUrl?.trim())));
+export function brandReportsEnabled(
+  data: { reportsEnabled?: boolean } | null | undefined,
+): boolean {
+  return data?.reportsEnabled === true;
 }

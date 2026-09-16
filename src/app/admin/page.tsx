@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useId, useMemo, useState, type ReactNode } from "react";
+import { Fragment, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   browserLocalPersistence,
   browserSessionPersistence,
@@ -10,16 +10,25 @@ import {
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
+  Bell,
   Check,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Copy,
   Eye,
   EyeOff,
   FolderOpen,
+  Info,
+  LayoutGrid,
   Loader2,
   LockKeyhole,
   LogOut,
   Mail,
+  Menu,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Pencil,
   Plus,
   RefreshCcw,
   Search,
@@ -63,7 +72,10 @@ type Tenant = {
   drive?: {
     rootUrl?: string;
   };
+  reportsEnabled?: boolean;
 };
+
+type AdminSection = "onboarding" | "mail" | "notifications";
 
 type AsanaWorkspaceOption = {
   gid: string;
@@ -121,6 +133,11 @@ const INITIAL_FORM: FormState = {
   workspaceGid: "",
   ...EMPTY_DRIVE,
 };
+
+const SIDEBAR_COLLAPSED_KEY = "luma-admin-sidebar-collapsed";
+const BRAND_TABLE_HEAD_HEIGHT = 36;
+const BRAND_ROW_MIN_HEIGHT = 52;
+const BRAND_TABLE_SCROLL_GUTTER = 12;
 
 const fieldClassName =
   "w-full min-w-0 max-w-full rounded-xl border border-luma-border bg-white px-3 py-3 text-base text-foreground outline-none placeholder:text-luma-muted focus:ring-2 focus:ring-luma";
@@ -202,14 +219,24 @@ export default function AdminPage() {
   const [rememberAdmin, setRememberAdmin] = useState(false);
   const [adminSigningOut, setAdminSigningOut] = useState(false);
   const [signOutConfirmOpen, setSignOutConfirmOpen] = useState(false);
+  const [adminMenuOpen, setAdminMenuOpen] = useState(false);
   const [form, setForm] = useState<FormState>(INITIAL_FORM);
   const [adminReady, setAdminReady] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [tenantToDelete, setTenantToDelete] = useState<Tenant | null>(null);
+  const [brandQuery, setBrandQuery] = useState("");
+  const [brandPage, setBrandPage] = useState(1);
+  const [brandsPerPage, setBrandsPerPage] = useState(8);
+  const [brandRowHeight, setBrandRowHeight] = useState(BRAND_ROW_MIN_HEIGHT);
+  const brandTableViewportRef = useRef<HTMLDivElement>(null);
+  const [adminSection, setAdminSection] = useState<AdminSection>("onboarding");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editingKind, setEditingKind] = useState<"drive" | "contact" | "password" | null>(null);
+  const [editingKind, setEditingKind] = useState<"drive" | "account" | null>(null);
+  const [togglingReportsId, setTogglingReportsId] = useState<string | null>(null);
   const [driveDraft, setDriveDraft] = useState<DriveForm>(EMPTY_DRIVE);
   const [contactDraft, setContactDraft] = useState("");
   const [passwordDraft, setPasswordDraft] = useState("");
@@ -237,6 +264,31 @@ export default function AdminPage() {
       lookup?.brandCode === form.brandCode.trim().toUpperCase(),
     [form, lookup],
   );
+
+  const filteredTenants = useMemo(() => {
+    const query = brandQuery.trim().toLowerCase();
+    if (!query) return tenants;
+    return tenants.filter((tenant) => {
+      const username = tenant.portalUsername || tenant.emails[0]?.split("@")[0] || "";
+      return [
+        tenant.brandName,
+        tenant.asana.brandCode,
+        username,
+        tenant.emails.join(" "),
+        tenant.contactEmail ?? "",
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(query);
+    });
+  }, [brandQuery, tenants]);
+
+  const brandPageCount = Math.max(1, Math.ceil(filteredTenants.length / brandsPerPage));
+  const currentBrandPage = Math.min(brandPage, brandPageCount);
+  const pagedTenants = useMemo(() => {
+    const start = (currentBrandPage - 1) * brandsPerPage;
+    return filteredTenants.slice(start, start + brandsPerPage);
+  }, [brandsPerPage, currentBrandPage, filteredTenants]);
 
   const authHeaders = useCallback(async (): Promise<Record<string, string>> => {
     if (enabled && user) {
@@ -364,6 +416,44 @@ export default function AdminPage() {
     }, 0);
     return () => window.clearTimeout(kickoff);
   }, [enabled, user, isAdmin, adminReady, loadTenants, loadWorkspaces, loadDriveStatus]);
+
+  useEffect(() => {
+    try {
+      setSidebarCollapsed(window.localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "1");
+    } catch {
+      /* private mode */
+    }
+  }, []);
+
+  useLayoutEffect(() => {
+    const viewport = brandTableViewportRef.current;
+    if (!viewport) return;
+    const sync = () => {
+      const headHeight =
+        viewport.querySelector("thead")?.getBoundingClientRect().height ||
+        BRAND_TABLE_HEAD_HEIGHT;
+      const padBottom = Number.parseFloat(getComputedStyle(viewport).paddingBottom) || 0;
+      const available = Math.max(
+        BRAND_ROW_MIN_HEIGHT,
+        viewport.clientHeight - headHeight - padBottom - 1,
+      );
+      const perPage = Math.max(1, Math.floor(available / BRAND_ROW_MIN_HEIGHT));
+      setBrandsPerPage(perPage);
+      setBrandRowHeight(Math.floor(available / perPage));
+    };
+    sync();
+    const observer = new ResizeObserver(sync);
+    observer.observe(viewport);
+    return () => observer.disconnect();
+  }, [adminReady, adminSection]);
+
+  useEffect(() => {
+    setBrandPage(1);
+  }, [brandQuery]);
+
+  useEffect(() => {
+    setBrandPage((page) => Math.min(page, brandPageCount));
+  }, [brandPageCount]);
 
   useEffect(() => {
     if (!adminReady) return;
@@ -496,29 +586,64 @@ export default function AdminPage() {
     setEditingKind(null);
   }
 
-  function onEditContact(tenant: Tenant) {
-    if (editingId === tenant.tenantId && editingKind === "contact") {
+  function onEditAccount(tenant: Tenant) {
+    if (editingId === tenant.tenantId && editingKind === "account") {
       closeEditor();
       return;
     }
     setEditingId(tenant.tenantId);
-    setEditingKind("contact");
+    setEditingKind("account");
     setContactDraft(tenant.contactEmail ?? "");
+    setPasswordDraft("");
+    setShowPasswordDraft(false);
     setError(null);
     setSuccess(null);
   }
 
-  function onEditPassword(tenant: Tenant) {
-    if (editingId === tenant.tenantId && editingKind === "password") {
-      closeEditor();
-      return;
-    }
-    setEditingId(tenant.tenantId);
-    setEditingKind("password");
-    setPasswordDraft(tenant.portalPassword ?? "");
-    setShowPasswordDraft(false);
+  async function onToggleReports(tenant: Tenant, reportsEnabled: boolean) {
+    setTogglingReportsId(tenant.tenantId);
     setError(null);
     setSuccess(null);
+    setTenants((prev) =>
+      prev.map((item) =>
+        item.tenantId === tenant.tenantId ? { ...item, reportsEnabled } : item,
+      ),
+    );
+    try {
+      const headers = await authHeaders();
+      headers["Content-Type"] = "application/json";
+      const response = await fetch("/api/admin/tenants", {
+        method: "PATCH",
+        headers: headers as HeadersInit,
+        body: JSON.stringify({
+          tenantId: tenant.tenantId,
+          reportsEnabled,
+        }),
+      });
+      const payload = (await response.json().catch(() => null)) as {
+        error?: string;
+        tenant?: Tenant;
+      } | null;
+      if (!response.ok) {
+        throw new Error(payload?.error ?? "Rapor erişimi kaydedilemedi");
+      }
+      if (payload?.tenant) {
+        setTenants((prev) =>
+          prev.map((item) => (item.tenantId === tenant.tenantId ? payload.tenant! : item)),
+        );
+      }
+    } catch (error) {
+      setTenants((prev) =>
+        prev.map((item) =>
+          item.tenantId === tenant.tenantId
+            ? { ...item, reportsEnabled: tenant.reportsEnabled === true }
+            : item,
+        ),
+      );
+      setError(error instanceof Error ? error.message : "Rapor erişimi kaydedilemedi");
+    } finally {
+      setTogglingReportsId(null);
+    }
   }
 
   function togglePasswordReveal(tenantId: string) {
@@ -537,9 +662,13 @@ export default function AdminPage() {
     }
   }
 
-  async function onSavePassword(tenant: Tenant) {
+  async function onSaveAccount(tenant: Tenant) {
+    if (contactDraft.trim() && !contactDraft.includes("@")) {
+      setError("Geçerli bir iletişim e-postası girin.");
+      return;
+    }
     const password = passwordDraft.trim();
-    if (password.length < 8) {
+    if (password && password.length < 8) {
       setError("Şifre en az 8 karakter olmalı.");
       return;
     }
@@ -549,31 +678,54 @@ export default function AdminPage() {
     try {
       const headers = await authHeaders();
       headers["Content-Type"] = "application/json";
-      const response = await fetch("/api/admin/tenants", {
+      const contactResponse = await fetch("/api/admin/tenants", {
         method: "PATCH",
         headers: headers as HeadersInit,
         body: JSON.stringify({
           tenantId: tenant.tenantId,
-          password,
+          contactEmail: contactDraft,
         }),
       });
-      const payload = (await response.json().catch(() => null)) as {
+      const contactPayload = (await contactResponse.json().catch(() => null)) as {
         error?: string;
         tenant?: Tenant;
       } | null;
-      if (!response.ok) {
-        throw new Error(payload?.error ?? "Şifre kaydedilemedi");
+      if (!contactResponse.ok) {
+        throw new Error(contactPayload?.error ?? "İletişim e-postası kaydedilemedi");
       }
-      if (payload?.tenant) {
+      let nextTenant = contactPayload?.tenant;
+      if (password) {
+        const passwordResponse = await fetch("/api/admin/tenants", {
+          method: "PATCH",
+          headers: headers as HeadersInit,
+          body: JSON.stringify({
+            tenantId: tenant.tenantId,
+            password,
+          }),
+        });
+        const passwordPayload = (await passwordResponse.json().catch(() => null)) as {
+          error?: string;
+          tenant?: Tenant;
+        } | null;
+        if (!passwordResponse.ok) {
+          throw new Error(passwordPayload?.error ?? "Şifre kaydedilemedi");
+        }
+        nextTenant = passwordPayload?.tenant ?? nextTenant;
+      }
+      if (nextTenant) {
         setTenants((prev) =>
-          prev.map((item) => (item.tenantId === tenant.tenantId ? payload.tenant! : item)),
+          prev.map((item) => (item.tenantId === tenant.tenantId ? nextTenant! : item)),
         );
       }
-      setSuccess(`${tenant.brandName} giriş şifresi güncellendi`);
+      setSuccess(
+        password
+          ? `${tenant.brandName} iletişim ve şifre güncellendi`
+          : `${tenant.brandName} iletişim e-postası kaydedildi`,
+      );
       closeEditor();
       await loadTenants();
     } catch (error) {
-      setError(error instanceof Error ? error.message : "Şifre kaydedilemedi");
+      setError(error instanceof Error ? error.message : "Marka bilgisi kaydedilemedi");
     } finally {
       setSavingDriveId(null);
     }
@@ -630,47 +782,6 @@ export default function AdminPage() {
       await loadTenants();
     } catch (error) {
       setError(error instanceof Error ? error.message : "Drive bilgisi kaydedilemedi");
-    } finally {
-      setSavingDriveId(null);
-    }
-  }
-
-  async function onSaveContact(tenant: Tenant) {
-    if (contactDraft.trim() && !contactDraft.includes("@")) {
-      setError("Geçerli bir iletişim e-postası girin.");
-      return;
-    }
-    setSavingDriveId(tenant.tenantId);
-    setError(null);
-    setSuccess(null);
-    try {
-      const headers = await authHeaders();
-      headers["Content-Type"] = "application/json";
-      const response = await fetch("/api/admin/tenants", {
-        method: "PATCH",
-        headers: headers as HeadersInit,
-        body: JSON.stringify({
-          tenantId: tenant.tenantId,
-          contactEmail: contactDraft,
-        }),
-      });
-      const payload = (await response.json().catch(() => null)) as {
-        error?: string;
-        tenant?: Tenant;
-      } | null;
-      if (!response.ok) {
-        throw new Error(payload?.error ?? "İletişim e-postası kaydedilemedi");
-      }
-      if (payload?.tenant) {
-        setTenants((prev) =>
-          prev.map((item) => (item.tenantId === tenant.tenantId ? payload.tenant! : item)),
-        );
-      }
-      setSuccess(`${tenant.brandName} iletişim e-postası kaydedildi`);
-      closeEditor();
-      await loadTenants();
-    } catch (error) {
-      setError(error instanceof Error ? error.message : "İletişim e-postası kaydedilemedi");
     } finally {
       setSavingDriveId(null);
     }
@@ -741,6 +852,18 @@ export default function AdminPage() {
     } finally {
       setAdminSigningOut(false);
     }
+  }
+
+  function toggleSidebarCollapsed() {
+    setSidebarCollapsed((current) => {
+      const next = !current;
+      try {
+        window.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, next ? "1" : "0");
+      } catch {
+        /* private mode */
+      }
+      return next;
+    });
   }
 
   if (!firebaseEnabled || !enabled) {
@@ -888,58 +1011,167 @@ export default function AdminPage() {
     workspaceOptions.find((workspace) => workspace.gid === form.workspaceGid)?.name ??
     "Workspace";
 
+  const sectionTitle =
+    adminSection === "mail"
+      ? "Mail Ayarları"
+      : adminSection === "notifications"
+        ? "Bildirim Ayarları"
+        : "Marka Onboarding";
+  const sectionDescription =
+    adminSection === "mail"
+      ? "Markalara gidecek otomatik maillerin şablonlarını buradan yöneteceksiniz."
+      : adminSection === "notifications"
+        ? "Portal bildirimlerinin hangi olaylarda gideceğini buradan yöneteceksiniz."
+        : "Marka kodunu yaz, Asana workspace'inden eşleşmeyi otomatik bul.";
+
   return (
-    <div className="w-full min-w-0 space-y-4 px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-[max(1.25rem,env(safe-area-inset-top))] sm:space-y-6 sm:px-6 sm:py-8 lg:px-8">
-      <header className="rounded-3xl bg-white px-4 py-4 shadow-[0_16px_48px_rgba(28,25,23,0.08)] ring-1 ring-luma-border/80 sm:px-6 sm:py-5">
-        <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0">
-            <p className="text-sm text-luma-kahve">Tenant Admin</p>
-            <h1 className="text-2xl font-bold tracking-tight break-words text-foreground sm:text-3xl">
-              Marka Onboarding
-            </h1>
-            <p className="mt-1.5 text-sm leading-relaxed text-luma-muted">
-              Marka kodunu yaz, Asana workspace&apos;inden eşleşmeyi otomatik bul.
-            </p>
+    <div className="flex h-dvh w-full min-w-0 overflow-hidden bg-[#FBF9F5]">
+        {sidebarOpen ? (
+          <button
+            type="button"
+            className="fixed inset-0 z-40 bg-[#1c1917]/30 lg:hidden"
+            aria-label="Menüyü kapat"
+            onClick={() => setSidebarOpen(false)}
+          />
+        ) : null}
+        <aside
+          className={`flex h-full shrink-0 flex-col overflow-visible border-r border-luma-border bg-white transition-[width,transform] duration-200 ease-out ${
+            sidebarOpen ? "fixed inset-y-0 left-0 z-50 w-64 translate-x-0" : "fixed inset-y-0 left-0 z-50 w-64 -translate-x-full"
+          } lg:static lg:z-0 lg:translate-x-0 ${
+            sidebarCollapsed ? "lg:w-[4.75rem]" : "lg:w-64"
+          }`}
+        >
+          <div
+            className={`flex h-16 shrink-0 items-center border-b border-luma-border ${
+              sidebarCollapsed ? "justify-between px-4 lg:justify-center lg:px-2" : "justify-between px-4"
+            }`}
+          >
+            <div className={`flex min-w-0 items-center ${sidebarCollapsed ? "lg:hidden" : ""}`}>
+              <LumaLogo height={32} />
+            </div>
+            <button
+              type="button"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-luma-muted lg:hidden"
+              onClick={() => setSidebarOpen(false)}
+              aria-label="Menüyü kapat"
+            >
+              <X className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              className="hidden h-9 w-9 items-center justify-center rounded-xl text-luma-muted transition-colors hover:bg-luma-soft hover:text-luma lg:inline-flex"
+              onClick={toggleSidebarCollapsed}
+              aria-label={sidebarCollapsed ? "Menüyü genişlet" : "Menüyü daralt"}
+            >
+              {sidebarCollapsed ? (
+                <PanelLeftOpen className="h-4 w-4" />
+              ) : (
+                <PanelLeftClose className="h-4 w-4" />
+              )}
+            </button>
           </div>
-          <div className="flex w-full min-w-0 items-stretch gap-2 sm:w-auto sm:items-center">
+          <nav
+            className={`flex flex-1 flex-col gap-1 overflow-y-auto py-3 ${
+              sidebarCollapsed ? "lg:items-center lg:px-2" : "px-3"
+            }`}
+          >
+            <AdminNavButton
+              active={adminSection === "onboarding"}
+              collapsed={sidebarCollapsed}
+              icon={<LayoutGrid className="h-4 w-4" />}
+              label="Marka Onboarding"
+              onClick={() => {
+                setAdminSection("onboarding");
+                setSidebarOpen(false);
+              }}
+            />
+            <AdminNavButton
+              active={adminSection === "mail"}
+              collapsed={sidebarCollapsed}
+              icon={<Mail className="h-4 w-4" />}
+              label="Mail Ayarları"
+              onClick={() => {
+                setAdminSection("mail");
+                setSidebarOpen(false);
+              }}
+            />
+            <AdminNavButton
+              active={adminSection === "notifications"}
+              collapsed={sidebarCollapsed}
+              icon={<Bell className="h-4 w-4" />}
+              label="Bildirim Ayarları"
+              onClick={() => {
+                setAdminSection("notifications");
+                setSidebarOpen(false);
+              }}
+            />
+          </nav>
+          <div className={`px-3 pb-3 ${sidebarCollapsed ? "lg:px-2" : ""}`}>
+            <SidebarDriveShare email={driveStatus?.email} collapsed={sidebarCollapsed} />
+          </div>
+          <div className={`border-t border-luma-border py-3 ${sidebarCollapsed ? "lg:px-2" : "px-3"}`}>
             <button
               type="button"
               onClick={() => void onLeaveToLuma()}
               disabled={adminSigningOut}
-              className="inline-flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl border border-luma-border px-2.5 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-luma-soft disabled:cursor-not-allowed disabled:opacity-70 sm:flex-none sm:px-3 sm:py-2"
+              title="Luma'ya dön"
+              className={`inline-flex items-center rounded-xl text-sm font-semibold text-luma-muted transition-colors hover:bg-luma-soft hover:text-foreground disabled:opacity-70 ${
+                sidebarCollapsed
+                  ? "h-11 w-full justify-center gap-0 lg:h-11 lg:w-11 lg:px-0"
+                  : "w-full gap-2 px-3 py-2.5"
+              }`}
             >
               {adminSigningOut ? (
-                <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+                <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                <ArrowLeft className="h-4 w-4 shrink-0" />
+                <ArrowLeft className="h-4 w-4" />
               )}
-              <span className="truncate">Luma&apos;ya dön</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setSignOutConfirmOpen(true)}
-              disabled={adminSigningOut}
-              className="inline-flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl bg-luma px-2.5 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-70 sm:flex-none sm:px-3 sm:py-2"
-            >
-              {adminSigningOut ? (
-                <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
-              ) : (
-                <LogOut className="h-4 w-4 shrink-0" />
-              )}
-              <span className="truncate">Güvenli çıkış</span>
+              <span className={sidebarCollapsed ? "lg:hidden" : ""}>Luma&apos;ya dön</span>
             </button>
           </div>
-        </div>
-      </header>
+        </aside>
 
-      <DriveStatusBanner status={driveStatus} />
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-luma-border bg-[#FBF9F5] px-4 py-3 sm:px-6">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-luma-border bg-white text-foreground lg:hidden"
+                  onClick={() => setSidebarOpen(true)}
+                  aria-label="Menüyü aç"
+                >
+                  <Menu className="h-4 w-4" />
+                </button>
+                <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
+                  {sectionTitle}
+                </h1>
+              </div>
+              <p className="mt-1 max-w-xl text-sm leading-relaxed text-luma-muted">
+                {sectionDescription}
+              </p>
+            </div>
+            <AdminAccountMenu
+              email={user?.email}
+              open={adminMenuOpen}
+              busy={adminSigningOut}
+              onOpenChange={setAdminMenuOpen}
+              onSignOut={() => {
+                setAdminMenuOpen(false);
+                setSignOutConfirmOpen(true);
+              }}
+            />
+          </header>
 
-      <div className="grid min-w-0 gap-4 sm:gap-6 lg:grid-cols-[minmax(22rem,34rem)_minmax(0,1fr)]">
+          <div className="min-h-0 min-w-0 flex-1 space-y-4 overflow-y-auto p-4 sm:p-6">
+      {adminSection === "onboarding" ? (
+        <>
+      <div className="grid min-w-0 items-stretch gap-4 sm:gap-6 xl:grid-cols-[minmax(20rem,22rem)_minmax(0,1fr)]">
         <section className="min-w-0 rounded-3xl bg-white p-4 shadow-[0_16px_48px_rgba(28,25,23,0.08)] ring-1 ring-luma-border/80 sm:p-5">
-          <h2 className="mb-1 text-base font-bold text-foreground">Yeni Marka Tanımla</h2>
-          <p className="mb-4 text-sm leading-relaxed text-luma-muted">
-            Proje veya section seçmene gerek yok. Marka kodu seçili workspace içinde aranır.
-          </p>
+          <h2 className="mb-4 flex items-center gap-1.5 text-base font-bold text-foreground">
+            Yeni Marka Tanımla
+            <FieldHint text="Proje veya section seçmene gerek yok. Marka kodu seçili workspace içinde aranır." />
+          </h2>
           <form className="space-y-3" onSubmit={onSubmit}>
             <div className="flex min-w-0 flex-wrap items-center gap-2">
               <WorkspacePicker
@@ -968,7 +1200,10 @@ export default function AdminPage() {
             </div>
 
             <label className="block">
-              <span className="mb-1 block text-sm font-medium text-foreground">Marka kodu</span>
+              <span className="mb-1 flex items-center gap-1.5 text-sm font-medium text-foreground">
+                Marka kodu
+                <FieldHint text="Marka kodunu yaz, ilgili işler ve eşleşme otomatik gelsin." />
+              </span>
               <span className="relative block">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-luma-muted" />
                 <input
@@ -997,15 +1232,22 @@ export default function AdminPage() {
               lookup={lookup}
             />
 
-            <input
-              value={form.brandName}
-              onChange={(event) =>
-                setForm((prev) => ({ ...prev, brandName: event.target.value }))
-              }
-              placeholder="Marka adı"
-              className={fieldClassName}
-            />
             <label className="block">
+              <span className="mb-1 block text-sm font-medium text-foreground">Marka adı</span>
+              <input
+                value={form.brandName}
+                onChange={(event) =>
+                  setForm((prev) => ({ ...prev, brandName: event.target.value }))
+                }
+                placeholder="Marka adı"
+                className={fieldClassName}
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1 flex items-center gap-1.5 text-sm font-medium text-foreground">
+                Kullanıcı adı (giriş)
+                <FieldHint text="Müşteriye bu kullanıcı adı ve şifreyi verirsiniz. Arkada Firebase için otomatik bir e-posta üretilir." />
+              </span>
               <input
                 type="text"
                 autoComplete="off"
@@ -1013,7 +1255,7 @@ export default function AdminPage() {
                 onChange={(event) =>
                   setForm((prev) => ({ ...prev, username: event.target.value }))
                 }
-                placeholder="Kullanıcı adı (giriş)"
+                placeholder="Kullanıcı adı"
                 className={fieldClassName}
               />
               {isValidPortalUsername(form.username) ? (
@@ -1023,14 +1265,13 @@ export default function AdminPage() {
                     {portalEmailFromUsername(form.username)}
                   </span>
                 </span>
-              ) : (
-                <span className="mt-1 block text-xs leading-relaxed text-luma-muted">
-                  Müşteriye bu kullanıcı adı ve şifreyi verirsiniz. Arkada Firebase için
-                  otomatik bir e-posta üretilir.
-                </span>
-              )}
+              ) : null}
             </label>
             <label className="block">
+              <span className="mb-1 flex items-center gap-1.5 text-sm font-medium text-foreground">
+                İletişim e-postası
+                <FieldHint text="Zorunlu değil. Uygulamadan gönderilecek mailler bu adrese gider; sonradan da eklenebilir." />
+              </span>
               <input
                 type="email"
                 value={form.contactEmail}
@@ -1040,19 +1281,22 @@ export default function AdminPage() {
                 placeholder="İletişim e-postası (opsiyonel)"
                 className={fieldClassName}
               />
-              <span className="mt-1 block text-xs leading-relaxed text-luma-muted">
-                Zorunlu değil. Uygulamadan gönderilecek mailler bu adrese gider; sonradan da eklenebilir.
-              </span>
             </label>
-            <input
-              type="text"
-              value={form.password}
-              onChange={(event) =>
-                setForm((prev) => ({ ...prev, password: event.target.value }))
-              }
-              placeholder="Şifre (boşsa otomatik üretilir)"
-              className={fieldClassName}
-            />
+            <label className="block">
+              <span className="mb-1 flex items-center gap-1.5 text-sm font-medium text-foreground">
+                Şifre
+                <FieldHint text="Boş bırakılırsa otomatik üretilir." />
+              </span>
+              <input
+                type="text"
+                value={form.password}
+                onChange={(event) =>
+                  setForm((prev) => ({ ...prev, password: event.target.value }))
+                }
+                placeholder="Şifre"
+                className={fieldClassName}
+              />
+            </label>
             <DriveFields
               value={form}
               onChange={(next) => setForm((prev) => ({ ...prev, ...next }))}
@@ -1078,16 +1322,28 @@ export default function AdminPage() {
           </form>
         </section>
 
-        <section className="min-w-0 rounded-3xl bg-white p-4 shadow-[0_16px_48px_rgba(28,25,23,0.08)] ring-1 ring-luma-border/80 sm:p-5">
-          <div className="mb-3 flex items-center justify-between gap-3">
+        <section className="flex min-h-0 min-w-0 flex-col rounded-3xl bg-white p-4 shadow-[0_16px_48px_rgba(28,25,23,0.08)] ring-1 ring-luma-border/80 sm:p-5 xl:h-0 xl:min-h-full xl:overflow-hidden">
+          <div className="mb-3 flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="text-base font-bold text-foreground">Kayıtlı Markalar</h2>
-            <button
-              type="button"
-              onClick={() => void loadTenants()}
-              className="shrink-0 text-sm font-semibold text-luma"
-            >
-              Yenile
-            </button>
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="relative min-w-0 flex-1 sm:w-56 sm:flex-none">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-luma-muted" />
+                <input
+                  value={brandQuery}
+                  onChange={(event) => setBrandQuery(event.target.value)}
+                  placeholder="Marka ara..."
+                  className="w-full rounded-xl border border-luma-border bg-white py-2 pl-9 pr-3 text-sm text-foreground outline-none placeholder:text-luma-muted focus:ring-2 focus:ring-luma"
+                />
+              </span>
+              <button
+                type="button"
+                onClick={() => void loadTenants()}
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-luma-border px-3 py-2 text-sm font-semibold text-foreground hover:bg-luma-soft"
+              >
+                <RefreshCcw className="h-3.5 w-3.5" />
+                Yenile
+              </button>
+            </div>
           </div>
           {error ? (
             <p className="mb-3 rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-luma-red">
@@ -1099,31 +1355,43 @@ export default function AdminPage() {
               {success}
             </p>
           ) : null}
-          {loading ? (
-            <p className="text-sm text-luma-muted">Yükleniyor...</p>
-          ) : tenants.length === 0 ? (
-            <p className="text-sm text-luma-muted">Henüz tenant kaydı yok.</p>
-          ) : (
-            <div className="overflow-x-auto rounded-2xl ring-1 ring-luma-border/80">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-luma-soft text-luma-kahve">
+          <div
+            ref={brandTableViewportRef}
+            style={{ paddingBottom: BRAND_TABLE_SCROLL_GUTTER }}
+            className={`min-h-0 flex-1 overflow-x-auto rounded-2xl ring-1 ring-luma-border/80 ${
+              editingKind ? "overflow-y-auto" : "overflow-y-hidden"
+            }`}
+          >
+            {loading || tenants.length === 0 || filteredTenants.length === 0 ? (
+              <div className="flex h-full items-center justify-center px-4 text-sm text-luma-muted">
+                {loading
+                  ? "Yükleniyor..."
+                  : tenants.length === 0
+                    ? "Henüz tenant kaydı yok."
+                    : "Aramanızla eşleşen marka yok."}
+              </div>
+            ) : (
+              <table className="w-full min-w-[68rem] text-left text-sm">
+                <thead className="sticky top-0 bg-luma-soft text-luma-kahve">
                   <tr>
                     <th className="px-3 py-2 font-semibold">Marka</th>
                     <th className="px-3 py-2 text-center font-semibold">Kod</th>
                     <th className="px-3 py-2 text-center font-semibold">Kullanıcı adı</th>
                     <th className="px-3 py-2 text-center font-semibold">Firebase e-posta</th>
+                    <th className="px-3 py-2 text-center font-semibold">Rapor erişimi</th>
                     <th className="px-3 py-2 text-center font-semibold">Şifre</th>
                     <th className="px-3 py-2 text-center font-semibold">İletişim</th>
-                    <th className="px-2 py-2 text-right font-semibold">
-                      <span className="sr-only">İşlemler</span>
-                    </th>
+                    <th className="px-2 py-2 text-right font-semibold">İşlemler</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {tenants.map((tenant) => (
+                  {pagedTenants.map((tenant) => (
                     <Fragment key={tenant.tenantId}>
-                      <tr className="border-t border-luma-border">
-                        <td className="px-3 py-2.5 text-foreground">
+                      <tr
+                        className="box-border border-t border-luma-border"
+                        style={{ height: brandRowHeight }}
+                      >
+                        <td className="px-3 py-1 align-middle text-foreground">
                           <span className="block">{tenant.brandName}</span>
                           {tenantHasDrive(tenant) ? (
                             <span className="mt-0.5 inline-block text-[10px] font-semibold text-luma">
@@ -1135,16 +1403,26 @@ export default function AdminPage() {
                             </span>
                           )}
                         </td>
-                        <td className="px-3 py-2.5 text-center font-semibold text-luma">
+                        <td className="px-3 py-1 align-middle text-center font-semibold text-luma">
                           {tenant.asana.brandCode}
                         </td>
-                        <td className="min-w-0 px-3 py-2.5 text-center font-medium break-all text-foreground">
+                        <td className="min-w-0 px-3 py-1 align-middle text-center font-medium break-all text-foreground">
                           {tenant.portalUsername || tenant.emails[0]?.split("@")[0] || "—"}
                         </td>
-                        <td className="min-w-0 px-3 py-2.5 text-center break-all text-luma-muted">
+                        <td className="min-w-0 px-3 py-1 align-middle text-center break-all text-luma-muted">
                           {tenant.emails.join(", ")}
                         </td>
-                        <td className="min-w-0 px-3 py-2.5 text-center text-luma-muted">
+                        <td className="px-3 py-1 align-middle text-center">
+                          <div className="flex justify-center">
+                            <ReportSwitch
+                              checked={tenant.reportsEnabled === true}
+                              disabled={togglingReportsId === tenant.tenantId}
+                              label={`${tenant.brandName} rapor erişimi`}
+                              onChange={(checked) => void onToggleReports(tenant, checked)}
+                            />
+                          </div>
+                        </td>
+                        <td className="min-w-0 px-3 py-1 align-middle text-center text-luma-muted">
                           {tenant.portalPassword ? (
                             <div className="inline-flex items-center justify-center gap-1">
                               <span className="max-w-36 truncate font-medium text-foreground">
@@ -1181,26 +1459,18 @@ export default function AdminPage() {
                             <span>Kayıtlı değil</span>
                           )}
                         </td>
-                        <td className="min-w-0 px-3 py-2.5 text-center break-all text-luma-muted">
+                        <td className="min-w-0 px-3 py-1 align-middle text-center break-all text-luma-muted">
                           {tenant.contactEmail || "—"}
                         </td>
-                        <td className="px-2 py-2.5 text-right">
+                        <td className="px-2 py-1 align-middle text-right">
                           <div className="inline-flex items-center gap-1">
                             <button
                               type="button"
-                              onClick={() => onEditContact(tenant)}
+                              onClick={() => onEditAccount(tenant)}
                               className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-luma-muted transition-colors hover:bg-luma-soft hover:text-luma"
-                              aria-label={`${tenant.brandName} iletişim e-postası`}
+                              aria-label={`${tenant.brandName} bilgilerini düzenle`}
                             >
-                              <Mail className="h-4 w-4" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => onEditPassword(tenant)}
-                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-luma-muted transition-colors hover:bg-luma-soft hover:text-luma"
-                              aria-label={`${tenant.brandName} giriş şifresi`}
-                            >
-                              <LockKeyhole className="h-4 w-4" />
+                              <Pencil className="h-4 w-4" />
                             </button>
                             <button
                               type="button"
@@ -1226,85 +1496,56 @@ export default function AdminPage() {
                           </div>
                         </td>
                       </tr>
-                      {editingId === tenant.tenantId && editingKind === "contact" ? (
+                      {editingId === tenant.tenantId && editingKind === "account" ? (
                         <tr className="border-t border-luma-border bg-luma-soft/60">
-                          <td colSpan={7} className="px-3 py-3">
+                          <td colSpan={8} className="px-3 py-3">
                             <p className="mb-2 text-xs font-semibold text-luma-kahve">
-                              {tenant.brandName} iletişim e-postası
+                              {tenant.brandName} iletişim ve şifre
                             </p>
-                            <label className="block">
-                              <input
-                                type="email"
-                                value={contactDraft}
-                                onChange={(event) => setContactDraft(event.target.value)}
-                                placeholder="İletişim e-postası (opsiyonel)"
-                                className={fieldClassName}
-                              />
-                              <span className="mt-1 block text-xs leading-relaxed text-luma-muted">
-                                Boş bırakılabilir. İstediğiniz maili sonra da bağlayabilirsiniz.
-                              </span>
-                            </label>
-                            <div className="mt-3 flex flex-wrap gap-2">
-                              <button
-                                type="button"
-                                onClick={() => void onSaveContact(tenant)}
-                                disabled={savingDriveId === tenant.tenantId}
-                                className="inline-flex items-center justify-center gap-2 rounded-xl bg-luma px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
-                              >
-                                {savingDriveId === tenant.tenantId ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : null}
-                                Kaydet
-                              </button>
-                              <button
-                                type="button"
-                                onClick={closeEditor}
-                                className="rounded-xl px-4 py-2 text-sm font-semibold text-luma-muted"
-                              >
-                                Vazgeç
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ) : null}
-                      {editingId === tenant.tenantId && editingKind === "password" ? (
-                        <tr className="border-t border-luma-border bg-luma-soft/60">
-                          <td colSpan={7} className="px-3 py-3">
-                            <p className="mb-2 text-xs font-semibold text-luma-kahve">
-                              {tenant.brandName} giriş şifresi
-                            </p>
-                            <label className="block">
-                              <span className="relative block">
+                            <div className="grid gap-3 md:grid-cols-2">
+                              <label className="block">
+                                <span className="mb-1 block text-sm font-medium text-foreground">
+                                  İletişim e-postası
+                                </span>
                                 <input
-                                  type={showPasswordDraft ? "text" : "password"}
-                                  value={passwordDraft}
-                                  onChange={(event) => setPasswordDraft(event.target.value)}
-                                  placeholder="Yeni şifre (en az 8 karakter)"
-                                  className={`${fieldClassName} pr-11`}
+                                  type="email"
+                                  value={contactDraft}
+                                  onChange={(event) => setContactDraft(event.target.value)}
+                                  placeholder="İletişim e-postası (opsiyonel)"
+                                  className={fieldClassName}
                                 />
-                                <button
-                                  type="button"
-                                  onClick={() => setShowPasswordDraft((prev) => !prev)}
-                                  className="absolute right-2 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-luma-muted hover:text-luma"
-                                  aria-label={showPasswordDraft ? "Şifreyi gizle" : "Şifreyi göster"}
-                                >
-                                  {showPasswordDraft ? (
-                                    <EyeOff className="h-4 w-4" />
-                                  ) : (
-                                    <Eye className="h-4 w-4" />
-                                  )}
-                                </button>
-                              </span>
-                              <span className="mt-1 block text-xs leading-relaxed text-luma-muted">
-                                {tenant.portalPassword
-                                  ? "Yeni şifre hem listeye hem marka girişine yazılır."
-                                  : "Bu marka için kayıtlı şifre yok. Yeni şifre belirleyince hem listeye hem girişe işlenir."}
-                              </span>
-                            </label>
+                              </label>
+                              <label className="block">
+                                <span className="mb-1 block text-sm font-medium text-foreground">
+                                  Yeni şifre
+                                </span>
+                                <span className="relative block">
+                                  <input
+                                    type={showPasswordDraft ? "text" : "password"}
+                                    value={passwordDraft}
+                                    onChange={(event) => setPasswordDraft(event.target.value)}
+                                    placeholder="Boş bırakırsanız şifre değişmez"
+                                    className={`${fieldClassName} pr-11`}
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => setShowPasswordDraft((prev) => !prev)}
+                                    className="absolute right-2 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-luma-muted hover:text-luma"
+                                    aria-label={showPasswordDraft ? "Şifreyi gizle" : "Şifreyi göster"}
+                                  >
+                                    {showPasswordDraft ? (
+                                      <EyeOff className="h-4 w-4" />
+                                    ) : (
+                                      <Eye className="h-4 w-4" />
+                                    )}
+                                  </button>
+                                </span>
+                              </label>
+                            </div>
                             <div className="mt-3 flex flex-wrap gap-2">
                               <button
                                 type="button"
-                                onClick={() => void onSavePassword(tenant)}
+                                onClick={() => void onSaveAccount(tenant)}
                                 disabled={savingDriveId === tenant.tenantId}
                                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-luma px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
                               >
@@ -1326,7 +1567,7 @@ export default function AdminPage() {
                       ) : null}
                       {editingId === tenant.tenantId && editingKind === "drive" ? (
                         <tr className="border-t border-luma-border bg-luma-soft/60">
-                          <td colSpan={7} className="px-3 py-3">
+                          <td colSpan={8} className="px-3 py-3">
                             <p className="mb-2 text-xs font-semibold text-luma-kahve">
                               {tenant.brandName} Drive bağlantıları
                             </p>
@@ -1358,10 +1599,30 @@ export default function AdminPage() {
                   ))}
                 </tbody>
               </table>
-            </div>
-          )}
+            )}
+          </div>
+          <AdminPagination
+            page={currentBrandPage}
+            pageCount={brandPageCount}
+            total={filteredTenants.length}
+            pageSize={brandsPerPage}
+            onPageChange={setBrandPage}
+          />
         </section>
       </div>
+        </>
+      ) : (
+        <AdminComingSoon
+          title={sectionTitle}
+          description={
+            adminSection === "mail"
+              ? "Mail şablonları ve gönderim kuralları bu ekranda toplanacak. Şimdilik marka onboarding üzerinden devam edin."
+              : "Bildirim kanalları ve tetikleyiciler bu ekranda toplanacak. Şimdilik marka onboarding üzerinden devam edin."
+          }
+        />
+      )}
+          </div>
+        </div>
       <AdminConfirmDialog
         open={signOutConfirmOpen}
         busy={adminSigningOut}
@@ -1390,6 +1651,235 @@ export default function AdminPage() {
         }}
       />
     </div>
+  );
+}
+
+function AdminAccountMenu({
+  email,
+  open,
+  busy,
+  onOpenChange,
+  onSignOut,
+}: {
+  email?: string | null;
+  open: boolean;
+  busy: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSignOut: () => void;
+}) {
+  useEffect(() => {
+    if (!open) return;
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") onOpenChange(false);
+    }
+
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [open, onOpenChange]);
+
+  return (
+    <div className="relative shrink-0">
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-haspopup="menu"
+        onClick={() => onOpenChange(!open)}
+        className="inline-flex items-center gap-2 rounded-full py-1 pl-1 pr-2.5 transition-colors hover:bg-white"
+      >
+        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-luma text-xs font-bold text-white">
+          TA
+        </span>
+        <span className="hidden text-sm font-semibold text-foreground sm:inline">Tenant Admin</span>
+        <ChevronDown
+          className={`h-4 w-4 text-luma-muted transition-transform ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+      {open ? (
+        <>
+          <button
+            type="button"
+            tabIndex={-1}
+            aria-label="Menüyü kapat"
+            className="fixed inset-0 z-40 cursor-default bg-transparent"
+            onClick={() => onOpenChange(false)}
+          />
+          <div
+            role="menu"
+            className="absolute right-0 top-[calc(100%+8px)] z-50 w-56 overflow-hidden rounded-2xl bg-white py-1.5 shadow-[0_12px_40px_rgba(28,25,23,0.12)] ring-1 ring-luma-border"
+          >
+            {email ? (
+              <p className="truncate px-3.5 pb-1.5 pt-1 text-xs text-luma-muted">{email}</p>
+            ) : null}
+            <button
+              type="button"
+              role="menuitem"
+              disabled={busy}
+              onClick={onSignOut}
+              className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-sm font-semibold text-luma-red transition-colors hover:bg-red-50 disabled:opacity-60"
+            >
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
+              Güvenli çıkış
+            </button>
+          </div>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+function AdminNavButton({
+  active,
+  collapsed,
+  icon,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  collapsed: boolean;
+  icon: ReactNode;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      title={label}
+      onClick={onClick}
+      className={`inline-flex items-center rounded-xl text-sm font-semibold transition-colors ${
+        collapsed
+          ? "w-full gap-2.5 px-3 py-2.5 lg:h-11 lg:w-11 lg:justify-center lg:gap-0 lg:px-0"
+          : "w-full gap-2.5 px-3 py-2.5"
+      } ${
+        active ? "bg-luma-soft text-luma" : "text-luma-muted hover:bg-[#FBF9F5] hover:text-foreground"
+      }`}
+    >
+      {icon}
+      <span className={collapsed ? "lg:hidden" : ""}>{label}</span>
+    </button>
+  );
+}
+
+function paginationItems(page: number, pageCount: number): Array<number | "…"> {
+  if (pageCount <= 7) {
+    return Array.from({ length: pageCount }, (_, index) => index + 1);
+  }
+  const items: Array<number | "…"> = [1];
+  const start = Math.max(2, page - 1);
+  const end = Math.min(pageCount - 1, page + 1);
+  if (start > 2) items.push("…");
+  for (let value = start; value <= end; value += 1) items.push(value);
+  if (end < pageCount - 1) items.push("…");
+  items.push(pageCount);
+  return items;
+}
+
+function AdminPagination({
+  page,
+  pageCount,
+  total,
+  pageSize,
+  onPageChange,
+}: {
+  page: number;
+  pageCount: number;
+  total: number;
+  pageSize: number;
+  onPageChange: (page: number) => void;
+}) {
+  const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const to = Math.min(page * pageSize, total);
+  const items = paginationItems(page, Math.max(pageCount, 1));
+
+  return (
+    <div className="mt-3 flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-luma-border/80 pt-3">
+      <p className="text-xs font-medium text-luma-muted">
+        {from}–{to} / {total} marka
+      </p>
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          disabled={page <= 1}
+          onClick={() => onPageChange(page - 1)}
+          className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-luma-muted transition-colors hover:bg-luma-soft hover:text-luma disabled:cursor-not-allowed disabled:opacity-40"
+          aria-label="Önceki sayfa"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+        {items.map((item, index) =>
+          item === "…" ? (
+            <span key={`ellipsis-${index}`} className="px-1 text-sm text-luma-muted">
+              …
+            </span>
+          ) : (
+            <button
+              key={item}
+              type="button"
+              onClick={() => onPageChange(item)}
+              aria-current={item === page ? "page" : undefined}
+              className={`inline-flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-sm font-semibold transition-colors ${
+                item === page
+                  ? "bg-luma text-white"
+                  : "text-luma-muted hover:bg-luma-soft hover:text-luma"
+              }`}
+            >
+              {item}
+            </button>
+          ),
+        )}
+        <button
+          type="button"
+          disabled={page >= pageCount}
+          onClick={() => onPageChange(page + 1)}
+          className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-luma-muted transition-colors hover:bg-luma-soft hover:text-luma disabled:cursor-not-allowed disabled:opacity-40"
+          aria-label="Sonraki sayfa"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ReportSwitch({
+  checked,
+  disabled,
+  label,
+  onChange,
+}: {
+  checked: boolean;
+  disabled?: boolean;
+  label: string;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      disabled={disabled}
+      onClick={() => onChange(!checked)}
+      className={`relative h-6 w-11 rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+        checked ? "bg-luma" : "bg-[#d7d0c8]"
+      }`}
+    >
+      <span
+        className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-[left] ${
+          checked ? "left-[22px]" : "left-0.5"
+        }`}
+      />
+    </button>
+  );
+}
+
+function AdminComingSoon({ title, description }: { title: string; description: string }) {
+  return (
+    <section className="rounded-3xl bg-white p-6 shadow-[0_16px_48px_rgba(28,25,23,0.08)] ring-1 ring-luma-border/80 sm:p-8">
+      <p className="text-xs font-semibold uppercase tracking-wide text-luma">Yakında</p>
+      <h2 className="mt-2 text-xl font-bold text-foreground">{title}</h2>
+      <p className="mt-2 max-w-xl text-sm leading-relaxed text-luma-muted">{description}</p>
+    </section>
   );
 }
 
@@ -1642,13 +2132,7 @@ function LookupPreview({
     );
   }
 
-  if (code.length < 3) {
-    return (
-      <p className="rounded-2xl bg-[#FBF9F5] px-3 py-2.5 text-sm text-luma-muted">
-        Marka kodunu yaz, ilgili işler ve eşleşme otomatik gelsin.
-      </p>
-    );
-  }
+  if (code.length < 3) return null;
 
   if (!lookup) return null;
 
@@ -1715,12 +2199,9 @@ function DriveFields({
 
   return (
     <div className="space-y-2">
-      <p className="pt-1 text-xs font-semibold uppercase tracking-wide text-luma-kahve">
+      <p className="flex items-center gap-1.5 pt-1 text-xs font-semibold uppercase tracking-wide text-luma-kahve">
         Drive
-      </p>
-      <p className="text-xs leading-relaxed text-luma-muted">
-        Kutuyu Firebase Admin e-postasına Viewer paylaş, linki buraya yapıştır. Logo, brief,
-        rakip analizi ve aylık planlar klasörden otomatik gelir.
+        <FieldHint text="Kutuyu Firebase Admin e-postasına Viewer paylaş, linki buraya yapıştır. Logo, brief, rakip analizi ve aylık planlar klasörden otomatik gelir." />
       </p>
       <input
         value={value.rootUrl}
@@ -1732,14 +2213,40 @@ function DriveFields({
   );
 }
 
-function DriveStatusBanner({ status }: { status: DriveStatus | null }) {
+function FieldHint({ text }: { text: string }) {
+  return (
+    <span className="relative inline-flex shrink-0">
+      <button
+        type="button"
+        className="peer inline-flex h-4 w-4 items-center justify-center rounded-full text-luma-muted/70 transition-colors hover:text-luma"
+        aria-label="Bilgi"
+      >
+        <Info className="h-3.5 w-3.5" />
+      </button>
+      <span
+        role="tooltip"
+        className="pointer-events-none absolute left-0 top-[calc(100%+6px)] z-50 w-60 rounded-xl bg-[#1c1917] px-3 py-2 text-left text-[11px] font-normal normal-case leading-relaxed tracking-normal text-white opacity-0 shadow-[0_12px_32px_rgba(28,25,23,0.24)] transition-opacity peer-hover:opacity-100 peer-focus-visible:opacity-100"
+      >
+        {text}
+      </span>
+    </span>
+  );
+}
+
+function SidebarDriveShare({
+  email,
+  collapsed,
+}: {
+  email?: string;
+  collapsed: boolean;
+}) {
   const [copied, setCopied] = useState(false);
-  const email = status?.email?.trim() ?? "";
-  if (!email) return null;
+  const value = email?.trim() ?? "";
+  if (!value) return null;
 
   async function copyEmail() {
     try {
-      await navigator.clipboard.writeText(email);
+      await navigator.clipboard.writeText(value);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1600);
     } catch {
@@ -1747,26 +2254,60 @@ function DriveStatusBanner({ status }: { status: DriveStatus | null }) {
     }
   }
 
+  const hint =
+    "Bu adresi markanın Drive kutusuna Viewer ekle, sonra sağdaki klasör ikonuna kutu linkini kaydet.";
+
   return (
-    <section className="rounded-3xl bg-luma-soft px-4 py-4 ring-1 ring-luma-border/80 sm:px-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-sm font-bold text-foreground">Drive paylaşım e-postası</p>
-          <p className="mt-1 text-sm text-luma-muted">
-            Bu adresi markanın Drive kutusuna Viewer ekle, sonra sağdaki klasör ikonuna kutu
-            linkini kaydet.
-          </p>
-          <p className="mt-2 break-all font-mono text-xs text-foreground">{email}</p>
-        </div>
+    <div className={`min-w-0 ${collapsed ? "lg:flex lg:justify-center" : ""}`}>
+      <p
+        className={`mb-1.5 text-[11px] font-semibold text-luma-kahve ${
+          collapsed ? "lg:hidden" : ""
+        }`}
+      >
+        Drive paylaşım
+      </p>
+      <div
+        className={`flex min-w-0 items-center gap-1 ${
+          collapsed ? "lg:flex-col" : ""
+        }`}
+      >
+        <p
+          className={`min-w-0 flex-1 truncate font-mono text-[10px] leading-4 text-foreground ${
+            collapsed ? "lg:hidden" : ""
+          }`}
+          title={value}
+        >
+          {value}
+        </p>
         <button
           type="button"
           onClick={() => void copyEmail()}
-          className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3 py-2 text-sm font-semibold text-foreground ring-1 ring-luma-border"
+          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-luma-muted transition-colors hover:bg-luma-soft hover:text-luma"
+          aria-label={copied ? "E-posta kopyalandı" : "E-postayı kopyala"}
+          title={copied ? "Kopyalandı" : "Kopyala"}
         >
-          {copied ? <Check className="h-4 w-4 text-luma-green" /> : <Copy className="h-4 w-4" />}
-          {copied ? "Kopyalandı" : "E-postayı kopyala"}
+          {copied ? <Check className="h-3.5 w-3.5 text-luma-green" /> : <Copy className="h-3.5 w-3.5" />}
         </button>
+        <div className="relative shrink-0">
+          <button
+            type="button"
+            className="peer inline-flex h-7 w-7 items-center justify-center rounded-full text-luma-muted/70 transition-colors hover:text-luma"
+            aria-label="Drive paylaşım bilgisi"
+          >
+            <Info className="h-3.5 w-3.5" />
+          </button>
+          <div
+            role="tooltip"
+            className={`pointer-events-none absolute z-50 w-56 rounded-xl bg-[#1c1917] px-3 py-2 text-[11px] leading-relaxed text-white opacity-0 shadow-[0_12px_32px_rgba(28,25,23,0.24)] transition-opacity peer-hover:opacity-100 peer-focus-visible:opacity-100 ${
+              collapsed
+                ? "bottom-full left-0 mb-2 lg:bottom-auto lg:left-full lg:top-1/2 lg:mb-0 lg:ml-2 lg:-translate-y-1/2"
+                : "bottom-full left-0 mb-2"
+            }`}
+          >
+            {hint}
+          </div>
+        </div>
       </div>
-    </section>
+    </div>
   );
 }

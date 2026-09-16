@@ -22,6 +22,7 @@ import {
   updateTenantContactEmail,
   updateTenantDrive,
   updateTenantPortalPassword,
+  updateTenantReportsEnabled,
   upsertTenant,
   type TenantAccess,
 } from "@/lib/tenant/access";
@@ -247,6 +248,7 @@ function normalizeTenantPayload(
     contactEmail: payload.contactEmail,
     portalUsername: payload.username,
     portalPassword: payload.password,
+    reportsEnabled: false,
     asana: {
       brandCode: payload.brandCode,
       projectGids: mapping.projectGids,
@@ -370,6 +372,7 @@ export async function PATCH(request: Request) {
       competitorUrl?: string;
       plansFolderUrl?: string;
       planUrlsText?: string;
+      reportsEnabled?: boolean;
     };
     const tenantId = body.tenantId?.trim() ?? "";
     if (!tenantId) {
@@ -379,7 +382,8 @@ export async function PATCH(request: Request) {
     const updatingDrive = "rootUrl" in body;
     const updatingContact = "contactEmail" in body;
     const updatingPassword = "password" in body;
-    if (!updatingDrive && !updatingContact && !updatingPassword) {
+    const updatingReports = "reportsEnabled" in body;
+    if (!updatingDrive && !updatingContact && !updatingPassword && !updatingReports) {
       throw new TenantAccessError("Güncellenecek alan yok", 400);
     }
 
@@ -419,6 +423,12 @@ export async function PATCH(request: Request) {
         portalPassword: password,
       };
     }
+    if (updatingReports) {
+      tenant = await updateTenantReportsEnabled(
+        tenantId,
+        body.reportsEnabled === true,
+      );
+    }
     if (!tenant) {
       throw new TenantAccessError("Marka bulunamadı", 404);
     }
@@ -437,7 +447,8 @@ export async function PATCH(request: Request) {
       );
     }
 
-    const driveCheck = await driveAccessCheck(tenant);
+    const driveCheck =
+      updatingReports && !updatingDrive ? undefined : await driveAccessCheck(tenant);
     return NextResponse.json({ ok: true, tenant, driveCheck });
   } catch (error) {
     if (error instanceof TenantAccessError) {

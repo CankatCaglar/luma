@@ -27,6 +27,7 @@ export type JobListExtras = {
   competitorUrl?: string;
   contentPlans?: ContentPlan[];
   monthlyReports?: MonthlyReport[];
+  reportsEnabled?: boolean;
 };
 
 export type CompactJobLists = {
@@ -42,6 +43,7 @@ export type CompactJobLists = {
   planYears?: PlanYear[];
   contentPlans?: ContentPlan[];
   monthlyReports?: MonthlyReport[];
+  reportsEnabled?: boolean;
 };
 
 function isActive(job: Job): boolean {
@@ -93,6 +95,7 @@ export function listsFromJobs(
     monthlyReports:
       extra?.monthlyReports ??
       mergeMonthlyReports(jobs, extra?.driveReports, now, extra?.competitorUrl),
+    reportsEnabled: extra?.reportsEnabled === true,
     brandAssets: extra?.brandAssets,
     driveBoxUrl: extra?.driveBoxUrl,
     plansFolderUrl: extra?.plansFolderUrl,
@@ -117,6 +120,7 @@ export function compactJobLists(data: JobLists): CompactJobLists {
     planYears: data.planYears,
     contentPlans: data.contentPlans,
     monthlyReports: data.monthlyReports,
+    reportsEnabled: data.reportsEnabled === true,
   };
 }
 
@@ -138,6 +142,7 @@ export function expandJobLists(data: CompactJobLists): JobLists | null {
       planYears: data.planYears,
       contentPlans: data.contentPlans,
       monthlyReports: data.monthlyReports,
+      reportsEnabled: data.reportsEnabled === true,
     },
   );
 }

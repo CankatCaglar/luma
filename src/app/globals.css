@@ -117,7 +117,19 @@ input[type="date"]::-webkit-date-and-time-value {
 }
 
 .admin-shell {
+  height: 100dvh;
+  overflow: hidden;
   overflow-wrap: break-word;
+}
+
+.admin-shell * {
+  scrollbar-width: thin;
+}
+
+.admin-shell *::-webkit-scrollbar {
+  display: block;
+  width: 8px;
+  height: 8px;
 }
 
 .admin-shell button,

@@ -128,6 +128,7 @@ function omitHiddenJobs(data: JobLists): JobLists {
     approvalItems: visible(data.approvalItems),
     contentPlans: visible(data.contentPlans),
     monthlyReports: visible(data.monthlyReports),
+    reportsEnabled: data.reportsEnabled === true,
     partial: data.partial,
   };
 }

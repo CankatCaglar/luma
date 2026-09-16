@@ -26,6 +26,8 @@ export type TenantAccess = {
   contactEmail?: string;
   portalUsername?: string;
   portalPassword?: string;
+  reportsEnabled: boolean;
+  createdAtMs?: number;
   asana: TenantAsanaConfig;
   drive?: TenantDriveConfig;
 };
@@ -57,11 +59,32 @@ function parseAsanaProjectGids(value: string | undefined): string[] {
   return [...new Set(value.split(/[,\s]+/).map((part) => part.trim()).filter(Boolean))];
 }
 
+function timestampToMs(value: unknown): number | undefined {
+  if (!value) return undefined;
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (value instanceof Date) {
+    const ms = value.getTime();
+    return Number.isFinite(ms) ? ms : undefined;
+  }
+  if (typeof value === "object") {
+    const candidate = value as { toMillis?: () => number; seconds?: number };
+    if (typeof candidate.toMillis === "function") {
+      const ms = candidate.toMillis();
+      return Number.isFinite(ms) ? ms : undefined;
+    }
+    if (typeof candidate.seconds === "number") {
+      return candidate.seconds * 1000;
+    }
+  }
+  return undefined;
+}
+
 function toTenantAccess(input: unknown): TenantAccess | null {
   if (!input || typeof input !== "object") return null;
   const candidate = input as Partial<TenantAccess> & {
     asana?: Partial<TenantAsanaConfig>;
     active?: boolean;
+    createdAt?: unknown;
   };
   if (candidate.active === false) return null;
   const tenantId = candidate.tenantId?.trim();
@@ -96,6 +119,8 @@ function toTenantAccess(input: unknown): TenantAccess | null {
     contactEmail: contactEmail || undefined,
     portalUsername: portalUsername || undefined,
     portalPassword: portalPassword || undefined,
+    reportsEnabled: candidate.reportsEnabled === true,
+    createdAtMs: timestampToMs(candidate.createdAt) ?? candidate.createdAtMs,
     asana: {
       brandCode,
       projectGids,
@@ -131,6 +156,7 @@ function fallbackTenant(): TenantAccess | null {
     tenantId: readEnv("DEFAULT_TENANT_ID") ?? "default",
     brandName: readEnv("DEFAULT_TENANT_BRAND_NAME") ?? brandCode,
     emails: [allowedEmail],
+    reportsEnabled: false,
     asana: {
       brandCode,
       projectGids,
@@ -161,10 +187,15 @@ export async function listTenantDirectory(): Promise<TenantAccess[]> {
         toTenantAccess({
           tenantId: doc.id,
           ...doc.data(),
+          createdAt: doc.createTime ?? doc.data().createdAt,
         }),
       )
       .filter((item): item is TenantAccess => item !== null)
-      .sort((left, right) => left.brandName.localeCompare(right.brandName, "tr"));
+      .sort((left, right) => {
+        const created = (right.createdAtMs ?? 0) - (left.createdAtMs ?? 0);
+        if (created !== 0) return created;
+        return left.brandName.localeCompare(right.brandName, "tr");
+      });
   } catch {
     return getTenantDirectory();
   }
@@ -267,6 +298,8 @@ export async function deleteTenant(tenantId: string): Promise<TenantAccess | nul
 
 export async function upsertTenant(tenant: TenantAccess): Promise<void> {
   const db = getAdminDb();
+  const ref = db.collection(defaultCollectionName()).doc(tenant.tenantId);
+  const existing = await ref.get();
   const payload: Record<string, unknown> = {
     tenantId: tenant.tenantId,
     brandName: tenant.brandName,
@@ -275,6 +308,7 @@ export async function upsertTenant(tenant: TenantAccess): Promise<void> {
     portalUsername: tenant.portalUsername
       ? normalizePortalUsername(tenant.portalUsername)
       : null,
+    reportsEnabled: tenant.reportsEnabled === true,
     asana: {
       brandCode: tenant.asana.brandCode.toUpperCase().trim(),
       projectGids: [...new Set(tenant.asana.projectGids.map((gid) => gid.trim()))],
@@ -284,15 +318,17 @@ export async function upsertTenant(tenant: TenantAccess): Promise<void> {
     },
     active: true,
     updatedAt: FieldValue.serverTimestamp(),
-    createdAt: FieldValue.serverTimestamp(),
   };
+  if (!existing.exists || !existing.data()?.createdAt) {
+    payload.createdAt = FieldValue.serverTimestamp();
+  }
   if (tenant.portalPassword) {
     payload.portalPassword = tenant.portalPassword;
   }
   if (tenant.drive !== undefined) {
     payload.drive = serializeDrive(tenant.drive);
   }
-  await db.collection(defaultCollectionName()).doc(tenant.tenantId).set(payload, {
+  await ref.set(payload, {
     merge: true,
   });
 }
@@ -338,6 +374,28 @@ export async function updateTenantPortalPassword(
   return {
     ...existing,
     portalPassword,
+  };
+}
+
+export async function updateTenantReportsEnabled(
+  tenantId: string,
+  reportsEnabled: boolean,
+): Promise<TenantAccess | null> {
+  const existing = await getTenantById(tenantId);
+  if (!existing) return null;
+
+  const db = getAdminDb();
+  await db.collection(defaultCollectionName()).doc(existing.tenantId).set(
+    {
+      reportsEnabled,
+      updatedAt: FieldValue.serverTimestamp(),
+    },
+    { merge: true },
+  );
+
+  return {
+    ...existing,
+    reportsEnabled,
   };
 }
 

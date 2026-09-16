@@ -21,6 +21,7 @@ export type TenantScope = {
   projectGids: string[];
   workspaceGid?: string;
   drive?: TenantDriveConfig;
+  reportsEnabled?: boolean;
 };
 
 export type JobListsLoad = {
@@ -47,6 +48,16 @@ function toTenantSummary(scope: TenantScope): TenantSummary {
     brandName: scope.brandName,
     brandCode: scope.brandCode,
     email: scope.email,
+    reportsEnabled: scope.reportsEnabled === true,
+  };
+}
+
+function withReportsPolicy(data: JobLists, reportsEnabled: boolean): JobLists {
+  return {
+    ...data,
+    reportsEnabled,
+    tenant: { ...data.tenant, reportsEnabled },
+    monthlyReports: reportsEnabled ? data.monthlyReports : [],
   };
 }
 
@@ -107,6 +118,7 @@ async function fetchJobLists(
     drivePlans: driveCatalog.plans,
     driveReports: driveCatalog.reports,
     competitorUrl,
+    reportsEnabled: scope.reportsEnabled === true,
   });
 }
 
@@ -166,6 +178,9 @@ export async function getJobLists(input: {
   noStore();
   const key = cacheKey(input.scope);
   const fresh = input.fresh ?? false;
+  const reportsEnabled = input.scope.reportsEnabled === true;
+  const present = (data: JobLists): JobLists =>
+    withReportsPolicy(data, reportsEnabled);
 
   const revalidate = async () => {
     await refreshJobLists(input.scope).catch((error) => {
@@ -178,7 +193,7 @@ export async function getJobLists(input: {
     if (cached && !cached.partial) {
       const age = Date.now() - cached.fetchedAt;
       return {
-        data: cached.data,
+        data: present(cached.data),
         revalidate: age >= JOBS_FRESH_MS ? revalidate : null,
       };
     }
@@ -189,32 +204,32 @@ export async function getJobLists(input: {
       remember(input.scope, fromSnapshot, snapshot.fetchedAt);
       const age = Date.now() - snapshot.fetchedAt;
       return {
-        data: fromSnapshot,
+        data: present(fromSnapshot),
         revalidate: age >= JOBS_FRESH_MS ? revalidate : null,
       };
     }
 
     if (cached?.partial) {
-      return { data: cached.data, revalidate };
+      return { data: present(cached.data), revalidate };
     }
   }
 
   try {
     if (fresh) {
       const data = await refreshJobLists(input.scope, { skipCache: true });
-      return { data, revalidate: null };
+      return { data: present(data), revalidate: null };
     }
 
     const data = await refreshJobLists(input.scope, { openOnly: true });
-    return { data, revalidate };
+    return { data: present(data), revalidate };
   } catch (error) {
     const cached = jobsCache.get(key);
-    if (cached) return { data: cached.data, revalidate: null };
+    if (cached) return { data: present(cached.data), revalidate: null };
     const snapshot = await readJobSnapshot(input.scope.tenantId);
     const fromSnapshot = snapshot ? snapshotToJobLists(snapshot) : null;
     if (fromSnapshot) {
       remember(input.scope, fromSnapshot, snapshot!.fetchedAt);
-      return { data: fromSnapshot, revalidate: null };
+      return { data: present(fromSnapshot), revalidate: null };
     }
     logAsanaError(error, "tenant fetch failed");
     throw error;
