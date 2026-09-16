@@ -429,7 +429,13 @@ export default function AdminPage() {
   useLayoutEffect(() => {
     const viewport = brandTableViewportRef.current;
     if (!viewport) return;
+    const desktop = window.matchMedia("(min-width: 1280px)");
     const sync = () => {
+      if (!desktop.matches) {
+        setBrandsPerPage(10);
+        setBrandRowHeight(BRAND_ROW_MIN_HEIGHT);
+        return;
+      }
       const headHeight =
         viewport.querySelector("thead")?.getBoundingClientRect().height ||
         BRAND_TABLE_HEAD_HEIGHT;
@@ -445,7 +451,11 @@ export default function AdminPage() {
     sync();
     const observer = new ResizeObserver(sync);
     observer.observe(viewport);
-    return () => observer.disconnect();
+    desktop.addEventListener("change", sync);
+    return () => {
+      observer.disconnect();
+      desktop.removeEventListener("change", sync);
+    };
   }, [adminReady, adminSection]);
 
   useEffect(() => {
@@ -1133,8 +1143,8 @@ export default function AdminPage() {
         </aside>
 
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-luma-border bg-[#FBF9F5] px-4 py-3 sm:px-6">
-            <div className="min-w-0">
+          <header className="flex shrink-0 items-start justify-between gap-3 border-b border-luma-border bg-[#FBF9F5] px-4 py-3 sm:px-6">
+            <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <button
                   type="button"
@@ -1359,8 +1369,8 @@ export default function AdminPage() {
           <div
             ref={brandTableViewportRef}
             style={{ paddingBottom: BRAND_TABLE_SCROLL_GUTTER }}
-            className={`min-h-0 flex-1 overflow-x-auto rounded-2xl ring-1 ring-luma-border/80 ${
-              editingKind ? "overflow-y-auto" : "overflow-y-hidden"
+            className={`min-h-0 overflow-x-auto rounded-2xl ring-1 ring-luma-border/80 xl:flex-1 ${
+              editingKind ? "overflow-y-auto" : "overflow-y-visible xl:overflow-y-hidden"
             }`}
           >
             {loading || tenants.length === 0 || filteredTenants.length === 0 ? (
@@ -1668,6 +1678,9 @@ function AdminAccountMenu({
   onOpenChange: (open: boolean) => void;
   onSignOut: () => void;
 }) {
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [menuBox, setMenuBox] = useState<{ top: number; left: number; width: number } | null>(null);
+
   useEffect(() => {
     if (!open) return;
 
@@ -1679,9 +1692,34 @@ function AdminAccountMenu({
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [open, onOpenChange]);
 
+  useLayoutEffect(() => {
+    if (!open) {
+      setMenuBox(null);
+      return;
+    }
+
+    const place = () => {
+      const button = buttonRef.current;
+      if (!button) return;
+      const rect = button.getBoundingClientRect();
+      const width = Math.min(224, window.innerWidth - 16);
+      const left = Math.max(8, Math.min(rect.right - width, window.innerWidth - width - 8));
+      setMenuBox({ top: rect.bottom + 8, left, width });
+    };
+
+    place();
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
+    return () => {
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
+    };
+  }, [open]);
+
   return (
-    <div className="relative shrink-0">
+    <div className="relative ml-auto shrink-0">
       <button
+        ref={buttonRef}
         type="button"
         aria-expanded={open}
         aria-haspopup="menu"
@@ -1705,24 +1743,30 @@ function AdminAccountMenu({
             className="fixed inset-0 z-40 cursor-default bg-transparent"
             onClick={() => onOpenChange(false)}
           />
-          <div
-            role="menu"
-            className="absolute right-0 top-[calc(100%+8px)] z-50 w-56 overflow-hidden rounded-2xl bg-white py-1.5 shadow-[0_12px_40px_rgba(28,25,23,0.12)] ring-1 ring-luma-border"
-          >
-            {email ? (
-              <p className="truncate px-3.5 pb-1.5 pt-1 text-xs text-luma-muted">{email}</p>
-            ) : null}
-            <button
-              type="button"
-              role="menuitem"
-              disabled={busy}
-              onClick={onSignOut}
-              className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-sm font-semibold text-luma-red transition-colors hover:bg-red-50 disabled:opacity-60"
-            >
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
-              Güvenli çıkış
-            </button>
-          </div>
+          {menuBox
+            ? createPortal(
+                <div
+                  role="menu"
+                  style={{ top: menuBox.top, left: menuBox.left, width: menuBox.width }}
+                  className="fixed z-50 overflow-hidden rounded-2xl bg-white py-1.5 shadow-[0_12px_40px_rgba(28,25,23,0.12)] ring-1 ring-luma-border"
+                >
+                  {email ? (
+                    <p className="truncate px-3.5 pb-1.5 pt-1 text-xs text-luma-muted">{email}</p>
+                  ) : null}
+                  <button
+                    type="button"
+                    role="menuitem"
+                    disabled={busy}
+                    onClick={onSignOut}
+                    className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-sm font-semibold text-luma-red transition-colors hover:bg-red-50 disabled:opacity-60"
+                  >
+                    {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
+                    Güvenli çıkış
+                  </button>
+                </div>,
+                document.body
+              )
+            : null}
         </>
       ) : null}
     </div>
