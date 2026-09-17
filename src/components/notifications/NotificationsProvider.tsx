@@ -19,6 +19,7 @@ type NotificationsContextValue = {
   refresh: () => Promise<void>;
   markRead: (id: string) => Promise<NotificationItem | null>;
   markAllRead: () => Promise<void>;
+  remove: (id: string) => Promise<boolean>;
 };
 
 const NotificationsContext = createContext<NotificationsContextValue | null>(null);
@@ -134,9 +135,28 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     setUnread(0);
   }, [authHeaders]);
 
+  const remove = useCallback(
+    async (id: string) => {
+      const response = await fetch(`/api/notifications/${id}`, {
+        method: "DELETE",
+        headers: await authHeaders(),
+      });
+      if (!response.ok) return false;
+      setItems((current) => {
+        const target = current.find((item) => item.id === id);
+        if (target && !target.read) {
+          setUnread((count) => Math.max(0, count - 1));
+        }
+        return current.filter((item) => item.id !== id);
+      });
+      return true;
+    },
+    [authHeaders],
+  );
+
   const value = useMemo(
-    () => ({ items, unread, loading, refresh, markRead, markAllRead }),
-    [items, unread, loading, refresh, markRead, markAllRead],
+    () => ({ items, unread, loading, refresh, markRead, markAllRead, remove }),
+    [items, unread, loading, refresh, markRead, markAllRead, remove],
   );
 
   return (

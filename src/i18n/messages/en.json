@@ -173,7 +173,12 @@
     "subtitle": "All important updates and actions appear here.",
     "empty": "No new notifications",
     "comingSoon": "This section will be available soon. We are working on notifications.",
-    "markAllRead": "Mark all as read"
+    "markAllRead": "Mark all as read",
+    "hint": "Info",
+    "delete": "Delete",
+    "deleteConfirmTitle": "Are you sure?",
+    "deleteConfirmDescription": "This notification will be removed from the list.",
+    "cancel": "Cancel"
   },
   "account": {
     "title": "My Account",

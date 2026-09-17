@@ -245,6 +245,16 @@ export async function markNotificationRead(
   return { ...existing, read: true };
 }
 
+export async function deleteNotification(
+  id: string,
+  tenantId: string,
+): Promise<boolean> {
+  const existing = await getNotification(id);
+  if (!existing || existing.tenantId !== tenantId) return false;
+  await getAdminDb().collection(NOTIFICATIONS).doc(id).delete();
+  return true;
+}
+
 export async function markAllNotificationsRead(tenantId: string): Promise<number> {
   const unread = (await listNotifications(tenantId, 200)).filter((item) => !item.read);
   const db = getAdminDb();
