@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { Bell, Info, Trash2 } from "lucide-react";
 import { useI18n } from "@/components/i18n/I18nProvider";
@@ -19,32 +19,66 @@ function formatWhen(iso: string, locale: string): string {
   }).format(date);
 }
 
-function TitleHint({ text, label }: { text: string; label: string }) {
+function TitleHint({
+  text,
+  label,
+  title,
+  action,
+}: {
+  text: string;
+  label: string;
+  title: string;
+  action?: ReactNode;
+}) {
   const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+
+    function onPointerDown(event: PointerEvent) {
+      if (rootRef.current?.contains(event.target as Node)) return;
+      setOpen(false);
+    }
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setOpen(false);
+    }
+
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
 
   return (
-    <span className="relative inline-flex">
-      <button
-        type="button"
-        aria-label={label}
-        onMouseEnter={() => setOpen(true)}
-        onMouseLeave={() => setOpen(false)}
-        onFocus={() => setOpen(true)}
-        onBlur={() => setOpen(false)}
-        onClick={() => setOpen((value) => !value)}
-        className="inline-flex h-5 w-5 items-center justify-center rounded-full text-luma-muted/80 transition-colors hover:text-luma"
-      >
-        <Info className="h-3.5 w-3.5" strokeWidth={2} />
-      </button>
+    <div ref={rootRef} className="relative">
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="flex min-w-0 items-center text-lg font-bold tracking-tight text-foreground">
+          {title}
+          <button
+            type="button"
+            aria-label={label}
+            aria-expanded={open}
+            onClick={() => setOpen((value) => !value)}
+            className="ml-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-luma-muted/80 transition-colors hover:text-luma"
+          >
+            <Info className="h-3.5 w-3.5" strokeWidth={2} />
+          </button>
+        </h1>
+        {action}
+      </div>
       {open ? (
-        <span
+        <p
           role="tooltip"
-          className="absolute left-1/2 top-full z-20 mt-2 w-[16.5rem] -translate-x-1/2 rounded-xl bg-[#1c1917] px-3 py-2 text-left text-[11px] font-normal leading-relaxed text-white shadow-[0_12px_32px_rgba(28,25,23,0.24)]"
+          className="absolute left-0 top-full z-20 mt-1 w-fit max-w-full rounded-xl bg-[#1c1917] px-3 py-2 text-left text-[11px] font-normal leading-relaxed text-white shadow-[0_12px_32px_rgba(28,25,23,0.24)]"
         >
           {text}
-        </span>
+        </p>
       ) : null}
-    </span>
+    </div>
   );
 }
 
@@ -69,21 +103,22 @@ export default function BildirimlerPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="flex items-center gap-1.5 text-lg font-bold tracking-tight text-foreground">
-          {t("notifications.title")}
-          <TitleHint text={t("notifications.subtitle")} label={t("notifications.hint")} />
-        </h1>
-        {unread > 0 ? (
-          <button
-            type="button"
-            onClick={() => void markAllRead()}
-            className="shrink-0 text-sm font-semibold text-luma"
-          >
-            {t("notifications.markAllRead")}
-          </button>
-        ) : null}
-      </div>
+      <TitleHint
+        title={t("notifications.title")}
+        text={t("notifications.subtitle")}
+        label={t("notifications.hint")}
+        action={
+          unread > 0 ? (
+            <button
+              type="button"
+              onClick={() => void markAllRead()}
+              className="shrink-0 text-sm font-semibold text-luma"
+            >
+              {t("notifications.markAllRead")}
+            </button>
+          ) : null
+        }
+      />
 
       {items.length === 0 ? (
         <div className="mt-16 flex flex-col items-center px-8 text-center">
