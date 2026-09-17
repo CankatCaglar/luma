@@ -59,7 +59,6 @@ export function AdminNotificationsSection({
     eventType: "work_ready" as DeliveryEventType,
     taskTitle: "",
     customerLink: "",
-    taskGid: "",
     inApp: true,
     email: true,
   });
@@ -139,15 +138,27 @@ export function AdminNotificationsSection({
           eventType: form.eventType,
           taskTitle: form.taskTitle,
           customerLink: form.customerLink || undefined,
-          taskGid: form.taskGid || undefined,
           inApp: form.inApp,
           email: form.email,
         }),
       });
-      const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+      const payload = (await response.json().catch(() => null)) as {
+        error?: string;
+        delivery?: DeliveryRecord;
+      } | null;
       if (!response.ok) throw new Error(payload?.error ?? "Gönderilemedi");
-      setSuccess("Gönderim oluşturuldu.");
-      setForm((prev) => ({ ...prev, taskTitle: "", customerLink: "", taskGid: "" }));
+      const delivery = payload?.delivery;
+      const email = delivery?.channels.email;
+      if (email?.enabled && email.status === "failed") {
+        setError(
+          `Mail gitmedi${email.to ? ` (${email.to})` : ""}: ${email.error ?? "Bilinmeyen hata"}`,
+        );
+      } else if (email?.enabled && email.to) {
+        setSuccess(`Gönderildi. Mail: ${email.to}`);
+      } else {
+        setSuccess("Gönderim oluşturuldu.");
+      }
+      setForm((prev) => ({ ...prev, taskTitle: "", customerLink: "" }));
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Gönderilemedi");
@@ -211,7 +222,7 @@ export function AdminNotificationsSection({
           <div>
             <h2 className="text-base font-bold text-foreground">Manuel gönderim</h2>
             <p className="mt-1 text-sm text-luma-muted">
-              Sadece bildirim, sadece mail veya ikisini birlikte gönderebilirsiniz. Push bu dilimde kapalı.
+              Marka, olay ve başlık yeterli. İstersen sadece mail veya sadece bildirim gönder.
             </p>
           </div>
           <button
@@ -269,21 +280,12 @@ export function AdminNotificationsSection({
             />
           </label>
           <label className="text-sm font-semibold text-foreground">
-            Müşteri linki
+            Dosya linki
             <input
               value={form.customerLink}
               onChange={(event) => setForm((prev) => ({ ...prev, customerLink: event.target.value }))}
               className="mt-1 w-full rounded-xl border border-luma-border bg-white px-3 py-2 text-sm font-normal"
-              placeholder="https://"
-            />
-          </label>
-          <label className="text-sm font-semibold text-foreground sm:col-span-2">
-            Asana task GID (opsiyonel)
-            <input
-              value={form.taskGid}
-              onChange={(event) => setForm((prev) => ({ ...prev, taskGid: event.target.value }))}
-              className="mt-1 w-full rounded-xl border border-luma-border bg-white px-3 py-2 text-sm font-normal"
-              placeholder="Varsa başlık ve link Asana’dan doldurulur"
+              placeholder="Drive / Sheets (opsiyonel)"
             />
           </label>
         </div>
@@ -303,10 +305,6 @@ export function AdminNotificationsSection({
               onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.checked }))}
             />
             Mail
-          </label>
-          <label className="flex items-center gap-2 text-sm text-luma-muted">
-            <input type="checkbox" checked={false} disabled />
-            Push (sonraki adım)
           </label>
         </div>
         <button
@@ -391,8 +389,13 @@ export function AdminNotificationsSection({
                         ? EMAIL_STATUS_LABEL[item.channels.email.status] ??
                           item.channels.email.status
                         : "Kapalı"}
+                      {item.channels.email.to ? (
+                        <span className="block max-w-[12rem] truncate text-[11px] text-luma-muted" title={item.channels.email.to}>
+                          {item.channels.email.to}
+                        </span>
+                      ) : null}
                       {item.channels.email.error ? (
-                        <span className="block max-w-[10rem] truncate text-[11px] text-[#9a3412]" title={item.channels.email.error}>
+                        <span className="block max-w-[12rem] truncate text-[11px] text-[#9a3412]" title={item.channels.email.error}>
                           {item.channels.email.error}
                         </span>
                       ) : null}

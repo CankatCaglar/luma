@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/cron/asana-delivery",
-      "schedule": "*/2 * * * *"
+      "schedule": "*/10 * * * *"
     }
   ]
 }

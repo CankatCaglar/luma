@@ -21,6 +21,8 @@ import type {
 const PAGE_LIMIT = 100;
 const MAX_PAGES = 20;
 const PROJECT_TASK_CACHE_MS = 60_000;
+const PROJECT_FETCH_CONCURRENCY = 2;
+const ASANA_RETRY_LIMIT = 3;
 
 type ProjectTaskCache = {
   expiresAt: number;
@@ -55,25 +57,50 @@ function buildUrl(path: string, query?: Query): string {
   return url.toString();
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function retryAfterMs(response: Response, attempt: number): number {
+  const header = response.headers.get("retry-after");
+  const seconds = header ? Number(header) : NaN;
+  if (Number.isFinite(seconds) && seconds >= 0) {
+    return Math.min(20_000, Math.max(1_000, seconds * 1000));
+  }
+  return Math.min(12_000, 1_000 * 2 ** attempt);
+}
+
+function shouldRetryAsana(status: number): boolean {
+  return status === 429 || status === 503;
+}
+
 async function asanaFetch<T>(path: string, query?: Query): Promise<T> {
   const token = requireAsanaToken();
-  const response = await fetch(buildUrl(path, query), {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: "application/json",
-    },
-    cache: "no-store",
-    signal: AbortSignal.timeout(15_000),
-  });
+  const url = buildUrl(path, query);
+  let lastError: AsanaApiError | null = null;
 
-  const body: unknown = await response.json().catch(() => null);
+  for (let attempt = 0; attempt <= ASANA_RETRY_LIMIT; attempt += 1) {
+    const response = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/json",
+      },
+      cache: "no-store",
+      signal: AbortSignal.timeout(15_000),
+    });
 
-  if (!response.ok) {
+    const body: unknown = await response.json().catch(() => null);
+    if (response.ok) return body as T;
+
     const message = extractAsanaError(body) ?? `Asana request failed (${response.status})`;
-    throw new AsanaApiError(message, response.status, body);
+    lastError = new AsanaApiError(message, response.status, body);
+    if (!shouldRetryAsana(response.status) || attempt === ASANA_RETRY_LIMIT) {
+      throw lastError;
+    }
+    await sleep(retryAfterMs(response, attempt));
   }
 
-  return body as T;
+  throw lastError ?? new AsanaApiError("Asana request failed", 502);
 }
 
 async function asanaPost<T>(path: string, body: unknown): Promise<T> {
@@ -282,18 +309,42 @@ export async function getBrandTasks(input: {
   return tasks.filter((task) => isBrandTask(task, input.brandCode));
 }
 
+async function mapSettled<T, R>(
+  items: T[],
+  concurrency: number,
+  mapper: (item: T) => Promise<R>,
+): Promise<PromiseSettledResult<R>[]> {
+  const results: PromiseSettledResult<R>[] = new Array(items.length);
+  let next = 0;
+
+  async function worker() {
+    while (next < items.length) {
+      const index = next;
+      next += 1;
+      try {
+        results[index] = { status: "fulfilled", value: await mapper(items[index]) };
+      } catch (reason) {
+        results[index] = { status: "rejected", reason };
+      }
+    }
+  }
+
+  await Promise.all(
+    Array.from({ length: Math.min(Math.max(1, concurrency), items.length) }, () => worker()),
+  );
+  return results;
+}
+
 export async function getTasksForProjects(
   projectGids: string[],
   options?: { optFields?: string; skipCache?: boolean; completedSince?: string },
 ): Promise<AsanaTask[]> {
-  const results = await Promise.allSettled(
-    projectGids.map((projectGid) =>
-      getProjectTasks(projectGid, {
-        optFields: options?.optFields,
-        skipCache: options?.skipCache,
-        completedSince: options?.completedSince,
-      }),
-    ),
+  const results = await mapSettled(projectGids, PROJECT_FETCH_CONCURRENCY, (projectGid) =>
+    getProjectTasks(projectGid, {
+      optFields: options?.optFields,
+      skipCache: options?.skipCache,
+      completedSince: options?.completedSince,
+    }),
   );
   const groups = results.map((result, index) => {
     if (result.status === "fulfilled") return result.value;

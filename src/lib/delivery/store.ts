@@ -33,6 +33,25 @@ export function serializeDelivery(
   const email = (data.channels?.email ?? {}) as Record<string, unknown>;
   const inApp = (data.channels?.inApp ?? {}) as Record<string, unknown>;
   const createdAtMs = asNumber(data.createdAtMs) ?? Date.now();
+  const inAppNotificationId =
+    asString(inApp.notificationId) ?? asString(data["channels.inApp.notificationId"]);
+  const emailError = asString(email.error) ?? asString(data["channels.email.error"]);
+  const emailResendId =
+    asString(email.resendId) ??
+    asString(data.emailResendId) ??
+    asString(data["channels.email.resendId"]);
+  const inAppStatusRaw =
+    asString(data["channels.inApp.status"]) ?? asString(inApp.status);
+  const emailStatusRaw =
+    asString(data["channels.email.status"]) ?? asString(email.status);
+  const inAppStatus =
+    inAppStatusRaw === "queued" && inAppNotificationId ? "sent" : inAppStatusRaw;
+  const emailStatus =
+    emailStatusRaw === "queued" && emailError
+      ? "failed"
+      : emailStatusRaw === "queued" && emailResendId
+        ? "sent"
+        : emailStatusRaw;
 
   return {
     id,
@@ -51,18 +70,18 @@ export function serializeDelivery(
     channels: {
       inApp: {
         enabled: asBoolean(inApp.enabled),
-        status: (asString(inApp.status) as DeliveryRecord["channels"]["inApp"]["status"]) ?? "skipped",
-        notificationId: asString(inApp.notificationId),
-        read: asBoolean(inApp.read),
-        error: asString(inApp.error),
+        status: (inAppStatus as DeliveryRecord["channels"]["inApp"]["status"]) ?? "skipped",
+        notificationId: inAppNotificationId,
+        read: asBoolean(inApp.read) || asBoolean(data["channels.inApp.read"]),
+        error: asString(inApp.error) ?? asString(data["channels.inApp.error"]),
       },
       email: {
         enabled: asBoolean(email.enabled),
-        status: (asString(email.status) as EmailDeliveryStatus) ?? "skipped",
-        to: asString(email.to),
-        subject: asString(email.subject),
-        resendId: asString(email.resendId) ?? asString(data.emailResendId),
-        error: asString(email.error),
+        status: (emailStatus as EmailDeliveryStatus) ?? "skipped",
+        to: asString(email.to) ?? asString(data["channels.email.to"]),
+        subject: asString(email.subject) ?? asString(data["channels.email.subject"]),
+        resendId: emailResendId,
+        error: emailError,
       },
       push: {
         enabled: false,
@@ -132,20 +151,42 @@ export async function createDeliveryDoc(
   return { ...record, id: ref.id };
 }
 
+function applyPatch(
+  current: Record<string, unknown>,
+  patch: Record<string, unknown>,
+): Record<string, unknown> {
+  const next = { ...current };
+  for (const [key, value] of Object.entries(patch)) {
+    if (!key.includes(".")) {
+      next[key] = value;
+      continue;
+    }
+    const parts = key.split(".");
+    let cursor: Record<string, unknown> = next;
+    for (let i = 0; i < parts.length - 1; i += 1) {
+      const part = parts[i];
+      const child = cursor[part];
+      cursor[part] =
+        child && typeof child === "object" && !Array.isArray(child)
+          ? { ...(child as Record<string, unknown>) }
+          : {};
+      cursor = cursor[part] as Record<string, unknown>;
+    }
+    cursor[parts[parts.length - 1]] = value;
+  }
+  return next;
+}
+
 export async function updateDelivery(
   id: string,
   patch: Record<string, unknown>,
 ): Promise<void> {
-  await getAdminDb()
-    .collection(DELIVERIES)
-    .doc(id)
-    .set(
-      omitUndefined({
-        ...patch,
-        updatedAtMs: Date.now(),
-      }),
-      { merge: true },
-    );
+  const ref = getAdminDb().collection(DELIVERIES).doc(id);
+  const snap = await ref.get();
+  if (!snap.exists) return;
+  const next = applyPatch(snap.data() ?? {}, omitUndefined(patch));
+  next.updatedAtMs = Date.now();
+  await ref.set(next);
 }
 
 export async function getDelivery(id: string): Promise<DeliveryRecord | null> {
@@ -266,11 +307,10 @@ export async function markAllNotificationsRead(tenantId: string): Promise<number
       { merge: true },
     );
     if (item.deliveryId) {
-      batch.set(
-        db.collection(DELIVERIES).doc(item.deliveryId),
-        { "channels.inApp.read": true, updatedAtMs: Date.now() },
-        { merge: true },
-      );
+      batch.update(db.collection(DELIVERIES).doc(item.deliveryId), {
+        "channels.inApp.read": true,
+        updatedAtMs: Date.now(),
+      });
     }
   }
   if (unread.length) await batch.commit();

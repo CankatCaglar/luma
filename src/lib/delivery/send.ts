@@ -261,6 +261,11 @@ export async function sendDelivery(
     }
   }
 
+  await updateDelivery(record.id, {
+    channels: record.channels,
+    emailResendId: record.channels.email.resendId ?? null,
+  });
+
   return record;
 }
 

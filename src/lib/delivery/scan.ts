@@ -44,7 +44,6 @@ export async function scanTenantDeliveries(
     projectGids: tenant.asana.projectGids,
     brandCode: tenant.asana.brandCode,
     workspaceGid: tenant.asana.workspaceGid || env.workspaceGid,
-    skipCache: true,
     completedSince: "now",
   });
 
