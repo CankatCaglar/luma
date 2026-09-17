@@ -1,0 +1,273 @@
+import { FieldValue } from "firebase-admin/firestore";
+import { getAdminDb } from "@/lib/firebase/admin";
+import type {
+  DeliveryRecord,
+  EmailDeliveryStatus,
+  StoredNotification,
+} from "@/lib/delivery/types";
+
+const DELIVERIES = "deliveries";
+const NOTIFICATIONS = "notifications";
+
+function asString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value : undefined;
+}
+
+function asNumber(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function asBoolean(value: unknown, fallback = false): boolean {
+  return typeof value === "boolean" ? value : fallback;
+}
+
+export function serializeDelivery(
+  id: string,
+  data: FirebaseFirestore.DocumentData,
+): DeliveryRecord | null {
+  const tenantId = asString(data.tenantId);
+  const eventType = asString(data.eventType);
+  const taskTitle = asString(data.taskTitle);
+  if (!tenantId || !eventType || !taskTitle) return null;
+
+  const email = (data.channels?.email ?? {}) as Record<string, unknown>;
+  const inApp = (data.channels?.inApp ?? {}) as Record<string, unknown>;
+  const createdAtMs = asNumber(data.createdAtMs) ?? Date.now();
+
+  return {
+    id,
+    tenantId,
+    brandName: asString(data.brandName) ?? "",
+    brandCode: asString(data.brandCode) ?? "",
+    eventType: eventType as DeliveryRecord["eventType"],
+    source: data.source === "manual" ? "manual" : "auto",
+    taskGid: asString(data.taskGid),
+    taskTitle,
+    customerLink: asString(data.customerLink),
+    monthKey: asString(data.monthKey),
+    fromSection: asString(data.fromSection),
+    toSection: asString(data.toSection),
+    resentFromId: asString(data.resentFromId),
+    channels: {
+      inApp: {
+        enabled: asBoolean(inApp.enabled),
+        status: (asString(inApp.status) as DeliveryRecord["channels"]["inApp"]["status"]) ?? "skipped",
+        notificationId: asString(inApp.notificationId),
+        read: asBoolean(inApp.read),
+        error: asString(inApp.error),
+      },
+      email: {
+        enabled: asBoolean(email.enabled),
+        status: (asString(email.status) as EmailDeliveryStatus) ?? "skipped",
+        to: asString(email.to),
+        subject: asString(email.subject),
+        resendId: asString(email.resendId) ?? asString(data.emailResendId),
+        error: asString(email.error),
+      },
+      push: {
+        enabled: false,
+        status: "skipped",
+      },
+    },
+    createdAt: asString(data.createdAt) ?? new Date(createdAtMs).toISOString(),
+    createdAtMs,
+    updatedAtMs: asNumber(data.updatedAtMs) ?? createdAtMs,
+  };
+}
+
+export function serializeNotification(
+  id: string,
+  data: FirebaseFirestore.DocumentData,
+): StoredNotification | null {
+  const tenantId = asString(data.tenantId);
+  const title = asString(data.title);
+  const href = asString(data.href) ?? "/";
+  const eventType = asString(data.eventType);
+  if (!tenantId || !title || !eventType) return null;
+  const createdAtMs = asNumber(data.createdAtMs) ?? Date.now();
+  return {
+    id,
+    tenantId,
+    title,
+    body: asString(data.body) ?? "",
+    href,
+    category: (asString(data.category) as StoredNotification["category"]) ?? "status",
+    eventType: eventType as StoredNotification["eventType"],
+    read: asBoolean(data.read),
+    createdAt: asString(data.createdAt) ?? new Date(createdAtMs).toISOString(),
+    createdAtMs,
+    deliveryId: asString(data.deliveryId) ?? "",
+    taskGid: asString(data.taskGid),
+  };
+}
+
+function omitUndefined(value: Record<string, unknown>): Record<string, unknown> {
+  const next: Record<string, unknown> = {};
+  for (const [key, item] of Object.entries(value)) {
+    if (item === undefined) continue;
+    if (
+      item &&
+      typeof item === "object" &&
+      !Array.isArray(item) &&
+      Object.getPrototypeOf(item) === Object.prototype
+    ) {
+      next[key] = omitUndefined(item as Record<string, unknown>);
+    } else {
+      next[key] = item;
+    }
+  }
+  return next;
+}
+
+export async function createDeliveryDoc(
+  record: Omit<DeliveryRecord, "id">,
+): Promise<DeliveryRecord> {
+  const ref = getAdminDb().collection(DELIVERIES).doc();
+  const payload = omitUndefined({
+    ...record,
+    emailResendId: record.channels.email.resendId ?? null,
+    createdAtServer: FieldValue.serverTimestamp(),
+  });
+  await ref.set(payload);
+  return { ...record, id: ref.id };
+}
+
+export async function updateDelivery(
+  id: string,
+  patch: Record<string, unknown>,
+): Promise<void> {
+  await getAdminDb()
+    .collection(DELIVERIES)
+    .doc(id)
+    .set(
+      omitUndefined({
+        ...patch,
+        updatedAtMs: Date.now(),
+      }),
+      { merge: true },
+    );
+}
+
+export async function getDelivery(id: string): Promise<DeliveryRecord | null> {
+  const snap = await getAdminDb().collection(DELIVERIES).doc(id).get();
+  if (!snap.exists) return null;
+  return serializeDelivery(snap.id, snap.data() ?? {});
+}
+
+export async function listDeliveries(input?: {
+  tenantId?: string;
+  limit?: number;
+}): Promise<DeliveryRecord[]> {
+  const limit = Math.min(Math.max(input?.limit ?? 80, 1), 200);
+  const col = getAdminDb().collection(DELIVERIES);
+  let snap: FirebaseFirestore.QuerySnapshot;
+  try {
+    snap = input?.tenantId
+      ? await col.where("tenantId", "==", input.tenantId).limit(limit).get()
+      : await col.orderBy("createdAtMs", "desc").limit(limit).get();
+  } catch {
+    snap = await col.limit(limit).get();
+  }
+
+  const items = snap.docs
+    .map((doc) => serializeDelivery(doc.id, doc.data()))
+    .filter((item): item is DeliveryRecord => item !== null)
+    .sort((left, right) => right.createdAtMs - left.createdAtMs);
+  return items.slice(0, limit);
+}
+
+export async function findDeliveryByResendId(
+  resendId: string,
+): Promise<DeliveryRecord | null> {
+  const snap = await getAdminDb()
+    .collection(DELIVERIES)
+    .where("emailResendId", "==", resendId)
+    .limit(1)
+    .get();
+  const first = snap.docs[0];
+  if (!first) return null;
+  return serializeDelivery(first.id, first.data());
+}
+
+export async function createNotificationDoc(
+  record: Omit<StoredNotification, "id">,
+): Promise<StoredNotification> {
+  const ref = getAdminDb().collection(NOTIFICATIONS).doc();
+  await ref.set(
+    omitUndefined({
+      ...record,
+      createdAtServer: FieldValue.serverTimestamp(),
+    }),
+  );
+  return { ...record, id: ref.id };
+}
+
+export async function listNotifications(
+  tenantId: string,
+  limit = 80,
+): Promise<StoredNotification[]> {
+  const snap = await getAdminDb()
+    .collection(NOTIFICATIONS)
+    .where("tenantId", "==", tenantId)
+    .limit(Math.min(Math.max(limit, 1), 200))
+    .get();
+  return snap.docs
+    .map((doc) => serializeNotification(doc.id, doc.data()))
+    .filter((item): item is StoredNotification => item !== null)
+    .sort((left, right) => right.createdAtMs - left.createdAtMs);
+}
+
+export async function getNotification(
+  id: string,
+): Promise<StoredNotification | null> {
+  const snap = await getAdminDb().collection(NOTIFICATIONS).doc(id).get();
+  if (!snap.exists) return null;
+  return serializeNotification(snap.id, snap.data() ?? {});
+}
+
+export async function markNotificationRead(
+  id: string,
+  tenantId: string,
+): Promise<StoredNotification | null> {
+  const existing = await getNotification(id);
+  if (!existing || existing.tenantId !== tenantId) return null;
+  if (!existing.read) {
+    await getAdminDb().collection(NOTIFICATIONS).doc(id).set(
+      { read: true, updatedAtMs: Date.now() },
+      { merge: true },
+    );
+    if (existing.deliveryId) {
+      await updateDelivery(existing.deliveryId, {
+        "channels.inApp.read": true,
+      });
+    }
+  }
+  return { ...existing, read: true };
+}
+
+export async function markAllNotificationsRead(tenantId: string): Promise<number> {
+  const unread = (await listNotifications(tenantId, 200)).filter((item) => !item.read);
+  const db = getAdminDb();
+  const batch = db.batch();
+  for (const item of unread) {
+    batch.set(
+      db.collection(NOTIFICATIONS).doc(item.id),
+      { read: true, updatedAtMs: Date.now() },
+      { merge: true },
+    );
+    if (item.deliveryId) {
+      batch.set(
+        db.collection(DELIVERIES).doc(item.deliveryId),
+        { "channels.inApp.read": true, updatedAtMs: Date.now() },
+        { merge: true },
+      );
+    }
+  }
+  if (unread.length) await batch.commit();
+  return unread.length;
+}
+
+export async function unreadNotificationCount(tenantId: string): Promise<number> {
+  const items = await listNotifications(tenantId, 80);
+  return items.filter((item) => !item.read).length;
+}

@@ -36,6 +36,8 @@ import {
   Trash2,
   X,
 } from "lucide-react";
+import { AdminMailSection } from "@/components/admin/AdminMailSection";
+import { AdminNotificationsSection } from "@/components/admin/AdminNotificationsSection";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { LumaLogo, LumaStar } from "@/components/layout/NeraLogo";
 import {
@@ -1030,9 +1032,9 @@ export default function AdminPage() {
         : "Marka Onboarding";
   const sectionDescription =
     adminSection === "mail"
-      ? "Markalara gidecek otomatik maillerin şablonlarını buradan yöneteceksiniz."
+      ? "Markalara gidecek otomatik düz maillerin metinlerini ve Resend durumunu buradan yönetin."
       : adminSection === "notifications"
-        ? "Portal bildirimlerinin hangi olaylarda gideceğini buradan yöneteceksiniz."
+        ? "Manuel gönderim, kanal seçimi ve iletim geçmişi. Push sonraki adımda eklenecek."
         : "Marka kodunu yaz, Asana workspace'inden eşleşmeyi otomatik bul.";
 
   return (
@@ -1622,15 +1624,10 @@ export default function AdminPage() {
         </section>
       </div>
         </>
+      ) : adminSection === "mail" ? (
+        <AdminMailSection authHeaders={authHeaders} />
       ) : (
-        <AdminComingSoon
-          title={sectionTitle}
-          description={
-            adminSection === "mail"
-              ? "Mail şablonları ve gönderim kuralları bu ekranda toplanacak. Şimdilik marka onboarding üzerinden devam edin."
-              : "Bildirim kanalları ve tetikleyiciler bu ekranda toplanacak. Şimdilik marka onboarding üzerinden devam edin."
-          }
-        />
+        <AdminNotificationsSection authHeaders={authHeaders} tenants={tenants} />
       )}
           </div>
         </div>
@@ -1915,16 +1912,6 @@ function ReportSwitch({
         }`}
       />
     </button>
-  );
-}
-
-function AdminComingSoon({ title, description }: { title: string; description: string }) {
-  return (
-    <section className="rounded-3xl bg-white p-6 shadow-[0_16px_48px_rgba(28,25,23,0.08)] ring-1 ring-luma-border/80 sm:p-8">
-      <p className="text-xs font-semibold uppercase tracking-wide text-luma">Yakında</p>
-      <h2 className="mt-2 text-xl font-bold text-foreground">{title}</h2>
-      <p className="mt-2 max-w-xl text-sm leading-relaxed text-luma-muted">{description}</p>
-    </section>
   );
 }
 

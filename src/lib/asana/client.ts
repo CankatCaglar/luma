@@ -2,6 +2,7 @@ import {
   ASANA_API_BASE,
   PROJECT_OPT_FIELDS,
   TASK_LIST_OPT_FIELDS,
+  TASK_OPT_FIELDS,
   TASK_RESOURCE_FIELDS,
   requireAsanaToken,
 } from "@/lib/asana/config";
@@ -328,6 +329,13 @@ export async function getTasksForProjects(
     }
   }
   return [...byGid.values()];
+}
+
+export async function getTask(taskGid: string): Promise<AsanaTask> {
+  const { data } = await asanaFetch<AsanaItemResponse<AsanaTask>>(`/tasks/${taskGid}`, {
+    opt_fields: TASK_OPT_FIELDS,
+  });
+  return data;
 }
 
 export async function getTaskResources(

@@ -123,8 +123,19 @@ function stripLeadingMetaParts(title: string): string {
   return parts.join(" - ");
 }
 
+const LUMA_ONAY_MARKER = /\(\s*LUMA[_-\s]*ONAY\s*\)/gi;
+
+export function hasLumaOnayMarker(name: string | undefined): boolean {
+  if (!name) return false;
+  return /\(\s*LUMA[_-\s]*ONAY\s*\)/i.test(name);
+}
+
+export function stripLumaOnayMarker(name: string): string {
+  return collapseSpaces(name.replace(LUMA_ONAY_MARKER, " ")).trim();
+}
+
 export function displayTaskTitle(name: string, brandCode: string): string {
-  const raw = normalizedTaskName(name).replace(/^\*+\s*/, "");
+  const raw = stripLumaOnayMarker(normalizedTaskName(name).replace(/^\*+\s*/, ""));
   const code = brandCode.trim();
 
   if (code) {
@@ -299,11 +310,32 @@ function isGoogleResource(url: string): boolean {
   return /(?:drive|docs|slides)\.google\.com/i.test(url);
 }
 
+export function extractCustomerLink(htmlNotes?: string): string | undefined {
+  if (!htmlNotes) return undefined;
+  const decoded = htmlNotes
+    .replaceAll("&amp;", "&")
+    .replaceAll("&quot;", '"')
+    .replaceAll("&nbsp;", " ")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n")
+    .replace(/<a\b[^>]*href=["']([^"']+)["'][^>]*>/gi, " $1 ");
+  const text = decoded.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  const labeled = text.match(
+    /m[uü][sş]teri\s*linki\s*[:：]\s*(https?:\/\/[^\s<>"']+)/i,
+  );
+  if (!labeled?.[1]) return undefined;
+  const cleaned = unwrapGoogleRedirect(labeled[1].replace(/[),.;]+$/, ""));
+  return isGoogleResource(cleaned) ? toViewerUrl(cleaned) : cleaned;
+}
+
 export function extractResourceUrl(
   htmlNotes?: string,
   attachments?: AsanaAttachment[],
   kind?: JobKind,
 ): string | undefined {
+  const customer = extractCustomerLink(htmlNotes);
+  if (customer) return customer;
+
   const fromAttachment = pickGoogleAttachment(attachments, kind);
   if (fromAttachment?.view_url) return toViewerUrl(fromAttachment.view_url);
 
@@ -467,6 +499,7 @@ export function mapTaskStatus(
   options?: TaskMapOptions,
 ): JobStatus {
   if (task.completed) return "completed";
+  if (hasLumaOnayMarker(task.name)) return "pending_approval";
 
   const mapOptions = resolveMapOptions(options);
   const statusField = findCustomField(
@@ -555,6 +588,9 @@ export function mapTaskToJob(
     toDateOnly(task.due_on) ?? completedAt ?? toDateOnly(task.created_at) ?? "";
   const month = parseMonthKey(title, dueDate);
   const resourceUrl = extractResourceUrl(task.html_notes, task.attachments, kind);
+  const href = hasLumaOnayMarker(task.name)
+    ? `/isler/gorev/${task.gid}`
+    : jobHref(task.gid, status, kind, month);
 
   return {
     id: task.gid,
@@ -563,7 +599,7 @@ export function mapTaskToJob(
     kind,
     dueDate,
     completedAt,
-    href: jobHref(task.gid, status, kind, month),
+    href,
     resourceUrl,
     tags: mapTaskTags(task, brandCode),
   };

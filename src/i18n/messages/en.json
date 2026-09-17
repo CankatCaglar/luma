@@ -172,7 +172,8 @@
     "title": "Notifications",
     "subtitle": "All important updates and actions appear here.",
     "empty": "No new notifications",
-    "comingSoon": "This section will be available soon. We are working on notifications."
+    "comingSoon": "This section will be available soon. We are working on notifications.",
+    "markAllRead": "Mark all as read"
   },
   "account": {
     "title": "My Account",

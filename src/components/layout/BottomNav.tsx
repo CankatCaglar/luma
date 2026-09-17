@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Bell, Home, User } from "lucide-react";
 import { useI18n } from "@/components/i18n/I18nProvider";
 import { cn } from "@/lib/cn";
+import { useNotifications } from "@/components/notifications/NotificationsProvider";
 
 const items = [
   {
@@ -30,6 +31,7 @@ const items = [
 export function BottomNav() {
   const pathname = usePathname();
   const { t } = useI18n();
+  const { unread } = useNotifications();
 
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-0 z-999 flex justify-center">
@@ -54,7 +56,7 @@ export function BottomNav() {
                   className="h-5 w-5"
                   strokeWidth={active ? 2.4 : 1.8}
                 />
-                {"badge" in item && item.badge ? (
+                {item.href === "/bildirimler" && unread > 0 ? (
                   <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-luma ring-2 ring-white" />
                 ) : null}
               </span>
