@@ -1,13 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Loader2, RefreshCcw, Send } from "lucide-react";
+import { Loader2, RefreshCcw, Send, Trash2 } from "lucide-react";
 import {
   DELIVERY_EVENT_TYPES,
   type DeliveryEventType,
   type DeliveryRecord,
 } from "@/lib/delivery/types";
 import { EVENT_LABELS } from "@/lib/delivery/copy";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 type AuthHeaders = () => Promise<Record<string, string>>;
 
@@ -51,6 +52,8 @@ export function AdminNotificationsSection({
   const [sending, setSending] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [resendingId, setResendingId] = useState<string | null>(null);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [filterTenant, setFilterTenant] = useState("");
@@ -212,6 +215,28 @@ export function AdminNotificationsSection({
       setError(err instanceof Error ? err.message : "Tarama başarısız");
     } finally {
       setScanning(false);
+    }
+  }
+
+  async function onDelete() {
+    if (!pendingDeleteId || deleting) return;
+    setDeleting(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const response = await fetch(`/api/admin/deliveries/${pendingDeleteId}`, {
+        method: "DELETE",
+        headers: await authHeaders(),
+      });
+      const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+      if (!response.ok) throw new Error(payload?.error ?? "Kayıt kaldırılamadı");
+      setPendingDeleteId(null);
+      setSuccess("Kayıt kaldırıldı.");
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Kayıt kaldırılamadı");
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -413,15 +438,25 @@ export function AdminNotificationsSection({
                     <td className="px-2 py-2 text-luma-muted">
                       {item.source === "manual" ? "Manuel" : "Otomatik"}
                     </td>
-                    <td className="px-2 py-2">
-                      <button
-                        type="button"
-                        onClick={() => void onResend(item.id)}
-                        disabled={resendingId === item.id}
-                        className="text-sm font-semibold text-luma disabled:opacity-60"
-                      >
-                        {resendingId === item.id ? "Gönderiliyor..." : "Yeniden gönder"}
-                      </button>
+                    <td className="whitespace-nowrap px-2 py-2">
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => void onResend(item.id)}
+                          disabled={resendingId === item.id || deleting}
+                          className="text-sm font-semibold text-luma disabled:opacity-60"
+                        >
+                          {resendingId === item.id ? "Gönderiliyor..." : "Yeniden gönder"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setPendingDeleteId(item.id)}
+                          disabled={deleting}
+                          className="text-sm font-semibold text-[#9a3412] disabled:opacity-60"
+                        >
+                          Kaldır
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -430,6 +465,20 @@ export function AdminNotificationsSection({
           </table>
         </div>
       </section>
+      <ConfirmDialog
+        open={Boolean(pendingDeleteId)}
+        busy={deleting}
+        tone="danger"
+        icon={<Trash2 className="h-5 w-5" />}
+        title="Kaydı kaldır?"
+        description="Bu iletim geçmişten silinir. Varsa uygulamadaki bildirimi de kalkar. Giden mail geri alınmaz."
+        confirmLabel="Kaldır"
+        cancelLabel="Vazgeç"
+        onCancel={() => {
+          if (!deleting) setPendingDeleteId(null);
+        }}
+        onConfirm={() => void onDelete()}
+      />
     </div>
   );
 }

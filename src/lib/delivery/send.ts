@@ -52,15 +52,32 @@ function portalHref(
   return jobHrefForEvent(eventType, taskGid, undefined);
 }
 
+const PUBLIC_APP_URL = "https://luma.nerainnovations.com";
+
+function publicAppUrl(value: string | undefined): string | null {
+  if (!value?.trim()) return null;
+  const raw = value.trim().replace(/\/$/, "");
+  const href = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+  try {
+    const url = new URL(href);
+    const host = url.hostname.toLowerCase();
+    if (url.protocol !== "https:") return null;
+    if (host === "localhost" || host === "127.0.0.1" || host.endsWith(".local")) {
+      return null;
+    }
+    return href.replace(/\/$/, "");
+  } catch {
+    return null;
+  }
+}
+
 export function appBaseUrl(): string {
-  const explicit =
-    process.env.LUMA_APP_URL?.trim() || process.env.NEXT_PUBLIC_APP_URL?.trim();
-  if (explicit) return explicit.replace(/\/$/, "");
-  const production = process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim();
-  if (production) return `https://${production.replace(/\/$/, "")}`;
-  const vercel = process.env.VERCEL_URL?.trim();
-  if (vercel) return `https://${vercel.replace(/\/$/, "")}`;
-  return "http://localhost:3000";
+  return (
+    publicAppUrl(process.env.LUMA_APP_URL) ||
+    publicAppUrl(process.env.NEXT_PUBLIC_APP_URL) ||
+    publicAppUrl(process.env.VERCEL_PROJECT_PRODUCTION_URL) ||
+    PUBLIC_APP_URL
+  );
 }
 
 function absoluteLink(pathOrUrl: string | undefined, fallbackPath: string): string {

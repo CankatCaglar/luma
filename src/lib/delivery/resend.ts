@@ -1,7 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { Resend } from "resend";
 
-const DEFAULT_FROM = "Luma by Nera <innovations@nerasocial.com>";
+const DEFAULT_FROM = "Luma by Nera <luma@nerainnovations.com>";
 
 export function getMailFrom(): string {
   return process.env.MAIL_FROM?.trim() || DEFAULT_FROM;

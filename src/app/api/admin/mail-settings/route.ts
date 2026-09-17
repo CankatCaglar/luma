@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { getResendDomainStatus } from "@/lib/delivery/resend";
 import { parseMailSettingsBody, readMailSettings, writeMailSettings } from "@/lib/delivery/settings";
 import { requireAdminAccess } from "@/lib/tenant/requireAdmin";
 import { TenantAccessError } from "@/lib/tenant/requireTenant";
@@ -9,11 +8,8 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   try {
     await requireAdminAccess(request);
-    const [settings, resend] = await Promise.all([
-      readMailSettings(),
-      getResendDomainStatus(),
-    ]);
-    return NextResponse.json({ settings, resend });
+    const settings = await readMailSettings();
+    return NextResponse.json({ settings });
   } catch (error) {
     if (error instanceof TenantAccessError) {
       return NextResponse.json({ error: error.message }, { status: error.status });

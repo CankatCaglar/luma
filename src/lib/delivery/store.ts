@@ -217,6 +217,27 @@ export async function listDeliveries(input?: {
   return items.slice(0, limit);
 }
 
+export async function deleteDelivery(id: string): Promise<boolean> {
+  const existing = await getDelivery(id);
+  if (!existing) return false;
+  const db = getAdminDb();
+  const batch = db.batch();
+  batch.delete(db.collection(DELIVERIES).doc(id));
+  const notificationId = existing.channels.inApp.notificationId;
+  if (notificationId) {
+    batch.delete(db.collection(NOTIFICATIONS).doc(notificationId));
+  } else {
+    const linked = await db
+      .collection(NOTIFICATIONS)
+      .where("deliveryId", "==", id)
+      .limit(10)
+      .get();
+    for (const doc of linked.docs) batch.delete(doc.ref);
+  }
+  await batch.commit();
+  return true;
+}
+
 export async function findDeliveryByResendId(
   resendId: string,
 ): Promise<DeliveryRecord | null> {
