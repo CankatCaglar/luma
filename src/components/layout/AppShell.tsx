@@ -119,11 +119,16 @@ function AdminShell({ children }: { children: ReactNode }) {
 function ProtectedShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, loading, enabled, adminChecking, isAdmin, signOutUser } = useAuth();
+  const { user, loading, enabled, adminChecking, isAdmin } = useAuth();
   const lastSession = useSyncExternalStore(
     subscribeLastBrandSession,
     readLastBrandSession,
     getServerLastBrandSession,
+  );
+  const hydrated = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
   );
   const onLoginRoute = pathname.startsWith("/giris");
   const onCanonicalAdminRoute = pathname.startsWith("/admin");
@@ -131,6 +136,7 @@ function ProtectedShell({ children }: { children: ReactNode }) {
     onCanonicalAdminRoute || /^\/adm(?:i|ı)n(?:\/|$)/i.test(pathname);
   const onBrandRoute = !onLoginRoute && !onAdminRoute;
   const canPaintBrandFromCache =
+    hydrated &&
     onBrandRoute &&
     Boolean(lastSession?.uid) &&
     lastSession?.isAdmin !== true;
@@ -145,9 +151,7 @@ function ProtectedShell({ children }: { children: ReactNode }) {
     }
 
     if (user && isAdmin && onBrandRoute) {
-      void signOutUser().then(() => {
-        router.replace("/giris");
-      });
+      router.replace("/admin");
       return;
     }
 
@@ -171,12 +175,14 @@ function ProtectedShell({ children }: { children: ReactNode }) {
     onCanonicalAdminRoute,
     pathname,
     router,
-    signOutUser,
   ]);
+
+  const awaitingAuth =
+    enabled && (loading || adminChecking) && !canPaintBrandFromCache;
 
   const shellKind: ShellKind = onAdminRoute
     ? "admin"
-    : (enabled && loading && !canPaintBrandFromCache) ||
+    : awaitingAuth ||
         (enabled && user && isAdmin && onBrandRoute) ||
         (enabled && !user && !loading && onBrandRoute)
       ? "loading"

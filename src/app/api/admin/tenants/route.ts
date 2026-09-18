@@ -8,6 +8,7 @@ import {
   type DriveUrlFields,
 } from "@/lib/drive/parse";
 import {
+  isPortalLoginEmail,
   isValidPortalUsername,
   normalizePortalUsername,
   portalEmailFromUsername,
@@ -61,7 +62,7 @@ function createTempPassword(): string {
 function parseOptionalContactEmail(value: string | undefined): string | undefined {
   const contactEmail = value?.trim().toLowerCase() ?? "";
   if (!contactEmail) return undefined;
-  if (!contactEmail.includes("@")) {
+  if (!contactEmail.includes("@") || isPortalLoginEmail(contactEmail)) {
     throw new TenantAccessError("Geçerli bir iletişim e-postası girin", 400);
   }
   return contactEmail;

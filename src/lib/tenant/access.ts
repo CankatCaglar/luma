@@ -33,10 +33,9 @@ export type TenantAccess = {
 };
 
 export function getTenantContactEmail(tenant: TenantAccess): string {
-  const contact = tenant.contactEmail?.trim();
-  if (contact) return contact;
-  const loginEmail = tenant.emails[0] ?? "";
-  return loginEmail && !isPortalLoginEmail(loginEmail) ? loginEmail : "";
+  const contact = tenant.contactEmail?.trim().toLowerCase();
+  if (!contact || isPortalLoginEmail(contact)) return "";
+  return contact;
 }
 
 export function getPortalUsername(tenant: TenantAccess): string {

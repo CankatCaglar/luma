@@ -125,6 +125,12 @@ export function AdminNotificationsSection({
     [tenants],
   );
 
+  const selectedTenant = useMemo(
+    () => tenants.find((tenant) => tenant.tenantId === form.tenantId),
+    [form.tenantId, tenants],
+  );
+  const selectedHasContact = Boolean(selectedTenant?.contactEmail?.trim());
+
   async function onManualSend() {
     setSending(true);
     setError(null);
@@ -155,6 +161,11 @@ export function AdminNotificationsSection({
       if (email?.enabled && email.status === "failed") {
         setError(
           `Mail gitmedi${email.to ? ` (${email.to})` : ""}: ${email.error ?? "Bilinmeyen hata"}`,
+        );
+      } else if (email?.enabled && email.status === "skipped") {
+        setSuccess(
+          email.error ??
+            "Bildirim oluşturuldu. İletişim e-postası olmadığı için mail gönderilmedi.",
         );
       } else if (email?.enabled && email.to) {
         setSuccess(`Gönderildi. Mail: ${email.to}`);
@@ -332,6 +343,11 @@ export function AdminNotificationsSection({
             Mail
           </label>
         </div>
+        {form.email && form.tenantId && !selectedHasContact ? (
+          <p className="mt-2 text-sm text-[#9a3412]">
+            Bu markanın iletişim e-postası yok. Mail gönderilmez; yalnızca uygulama içi bildirim gider.
+          </p>
+        ) : null}
         <button
           type="button"
           onClick={() => void onManualSend()}

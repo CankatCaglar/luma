@@ -41,6 +41,7 @@ import { AdminNotificationsSection } from "@/components/admin/AdminNotifications
 import { useAuth } from "@/components/auth/AuthProvider";
 import { LumaLogo, LumaStar } from "@/components/layout/NeraLogo";
 import {
+  isPortalLoginEmail,
   isValidPortalUsername,
   portalEmailFromUsername,
 } from "@/lib/auth/portalLogin";
@@ -213,7 +214,7 @@ function formatDriveCheck(check: {
 
 export default function AdminPage() {
   const router = useRouter();
-  const { enabled, user, isAdmin, adminChecking, signOutUser } = useAuth();
+  const { enabled, user, isAdmin, adminChecking, loading: authLoading, signOutUser } = useAuth();
   const [adminEmail, setAdminEmail] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
   const [adminLoginError, setAdminLoginError] = useState<string | null>(null);
@@ -261,7 +262,8 @@ export default function AdminPage() {
       form.brandName.trim().length >= 2 &&
       form.brandCode.trim().length >= 2 &&
       isValidPortalUsername(form.username) &&
-      (!form.contactEmail.trim() || form.contactEmail.includes("@")) &&
+      (!form.contactEmail.trim() ||
+        (form.contactEmail.includes("@") && !isPortalLoginEmail(form.contactEmail))) &&
       Boolean(form.workspaceGid) &&
       (lookup?.projectGids.length ?? 0) > 0 &&
       lookup?.brandCode === form.brandCode.trim().toUpperCase(),
@@ -676,7 +678,10 @@ export default function AdminPage() {
   }
 
   async function onSaveAccount(tenant: Tenant) {
-    if (contactDraft.trim() && !contactDraft.includes("@")) {
+    if (
+      contactDraft.trim() &&
+      (!contactDraft.includes("@") || isPortalLoginEmail(contactDraft))
+    ) {
       setError("Geçerli bir iletişim e-postası girin.");
       return;
     }
@@ -890,7 +895,7 @@ export default function AdminPage() {
     );
   }
 
-  if (adminChecking) {
+  if (authLoading || adminChecking) {
     return (
       <div className="flex min-h-dvh items-center justify-center px-4">
         <section className="w-full min-w-0 max-w-md rounded-3xl bg-white px-4 py-6 text-sm text-luma-muted shadow-[0_16px_48px_rgba(28,25,23,0.08)] ring-1 ring-luma-border/80 sm:px-6">

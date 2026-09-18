@@ -25,7 +25,7 @@ type NotificationsContextValue = {
 const NotificationsContext = createContext<NotificationsContextValue | null>(null);
 
 export function NotificationsProvider({ children }: { children: ReactNode }) {
-  const { user, enabled } = useAuth();
+  const { user, enabled, isAdmin } = useAuth();
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [unread, setUnread] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -37,7 +37,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   }, [enabled, user]);
 
   const refresh = useCallback(async () => {
-    if (!enabled || !user) {
+    if (!enabled || !user || isAdmin) {
       setItems([]);
       setUnread(0);
       setLoading(false);
@@ -63,14 +63,14 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [authHeaders, enabled, user]);
+  }, [authHeaders, enabled, user, isAdmin]);
 
   useEffect(() => {
     let cancelled = false;
     void (async () => {
       await Promise.resolve();
       if (cancelled) return;
-      if (!enabled || !user) {
+      if (!enabled || !user || isAdmin) {
         setItems([]);
         setUnread(0);
         setLoading(false);
@@ -101,7 +101,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [authHeaders, enabled, user]);
+  }, [authHeaders, enabled, user, isAdmin]);
 
   const markRead = useCallback(
     async (id: string) => {

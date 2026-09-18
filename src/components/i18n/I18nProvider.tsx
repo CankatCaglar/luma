@@ -47,9 +47,12 @@ function persistLocale(locale: Locale) {
 }
 
 export function I18nProvider({ children }: { children: ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>(() =>
-    typeof window === "undefined" ? defaultLocale : readStoredLocale(),
-  );
+  const [locale, setLocaleState] = useState<Locale>(defaultLocale);
+
+  useEffect(() => {
+    const stored = readStoredLocale();
+    if (stored !== defaultLocale) setLocaleState(stored);
+  }, []);
 
   useEffect(() => {
     document.documentElement.lang = locale;

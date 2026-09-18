@@ -138,7 +138,7 @@ function jobsStorageKey(uid: string) {
 }
 
 export function JobsProvider({ children }: { children: ReactNode }) {
-  const { enabled, user, loading } = useAuth();
+  const { enabled, user, loading, isAdmin } = useAuth();
   const persistUid = user?.uid ?? (!loading ? null : readLastBrandSession()?.uid ?? null);
   const storageKey = useMemo(
     () => jobsStorageKey(enabled ? persistUid ?? "guest" : "public"),
@@ -164,6 +164,7 @@ export function JobsProvider({ children }: { children: ReactNode }) {
   }, [storageKey]);
 
   const refresh = useCallback(async (force = false) => {
+    if (isAdmin) return;
     if (enabled && !user) {
       if (!loading) setData(null);
       return;
@@ -217,9 +218,10 @@ export function JobsProvider({ children }: { children: ReactNode }) {
 
     inflight.current = run;
     return run;
-  }, [enabled, loading, storageKey, user]);
+  }, [enabled, loading, storageKey, user, isAdmin]);
 
   useEffect(() => {
+    if (isAdmin) return;
     if (enabled && !user) return;
     const kickoff = window.setTimeout(() => {
       void refresh(false);
@@ -248,7 +250,7 @@ export function JobsProvider({ children }: { children: ReactNode }) {
       window.removeEventListener("online", refreshIfStale);
       window.clearInterval(timer);
     };
-  }, [enabled, refresh, user]);
+  }, [enabled, refresh, user, isAdmin]);
 
   useEffect(() => {
     if (!data?.partial) return;

@@ -41,7 +41,7 @@ function brandNameFromUser(
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(firebaseEnabled);
-  const [adminChecking, setAdminChecking] = useState(false);
+  const [adminChecking, setAdminChecking] = useState(firebaseEnabled);
   const [isAdmin, setIsAdmin] = useState(false);
   const [brandName, setBrandName] = useState<string | null>(null);
 
@@ -95,14 +95,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
       if (nextUser) {
         const previous = readLastBrandSession();
+        const cachedIsAdmin =
+          previous?.uid === nextUser.uid ? previous.isAdmin : false;
         const name =
           brandNameFromUser(nextUser) ??
           (previous?.uid === nextUser.uid ? previous.brandName : undefined) ??
           null;
+        setIsAdmin(cachedIsAdmin);
         setBrandName(name);
         writeLastBrandSession({
           uid: nextUser.uid,
-          isAdmin: previous?.uid === nextUser.uid ? previous.isAdmin : false,
+          isAdmin: cachedIsAdmin,
           brandName: name ?? undefined,
         });
         void nextUser.getIdTokenResult().then((token) => {
@@ -112,14 +115,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           );
           if (fromToken) {
             setBrandName(fromToken);
+            const current = readLastBrandSession();
             writeLastBrandSession({
               uid: nextUser.uid,
-              isAdmin: previous?.uid === nextUser.uid ? previous.isAdmin : false,
+              isAdmin: current?.uid === nextUser.uid ? current.isAdmin : false,
               brandName: fromToken,
             });
           }
         });
       } else {
+        setIsAdmin(false);
         setBrandName(null);
         writeLastBrandSession(null);
       }

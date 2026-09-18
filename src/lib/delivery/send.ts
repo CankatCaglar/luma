@@ -132,6 +132,11 @@ export async function sendDelivery(
   const now = Date.now();
   const createdAt = new Date(now).toISOString();
   const contactEmail = getTenantContactEmail(input.tenant);
+  const willSendEmail = emailEnabled && Boolean(contactEmail);
+  const skipEmailReason =
+    emailEnabled && !contactEmail
+      ? "İletişim e-postası yok, gönderilmedi"
+      : undefined;
 
   let record = await createDeliveryDoc({
     tenantId: input.tenant.tenantId,
@@ -154,9 +159,10 @@ export async function sendDelivery(
       },
       email: {
         enabled: emailEnabled,
-        status: emailEnabled ? "queued" : "skipped",
+        status: willSendEmail ? "queued" : "skipped",
         to: contactEmail || undefined,
         subject,
+        error: skipEmailReason,
       },
       push: { enabled: false, status: "skipped" },
     },
@@ -213,68 +219,53 @@ export async function sendDelivery(
     }
   }
 
-  if (emailEnabled) {
-    if (!contactEmail) {
-      const message = "Markanın iletişim e-postası yok";
+  if (willSendEmail && contactEmail) {
+    const result = await sendPlainEmail({
+      to: contactEmail,
+      subject,
+      text: body,
+    });
+    if (result.error) {
       await updateDelivery(record.id, {
         "channels.email.status": "failed",
-        "channels.email.error": message,
+        "channels.email.to": contactEmail,
+        "channels.email.subject": subject,
+        "channels.email.error": result.error,
       });
       record = {
         ...record,
         channels: {
           ...record.channels,
-          email: { ...record.channels.email, status: "failed", error: message },
+          email: {
+            ...record.channels.email,
+            status: "failed",
+            to: contactEmail,
+            subject,
+            error: result.error,
+          },
         },
       };
     } else {
-      const result = await sendPlainEmail({
-        to: contactEmail,
-        subject,
-        text: body,
+      await updateDelivery(record.id, {
+        "channels.email.status": "sent",
+        "channels.email.to": contactEmail,
+        "channels.email.subject": subject,
+        "channels.email.resendId": result.id ?? null,
+        emailResendId: result.id ?? null,
       });
-      if (result.error) {
-        await updateDelivery(record.id, {
-          "channels.email.status": "failed",
-          "channels.email.to": contactEmail,
-          "channels.email.subject": subject,
-          "channels.email.error": result.error,
-        });
-        record = {
-          ...record,
-          channels: {
-            ...record.channels,
-            email: {
-              ...record.channels.email,
-              status: "failed",
-              to: contactEmail,
-              subject,
-              error: result.error,
-            },
+      record = {
+        ...record,
+        channels: {
+          ...record.channels,
+          email: {
+            ...record.channels.email,
+            status: "sent",
+            to: contactEmail,
+            subject,
+            resendId: result.id,
           },
-        };
-      } else {
-        await updateDelivery(record.id, {
-          "channels.email.status": "sent",
-          "channels.email.to": contactEmail,
-          "channels.email.subject": subject,
-          "channels.email.resendId": result.id ?? null,
-          emailResendId: result.id ?? null,
-        });
-        record = {
-          ...record,
-          channels: {
-            ...record.channels,
-            email: {
-              ...record.channels.email,
-              status: "sent",
-              to: contactEmail,
-              subject,
-              resendId: result.id,
-            },
-          },
-        };
-      }
+        },
+      };
     }
   }
 
